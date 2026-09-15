@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<title>돈 축사 CFD 데이터 Three.js 대시보드 (기술 검토용 데모)</title>
+<style>
+  html, body { margin:0; padding:0; height:100%; background:#0e1116; color:#e6e6e6; font-family: -apple-system, "Malgun Gothic", sans-serif; overflow:hidden; }
+  #app { position:relative; width:100vw; height:100vh; }
+  canvas { display:block; }
+  #mainCanvas { width:100%; height:100%; }
+  #detailCanvas { width:100%; height:100%; }
+
+  #overview { position:absolute; inset:0; }
+  #labels { position:absolute; inset:0; pointer-events:none; }
+  .barn-label {
+    position:absolute; transform:translate(-50%,-100%);
+    background:rgba(20,24,32,0.85); border:1px solid #333c4a; border-radius:6px;
+    padding:4px 10px; font-size:13px; white-space:nowrap; pointer-events:none;
+  }
+  #hint {
+    position:absolute; top:16px; left:50%; transform:translateX(-50%);
+    background:rgba(20,24,32,0.85); border:1px solid #333c4a; border-radius:8px;
+    padding:8px 16px; font-size:13px; color:#9aa4b2;
+  }
+
+  #detailPanel {
+    position:absolute; top:0; right:0; height:100%; width:420px;
+    background:#151920; border-left:1px solid #2a303c;
+    transform:translateX(100%); transition:transform .35s ease;
+    display:flex; flex-direction:column; box-shadow:-12px 0 30px rgba(0,0,0,0.35);
+  }
+  #detailPanel.open { transform:translateX(0); }
+  #detailHeader { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid #2a303c; }
+  #detailHeader h2 { margin:0; font-size:16px; font-weight:600; color:#fff; }
+  #closeBtn { background:none; border:1px solid #333c4a; color:#e6e6e6; border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:15px; line-height:1; }
+  #detailCanvasWrap { width:100%; height:260px; position:relative; border-bottom:1px solid #2a303c; }
+  #hoverTooltip {
+    position:absolute; display:none; pointer-events:none; z-index:5;
+    background:rgba(10,13,18,0.92); border:1px solid #333c4a; border-radius:6px;
+    padding:6px 9px; font-size:11px; line-height:1.5; color:#e6e6e6; white-space:nowrap;
+  }
+  #hoverTooltip .k { color:#9aa4b2; }
+
+  #infoGrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:16px 18px; }
+  .infoCard { background:#1c2129; border:1px solid #2a303c; border-radius:8px; padding:10px 12px; }
+  .infoCard .k { font-size:11px; color:#9aa4b2; margin-bottom:4px; }
+  .infoCard .v { font-size:18px; font-weight:600; color:#fff; }
+
+  #detailControls { padding:0 18px 18px; font-size:13px; }
+  .row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; }
+  .row label { display:flex; align-items:center; gap:6px; cursor:pointer; }
+  .row input[type=range] { flex:1; }
+  .row span.val { min-width:44px; text-align:right; color:#9aa4b2; }
+  #timeRow { display:flex; align-items:center; gap:10px; margin-top:4px; }
+  #timeRow button { background:#2a5b8f; border:none; color:#fff; border-radius:6px; width:30px; height:28px; cursor:pointer; font-size:13px; }
+  #timeRow .t { min-width:48px; text-align:center; color:#e6e6e6; font-variant-numeric:tabular-nums; font-size:12px; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="overview">
+    <canvas id="mainCanvas"></canvas>
+    <div id="labels"></div>
+    <div id="hint">축사를 클릭하면 상세 정보를 확인할 수 있습니다</div>
+  </div>
+
+  <aside id="detailPanel">
+    <div id="detailHeader">
+      <h2 id="barnTitle">-</h2>
+      <button id="closeBtn">×</button>
+    </div>
+    <div id="detailCanvasWrap">
+      <canvas id="detailCanvas"></canvas>
+      <div id="hoverTooltip"></div>
+    </div>
+    <div id="infoGrid">
+      <div class="infoCard"><div class="k">평균 온도</div><div class="v" id="infoTemp">-</div></div>
+      <div class="infoCard"><div class="k">습도</div><div class="v" id="infoHum">-</div></div>
+      <div class="infoCard"><div class="k">ACH</div><div class="v" id="infoAch">-</div></div>
+      <div class="infoCard"><div class="k">경과 시간</div><div class="v" id="infoTime">-</div></div>
+    </div>
+    <div id="detailControls">
+      <div class="row">
+        <label><input type="checkbox" id="toggleVolume" checked /> 입체 확산 (등온면)</label>
+      </div>
+      <div class="row">
+        <span>확산 강도</span>
+        <input type="range" id="threshold" min="0.5" max="2" step="0.05" value="1" />
+        <span class="val" id="thresholdVal">1.00</span>
+      </div>
+      <div class="row">
+        <label><input type="checkbox" id="toggleVec" checked /> 기류 흐름 표시</label>
+      </div>
+      <div id="timeRow">
+        <button id="playBtn">▶</button>
+        <input type="range" id="timeSlider" min="0" max="30" step="1" value="0" />
+        <div class="t" id="timeLabel">0분</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
