@@ -4,6 +4,7 @@ export function frameToMinutes(frame) {
 
 export function getDom() {
   return {
+    overview: document.getElementById("overview"),
     mainCanvas: document.getElementById("mainCanvas"),
     detailCanvas: document.getElementById("detailCanvas"),
     detailCanvasWrap: document.getElementById("detailCanvasWrap"),

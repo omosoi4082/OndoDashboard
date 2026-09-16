@@ -10,7 +10,10 @@
   #mainCanvas { width:100%; height:100%; }
   #detailCanvas { width:100%; height:100%; }
 
-  #overview { position:absolute; inset:0; }
+  #overview { position:absolute; inset:0; transition:right .35s ease; }
+  /* 상세 패널이 열리면 3D 뷰 폭을 패널만큼 줄여서, 패널에 가려 안 보이던 축사(B/C동 등)가
+     항상 화면에 들어오게 한다 — 패널은 그냥 겹쳐 덮는 것이 아니라 공간을 나눠 쓴다. */
+  #overview.panel-open { right:420px; }
   #labels { position:absolute; inset:0; pointer-events:none; }
   .barn-label {
     position:absolute; transform:translate(-50%,-100%);

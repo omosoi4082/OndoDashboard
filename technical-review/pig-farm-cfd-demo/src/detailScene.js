@@ -10,7 +10,7 @@ import { createStreamlineController } from "./streamlines.js";
  * 등온면(볼륨) + 기류 스트림라인 + 호버 조회를 담당한다.
  */
 export function createDetailScene(detailCanvas, hoverTooltip) {
-  const renderer = new THREE.WebGLRenderer({ canvas: detailCanvas, antialias: true, alpha: true });
+  const renderer = new THREE.WebGLRenderer({ canvas: detailCanvas, antialias: true, alpha: true, logarithmicDepthBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   const scene = new THREE.Scene();
@@ -24,6 +24,7 @@ export function createDetailScene(detailCanvas, hoverTooltip) {
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(ROOM.w / 2, ROOM.h / 2, ROOM.d / 2);
   controls.enableDamping = true;
+  controls.zoomToCursor = true; // 휠 줌만 커서가 가리키는 지점 방향으로 (회전 중심은 고정)
 
   const roomBox = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(ROOM.w, ROOM.h, ROOM.d)),

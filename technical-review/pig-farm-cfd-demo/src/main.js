@@ -21,13 +21,37 @@ function resizeDetailRenderer() {
   detail.resize(dom.detailCanvasWrap);
 }
 
+function openMainViewForPanel() {
+  // #overview가 패널 폭(420px)만큼 줄어드는 CSS 트랜지션이 끝난 뒤 다시 프레이밍해야
+  // 방 3개(A/B/C)가 패널에 가려지지 않고 항상 화면 안에 들어온다.
+  dom.overview.classList.add("panel-open");
+  overview.resize();
+  overview.refit();
+  setTimeout(() => {
+    overview.resize();
+    overview.refit();
+  }, 360);
+}
+
+function closeMainViewForPanel() {
+  dom.overview.classList.remove("panel-open");
+  overview.resize();
+  overview.refit();
+  setTimeout(() => {
+    overview.resize();
+    overview.refit();
+  }, 360);
+}
+
 function selectBarn(id) {
+  const isFirstOpen = !dom.panel.classList.contains("open");
   selectedBarn = BARNS.find((b) => b.id === id);
   detail.setSelectedBarn(selectedBarn);
   dom.barnTitleEl.textContent = selectedBarn.name;
   dom.infoAch.textContent = `${selectedBarn.ach} 회/h`;
   dom.infoHum.textContent = `${selectedBarn.humidity}%`;
   dom.panel.classList.add("open");
+  if (isFirstOpen) openMainViewForPanel();
   requestAnimationFrame(resizeDetailRenderer); // 패널이 실제로 보인 뒤 크기 계산
 }
 
@@ -35,6 +59,7 @@ function closePanel() {
   dom.panel.classList.remove("open");
   selectedBarn = null;
   detail.setSelectedBarn(null);
+  closeMainViewForPanel();
 }
 dom.closeBtn.addEventListener("click", closePanel);
 
