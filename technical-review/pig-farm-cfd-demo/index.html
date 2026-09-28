@@ -4,59 +4,52 @@
 <meta charset="UTF-8" />
 <title>돈 축사 CFD 데이터 Three.js 대시보드 (기술 검토용 데모)</title>
 <style>
-  html, body { margin:0; padding:0; height:100%; background:#0e1116; color:#e6e6e6; font-family: -apple-system, "Malgun Gothic", sans-serif; overflow:hidden; }
+  html, body { margin:0; padding:0; height:100%; background:#f5f7fa; color:#1c2129; font-family: -apple-system, "Malgun Gothic", sans-serif; overflow:hidden; }
   #app { position:relative; width:100vw; height:100vh; }
   canvas { display:block; }
   #mainCanvas { width:100%; height:100%; }
   #detailCanvas { width:100%; height:100%; }
 
-  #overview { position:absolute; inset:0; transition:right .35s ease; }
-  /* 상세 패널이 열리면 3D 뷰 폭을 패널만큼 줄여서, 패널에 가려 안 보이던 축사(B/C동 등)가
-     항상 화면에 들어오게 한다 — 패널은 그냥 겹쳐 덮는 것이 아니라 공간을 나눠 쓴다. */
-  #overview.panel-open { right:420px; }
+  /* 상세 패널은 처음부터 항상 열려있다 — 3D 뷰 폭은 패널 폭만큼 줄어든 채 고정이라
+     패널이 축사(자돈사 A동)를 가리지 않는다. 클릭으로 열고/닫는 인터렉션은 없다. */
+  #overview { position:absolute; inset:0; right:760px; }
   #labels { position:absolute; inset:0; pointer-events:none; }
   .barn-label {
     position:absolute; transform:translate(-50%,-100%);
-    background:rgba(20,24,32,0.85); border:1px solid #333c4a; border-radius:6px;
+    background:rgba(255,255,255,0.92); border:1px solid #d7dee6; border-radius:6px;
     padding:4px 10px; font-size:13px; white-space:nowrap; pointer-events:none;
-  }
-  #hint {
-    position:absolute; top:16px; left:50%; transform:translateX(-50%);
-    background:rgba(20,24,32,0.85); border:1px solid #333c4a; border-radius:8px;
-    padding:8px 16px; font-size:13px; color:#9aa4b2;
+    color:#1c2129; box-shadow:0 2px 8px rgba(20,30,45,0.08);
   }
 
   #detailPanel {
-    position:absolute; top:0; right:0; height:100%; width:420px;
-    background:#151920; border-left:1px solid #2a303c;
-    transform:translateX(100%); transition:transform .35s ease;
-    display:flex; flex-direction:column; box-shadow:-12px 0 30px rgba(0,0,0,0.35);
+    position:absolute; top:0; right:0; height:100%; width:760px;
+    background:#ffffff; border-left:1px solid #e1e6ec;
+    display:flex; flex-direction:column; box-shadow:-12px 0 30px rgba(20,30,45,0.12);
   }
-  #detailPanel.open { transform:translateX(0); }
-  #detailHeader { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid #2a303c; }
-  #detailHeader h2 { margin:0; font-size:16px; font-weight:600; color:#fff; }
-  #closeBtn { background:none; border:1px solid #333c4a; color:#e6e6e6; border-radius:6px; width:30px; height:30px; cursor:pointer; font-size:15px; line-height:1; }
-  #detailCanvasWrap { width:100%; height:260px; position:relative; border-bottom:1px solid #2a303c; }
+  #detailHeader { display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid #e1e6ec; }
+  #detailHeader h2 { margin:0; font-size:16px; font-weight:600; color:#1c2129; }
+  #detailCanvasWrap { width:100%; height:640px; position:relative; border-bottom:1px solid #e1e6ec; background:#f5f7fa; }
   #hoverTooltip {
     position:absolute; display:none; pointer-events:none; z-index:5;
-    background:rgba(10,13,18,0.92); border:1px solid #333c4a; border-radius:6px;
-    padding:6px 9px; font-size:11px; line-height:1.5; color:#e6e6e6; white-space:nowrap;
+    background:rgba(255,255,255,0.96); border:1px solid #d7dee6; border-radius:6px;
+    padding:6px 9px; font-size:11px; line-height:1.5; color:#1c2129; white-space:nowrap;
+    box-shadow:0 2px 8px rgba(20,30,45,0.1);
   }
-  #hoverTooltip .k { color:#9aa4b2; }
+  #hoverTooltip .k { color:#8a94a3; }
 
   #infoGrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:16px 18px; }
-  .infoCard { background:#1c2129; border:1px solid #2a303c; border-radius:8px; padding:10px 12px; }
-  .infoCard .k { font-size:11px; color:#9aa4b2; margin-bottom:4px; }
-  .infoCard .v { font-size:18px; font-weight:600; color:#fff; }
+  .infoCard { background:#f5f7fa; border:1px solid #e1e6ec; border-radius:8px; padding:10px 12px; }
+  .infoCard .k { font-size:11px; color:#8a94a3; margin-bottom:4px; }
+  .infoCard .v { font-size:18px; font-weight:600; color:#1c2129; }
 
-  #detailControls { padding:0 18px 18px; font-size:13px; }
+  #detailControls { padding:0 18px 18px; font-size:13px; color:#1c2129; }
   .row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; gap:8px; }
   .row label { display:flex; align-items:center; gap:6px; cursor:pointer; }
   .row input[type=range] { flex:1; }
-  .row span.val { min-width:44px; text-align:right; color:#9aa4b2; }
+  .row span.val { min-width:44px; text-align:right; color:#8a94a3; }
   #timeRow { display:flex; align-items:center; gap:10px; margin-top:4px; }
   #timeRow button { background:#2a5b8f; border:none; color:#fff; border-radius:6px; width:30px; height:28px; cursor:pointer; font-size:13px; }
-  #timeRow .t { min-width:48px; text-align:center; color:#e6e6e6; font-variant-numeric:tabular-nums; font-size:12px; }
+  #timeRow .t { min-width:48px; text-align:center; color:#1c2129; font-variant-numeric:tabular-nums; font-size:12px; }
 </style>
 </head>
 <body>
@@ -64,13 +57,11 @@
   <div id="overview">
     <canvas id="mainCanvas"></canvas>
     <div id="labels"></div>
-    <div id="hint">축사를 클릭하면 상세 정보를 확인할 수 있습니다</div>
   </div>
 
   <aside id="detailPanel">
     <div id="detailHeader">
       <h2 id="barnTitle">-</h2>
-      <button id="closeBtn">×</button>
     </div>
     <div id="detailCanvasWrap">
       <canvas id="detailCanvas"></canvas>

@@ -12,7 +12,6 @@ export function getDom() {
 
     panel: document.getElementById("detailPanel"),
     barnTitleEl: document.getElementById("barnTitle"),
-    closeBtn: document.getElementById("closeBtn"),
 
     infoTemp: document.getElementById("infoTemp"),
     infoHum: document.getElementById("infoHum"),

@@ -6,7 +6,6 @@ import { getDom, frameToMinutes } from "./ui.js";
 
 const dom = getDom();
 
-let selectedBarn = null;
 let playing = false;
 let playTimer = null;
 
@@ -14,54 +13,23 @@ function currentTMin() {
   return frameToMinutes(Number(dom.timeSlider.value));
 }
 
-const overview = createOverviewScene(dom.mainCanvas, { onSelectBarn: selectBarn });
+const overview = createOverviewScene(dom.mainCanvas);
 const detail = createDetailScene(dom.detailCanvas, dom.hoverTooltip);
 
 function resizeDetailRenderer() {
   detail.resize(dom.detailCanvasWrap);
 }
 
-function openMainViewForPanel() {
-  // #overview가 패널 폭(420px)만큼 줄어드는 CSS 트랜지션이 끝난 뒤 다시 프레이밍해야
-  // 방 3개(A/B/C)가 패널에 가려지지 않고 항상 화면 안에 들어온다.
-  dom.overview.classList.add("panel-open");
-  overview.resize();
-  overview.refit();
-  setTimeout(() => {
-    overview.resize();
-    overview.refit();
-  }, 360);
-}
-
-function closeMainViewForPanel() {
-  dom.overview.classList.remove("panel-open");
-  overview.resize();
-  overview.refit();
-  setTimeout(() => {
-    overview.resize();
-    overview.refit();
-  }, 360);
-}
-
-function selectBarn(id) {
-  const isFirstOpen = !dom.panel.classList.contains("open");
-  selectedBarn = BARNS.find((b) => b.id === id);
-  detail.setSelectedBarn(selectedBarn);
-  dom.barnTitleEl.textContent = selectedBarn.name;
-  dom.infoAch.textContent = `${selectedBarn.ach} 회/h`;
-  dom.infoHum.textContent = `${selectedBarn.humidity}%`;
-  dom.panel.classList.add("open");
-  if (isFirstOpen) openMainViewForPanel();
-  requestAnimationFrame(resizeDetailRenderer); // 패널이 실제로 보인 뒤 크기 계산
-}
-
-function closePanel() {
-  dom.panel.classList.remove("open");
-  selectedBarn = null;
-  detail.setSelectedBarn(null);
-  closeMainViewForPanel();
-}
-dom.closeBtn.addEventListener("click", closePanel);
+// 상세보기 패널은 항상 열려있고, 항상 자돈사 A동만 표출한다 — 클릭으로 열고/닫는
+// 인터렉션은 없다(index.html에서 #overview/#detailPanel도 처음부터 열린 상태로 마크업됨).
+const selectedBarn = BARNS[0];
+detail.setSelectedBarn(selectedBarn);
+dom.barnTitleEl.textContent = selectedBarn.name;
+dom.infoAch.textContent = `${selectedBarn.ach} 회/h`;
+dom.infoHum.textContent = `${selectedBarn.humidity}%`;
+overview.resize();
+overview.refit();
+resizeDetailRenderer();
 
 dom.timeSlider.addEventListener("input", () => {
   dom.timeLabel.textContent = `${currentTMin()}분`;
@@ -89,7 +57,7 @@ function resizeMain() {
 }
 window.addEventListener("resize", () => {
   resizeMain();
-  if (dom.panel.classList.contains("open")) resizeDetailRenderer();
+  resizeDetailRenderer();
 });
 resizeMain();
 
@@ -100,21 +68,19 @@ let lastElapsed = 0;
   requestAnimationFrame(animate);
   overview.render();
 
-  if (selectedBarn) {
-    const tMin = currentTMin();
-    const elapsed = clock.getElapsedTime();
-    const delta = elapsed - lastElapsed;
-    lastElapsed = elapsed;
+  const tMin = currentTMin();
+  const elapsed = clock.getElapsedTime();
+  const delta = elapsed - lastElapsed;
+  lastElapsed = elapsed;
 
-    detail.render({
-      tMin,
-      showVolume: dom.toggleVolume.checked,
-      showStreams: dom.toggleVec.checked,
-      spreadIntensity: Number(dom.thresholdSlider.value),
-      delta,
-    });
+  detail.render({
+    tMin,
+    showVolume: dom.toggleVolume.checked,
+    showStreams: dom.toggleVec.checked,
+    spreadIntensity: Number(dom.thresholdSlider.value),
+    delta,
+  });
 
-    dom.infoTemp.textContent = `${selectedBarn.supplyTemp.toFixed(1)}°C`;
-    dom.infoTime.textContent = `${tMin}분`;
-  }
+  dom.infoTemp.textContent = `${selectedBarn.supplyTemp.toFixed(1)}°C`;
+  dom.infoTime.textContent = `${tMin}분`;
 })();

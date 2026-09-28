@@ -11,6 +11,48 @@ function loadGltf(url) {
   return gltfCache.get(url);
 }
 
+// 카메라를 향한 면(앞면)은 뚫어서 안 보이게 하고, 반대쪽(뒷면 — 방 안쪽/저편 벽)은
+// 그대로 보이게 하는 "컷어웨이" 재질. Blender의 Geometry(Backfacing) → Alpha 트릭과
+// 동일한 개념을 WebGL 프래그먼트 셰이더의 내장 변수 gl_FrontFacing으로 구현한다.
+// side를 DoubleSide로 켜서 양면을 다 래스터라이즈한 뒤, 프래그먼트 단계에서
+// 카메라 쪽(front-facing)만 discard — 알파 블렌딩이 아니라 진짜 discard라
+// 정렬 문제(z-fighting) 없이 항상 안정적으로 동작한다.
+const CUTAWAY_MATERIAL_PREFIXES = ["Plastic010"];
+
+export function applyCameraCutaway(root) {
+  const patched = new Set();
+  root.traverse((obj) => {
+    if (!obj.isMesh || !obj.material) return;
+    const mats = Array.isArray(obj.material) ? obj.material : [obj.material];
+    for (const mat of mats) {
+      if (!mat || patched.has(mat.uuid)) continue;
+      if (!CUTAWAY_MATERIAL_PREFIXES.some((p) => mat.name && mat.name.startsWith(p))) continue;
+      patched.add(mat.uuid);
+      mat.side = THREE.DoubleSide;
+      // discard로 반쪽을 지우는 방식이라 실제로는 완전 불투명 렌더 — 블렌딩/정렬에
+      // 맡기지 않도록 명시적으로 opaque 렌더 경로를 강제한다. (transparent:true인 채로
+      // 두면 depthWrite가 자동으로 꺼져서 살아남은 반대쪽 면까지 다른 오브젝트와의
+      // 정렬이 깨지며 안 보이는 것처럼 보일 수 있다 — 실제로 벽 전체가 사라져 보인
+      // 원인이 이것이었다.)
+      mat.transparent = false;
+      mat.alphaTest = 0;
+      mat.depthWrite = true;
+      mat.depthTest = true;
+      mat.shadowSide = THREE.BackSide; // 그림자는 진짜(반대쪽) 면 기준으로
+      const prevOnBeforeCompile = mat.onBeforeCompile;
+      mat.onBeforeCompile = (shader, renderer) => {
+        if (prevOnBeforeCompile) prevOnBeforeCompile(shader, renderer);
+        shader.fragmentShader = shader.fragmentShader.replace(
+          "#include <clipping_planes_fragment>",
+          `#include <clipping_planes_fragment>
+          if (gl_FrontFacing) discard;`
+        );
+      };
+      mat.needsUpdate = true;
+    }
+  });
+}
+
 /**
  * 와이어프레임 박스 placeholder 축사 1개를 만든다.
  * COMPLEX_MODEL_URL 로드가 실패했을 때의 대체용.
@@ -69,6 +111,13 @@ export async function loadBarnComplex(url, barns) {
 
   groundAndCenterModel(modelRoot);
   modelRoot.updateMatrixWorld(true); // 위 정렬을 반영한 최종 월드 좌표를 아래에서 그대로 씀
+  // 메인(개요) 화면은 벽을 그대로 불투명하게, 두께 있는 실제 벽/천장으로 보여준다.
+  // (판(두께 없음) 버전은 상세보기 패널 전용 — 컷어웨이 셰이더가 두꺼운 벽에서는
+  // 안쪽 면이 이상하게 겹쳐 보이는 문제가 있어서 상세보기에서만 판을 쓴다.)
+  for (const name of ["PigRoom_Walls_Flat", "PigRoom_Roof_Flat"]) {
+    const n = modelRoot.getObjectByName(name);
+    if (n) n.visible = false;
+  }
 
   const sections = [];
   for (const barn of barns) {
