@@ -1,0 +1,33 @@
+{
+  "name": "ondo-pig-dashboard",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run build -w packages/shared && concurrently -n relay,dashboard -c blue,green \"npm run dev -w apps/relay\" \"npm run dev -w apps/dashboard\"",
+    "build": "npm run build -w packages/shared && npm run build -w apps/relay && npm run build -w apps/dashboard",
+    "start": "npm run start -w apps/relay",
+    "test": "vitest run",
+    "lint": "eslint . && npm run lint -w apps/dashboard",
+    "typecheck": "npm run build -w packages/shared && npm run typecheck -w apps/relay && npm run typecheck -w apps/dashboard",
+    "mock:generate": "npm run mock:generate -w apps/relay",
+    "grid": "npm run grid -w apps/relay"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.8.0",
+    "@typescript-eslint/parser": "^8.8.0",
+    "concurrently": "^9.0.1",
+    "eslint": "^9.12.0",
+    "eslint-config-prettier": "^9.1.0",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.2"
+  }
+}
