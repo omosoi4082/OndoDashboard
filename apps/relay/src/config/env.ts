@@ -8,8 +8,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 loadDotenv({ path: path.resolve(__dirname, '../../../../.env') });
 
 // .env.example과 항상 일치시킨다. 새 설정을 추가하면 두 파일을 같이 고친다.
-// FARM_LAT/LON, KMA_NX/NY, KMA_SERVICE_KEY는 M1(KmaClient)에서부터 실제로 쓰인다 —
-// 그 전까지는 optional로 두고, M1에서 required로 좁힌다(docs/05-open-questions.md #12).
+// FARM_LAT/LON, KMA_NX/NY는 M1(KmaClient)부터 required로 좁힌다(docs/05-open-questions.md #12).
+// KMA_SERVICE_KEY는 공공데이터포털에서 발급 전까지 빈 값일 수 있으므로 계속 optional(빈 문자열 허용) —
+// 비어 있어도 서버는 뜨고, 실제 기상청 호출만 실패(disconnected)한다.
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
 
@@ -20,10 +21,10 @@ const envSchema = z.object({
   INPUT_FAN_PATH: z.string().min(1).default('JE/EX/NH/FN1/FAN1'),
 
   KMA_SERVICE_KEY: z.string().default(''),
-  FARM_LAT: z.coerce.number().optional(),
-  FARM_LON: z.coerce.number().optional(),
-  KMA_NX: z.coerce.number().int().optional(),
-  KMA_NY: z.coerce.number().int().optional(),
+  FARM_LAT: z.coerce.number(),
+  FARM_LON: z.coerce.number(),
+  KMA_NX: z.coerce.number().int(),
+  KMA_NY: z.coerce.number().int(),
 
   COMPUTE_MODE: z.enum(['mock', 'http']).default('mock'),
   COMPUTE_BASE_URL: z.string().min(1).default('http://localhost:9000'),
