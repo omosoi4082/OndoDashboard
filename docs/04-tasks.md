@@ -2,6 +2,21 @@
 
 계약 기간 1개월차(돈사 대시보드) 기준. 단계마다 완료 조건을 확인하고 요약 보고 후 다음 단계로 넘어간다. 공통 완료 조건: `npm run typecheck && npm test && npm run lint` 통과.
 
+## 2026-10-07 중계 서버 명세서 답변 반영 — 할 일
+
+`중계서버_명세서_v001_확인사항_답변_20261007.docx`(온도 예측 모델 담당 회신)와 `연산서버_첨부파일_20261007.zip`(geometry.json, sample_request/response, mock_expert.json, mock_control_energy.json, mock_control_environment.json) 검토 결과. 해결된 미확정 사항은 `docs/05-open-questions.md`에 반영 완료(1~6, 8~9, 11~16, 7·18 부분). 아래는 코드·문서에 실제 반영해야 할 작업 목록이며, 해당 마일스톤 작업 시작 전에 먼저 처리한다.
+
+- [ ] **문서 동기화(우선)**: `docs/02-relay-api.md` 6장, `docs/03-upstream-apis.md` 1.2·4.1·4.4장, `CLAUDE.md`의 "181건"/"1분 확장 1,440건" 서술을 5분 간격(현재 37건, 예측 실측 37 + 예보 288 = 325건)으로 갱신. `packages/shared` 타입에 top-level `model_version`, 프레임별 `outdoor`·`summary`·`quality` 필드 추가(05-open-questions #2, #5, #26).
+- [ ] **M4(현재 모드)**: `SensorHistoryClient`를 181 슬롯(1분)이 아닌 37 슬롯(5분 간격)으로 변경. 실제 센서 서버 API는 1분 간격만 제공(확인 완료, 05-open-questions #26) — 센서 서버에 5분 간격 이력 조회를 먼저 시도하고, 지원하지 않으면 1분 이력을 조회해 5분 마크(00·05·…·55분)만 선택(평균·보간 금지)해 연산 서버에는 5분 간격으로 넘긴다.
+- [ ] **M5(예측 모드)**: 예보 1분 확장(1,440건) 로직을 5분 간격 288건으로 교체. 기상청 1시간 값(TMP·REH)을 정시에 두고 5분 단위로 선형 보간(보간 어려우면 시간대 내 동일값 유지). 예보 구간의 `fan_pct`는 null 대신 `fan_pct = clamp(20 + 80×(T_out−22)/8, 20, 100)`로 계산(`.env`: `FAN_T_LOW=22`, `FAN_T_HIGH=30`, `FAN_MIN=20`, `FAN_MAX=100`, 소수 1자리, `.env.example`도 갱신). 요청 바디 최상위에 `forecast_from`(예보 첫 시각)·`forecast_issued_at`(기상청 발표 시각) 추가, 타임존 없는 KST 문자열. `inputs`는 실측+예보 325건을 이어 붙임. summary 형식(연동명세서 v1.0) 빌더는 만들지 않음 — `FORECAST_INPUT_FORMAT` 분기 제거 검토.
+- [ ] **COMPUTE_BASE_URL**: 포트 9000(`.env.example`), `GET /v1/health` 핑 체크를 `GET /api/health`의 compute 상태에 반영 검토.
+- [ ] **geometry 반영**: 첨부 `geometry.json`을 `config/geometry.json`(`GEOMETRY_FILE`)으로 교체. room(칸막이 좌표·급기구 3개·배기구·센서 8개 위치) 포함 확인, `scene/layout.ts`의 임시값을 이 좌표로 교체.
+- [ ] **농장 위경도**: `.env`에 `FARM_LAT=33.446297`, `FARM_LON=126.563879` 반영, `npm run grid`로 nx/ny가 온도 측 값(53, 37)과 일치하는지 검증.
+- [ ] **M6(전문가 모드)**: 첨부 `mock_expert.json`을 `mock/`에 반영. 목업 단계이므로 화면 입력 필드 3개(temp·rh·vent) 값과 무관하게 같은 결과를 그대로 반환(확인 완료, 05-open-questions #24) — 입력값 echo만 하고 별도 반영 로직 불필요.
+- [ ] **M6(제어 모드) — 05-open-questions #25 확인 중(사용자가 온도 측에 직접 재확인 예정)**: `mock_control_energy.json`·`mock_control_environment.json`을 `mock/`에 반영, target에 맞는 파일을 그대로 반환(둘 중 하나만 써도 무방, 확인 완료 05-open-questions #27). 단, 두 환기량 곡선(`baseline_fan_pct`/`optimized_fan_pct`)과 절감률을 보여주는 `control` 블록 스키마는 아직 받지 못했으므로, 그 화면(절감률·곡선 비교)은 스키마 확정 전까지 보류하고 나머지(frames 재생 등)만 먼저 구현.
+- [ ] **WIND/날씨 변환**: `WIND` 0~360 숫자 → 16방위, 풍속 `CURWIND`/`MAXWIND` 별도 필드 반영. 미세기후 weatherCode: `RAIN > 0`이면 시간 무관 RAIN, 그 외 null 규칙 확정 반영(03 문서 3장 갱신).
+- [ ] **EXPERT_INPUT_RANGE**: 목업 단계 값으로 구체화 — temp −30~50, rh 0~100, vent(가동률 %) 20~100.
+
 ## M0. 저장소 기본 구성
 
 - npm workspaces 모노레포: `apps/dashboard`, `apps/relay`, `packages/shared`, `mock/`.
