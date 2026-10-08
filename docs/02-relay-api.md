@@ -147,7 +147,17 @@ export interface DetailBase {
 export interface CurrentDetail extends DetailBase { mode: 'current' }
 export interface ForecastDetail extends DetailBase { mode: 'forecast' }
 export interface ExpertDetail extends DetailBase { mode: 'expert'; input: { temp: number; rh: number; vent: number } }
-export interface ControlDetail extends DetailBase { mode: 'control'; target: 'energy' | 'environment' }
+export interface ControlBlock {
+  baselineFanPct: number[];      // 145, frames와 같은 순서
+  optimizedFanPct: number[];     // 145
+  baselineTMean: number[];       // 145
+  optimizedTMean: number[];      // 145
+  energyKwh: { baseline: number; optimized: number };
+  savingPct: number;
+  tMax: { baseline: number; optimized: number };
+  constraint: { tMeanMax: number };
+}
+export interface ControlDetail extends DetailBase { mode: 'control'; target: 'energy' | 'environment'; control: ControlBlock }
 ```
 
 대시보드는 `frames.length`와 Geometry의 `grid.size`로만 동작(개수 하드코딩 금지).
@@ -178,14 +188,14 @@ export interface ControlDetail extends DetailBase { mode: 'control'; target: 'en
 | API | 파라미터 | 처리 |
 |---|---|---|
 | `GET /api/detail/geometry` | 없음 | 형상 파일 반환(상세 진입 시 1회) |
-| `GET /api/detail/current` | 없음 | 10분 단위 정각 기준 180분 이력(181건) → `POST /v1/current`. 끝 시각 단위 캐시 |
-| `GET /api/detail/forecast` | 없음 | 실측 181건(current와 같은 구간) + 단기예보 1시간 TMP·REH를 1분으로 채운 1,440건(fan_pct null) → `POST /v1/forecast` |
+| `GET /api/detail/current` | 없음 | 180분 이력을 5분 간격으로 집계한 37건 → `POST /v1/current`. 끝 시각 단위 캐시 |
+| `GET /api/detail/forecast` | 없음 | 실측 37건(current와 같은 구간, 5분 간격) + 단기예보 1시간 TMP·REH를 5분 간격으로 보간한 288건(fan_pct는 외기 기온 규칙으로 계산) = 325건 → `POST /v1/forecast` |
 | `GET /api/detail/expert` | `temp`, `rh`, `vent` (필수) | 목업 반환, input 회신. 유효성 검사(숫자·범위·빈 값)는 대시보드 입력 필드에서 하고 통과한 값만 전송, 중계 서버도 같은 범위로 재확인(직접 호출 대비, 위반 시 400) |
 | `GET /api/detail/control` | `target` = `energy`(기본) \| `environment` | 목업 반환 |
 
 - current 입력 구간: 이미 완료된 분 중 가장 최근의 10분 단위 정각(00·10·20·30·40·50분)이 끝, 180분 전이 시작. 15:26 → 12:20~15:20, 15:20:30 → 12:10~15:10(15:20분 값이 아직 완료 전). 10분 폴링마다 새 입력으로 연산하고, 같은 10분 구간 안의 재요청만 캐시 응답.
   - 이유: 센서 서버는 1분 안의 측정값을 평균 내 분 단위 값을 만들기 때문에, 현재 분까지 받으면 마지막 값이 비거나 불완전한 평균이 된다. 완료된 10분 정각으로 끊으면 이를 피하고 입력 구간·결과 시각이 폴링 주기와 같은 10분 간격으로 맞는다.
-- forecast 입력은 회의 결정 형식. 연동명세서 v1.0 요약 형식과 차이가 있어 확인 중이므로 `FORECAST_INPUT_FORMAT=series|summary` 설정으로 둘 다 만들 수 있게 한다(기본 series). 예보가 24시간을 못 채우면 직전 발표분 재요청, 그래도 부족하면 502.
+- forecast 입력은 회의 결정 형식. 연동명세서 v1.0 요약 형식과 차이가 있어 확인 중이므로 `FORECAST_INPUT_FORMAT=series|summary` 설정으로 둘 다 만들 수 있게 한다(기본 series). 예보가 24시간을 못 채우면 직전 발표분 재요청, 그래도 부족하면 502. 연속 3시간 이상 결측이거나 조회 자체가 실패하면 "기상청 예보 조회 실패"로 표시하고 연산 서버를 호출하지 않는다(`ApiError`, `source: 'kma'`).
 - 연산 대기 중 대시보드는 3D·2D 영역 로딩 표시. `COMPUTE_TIMEOUT_MS` 초과 시 504.
 
 ## 7. `GET /api/health`

@@ -132,9 +132,21 @@ export interface ExpertDetail extends DetailBase {
   input: { temp: number; rh: number; vent: number };
 }
 
+export interface ControlBlock {
+  baselineFanPct: number[]; // 145, frames와 같은 순서
+  optimizedFanPct: number[]; // 145
+  baselineTMean: number[]; // 145
+  optimizedTMean: number[]; // 145
+  energyKwh: { baseline: number; optimized: number };
+  savingPct: number;
+  tMax: { baseline: number; optimized: number };
+  constraint: { tMeanMax: number };
+}
+
 export interface ControlDetail extends DetailBase {
   mode: 'control';
   target: 'energy' | 'environment';
+  control: ControlBlock;
 }
 
 // 7. GET /api/health
