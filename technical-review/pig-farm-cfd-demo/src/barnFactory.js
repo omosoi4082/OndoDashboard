@@ -81,18 +81,19 @@ export function createPlaceholderBarn(barn, pos) {
 
 /**
  * COMPLEX_MODEL_URL 하나를 로드해서, 그 안에 서로 붙어있는 방 노드들을
- * barns[].modelNodeName 기준으로 찾아 축사 A/B/C의 클릭 영역으로 매핑한다.
- * 방 3개는 원본 파일에 있는 그대로(서로 붙은 채) 위치를 바꾸지 않는다 —
+ * barns[]의 modelNodeName(단일 노드 정확히 일치) 또는 modelNodePrefix(그 접두사로
+ * 시작하는 노드를 전부 모음) 기준으로 찾아 축사 A/B/C의 클릭 영역으로 매핑한다.
+ * 방들은 원본 파일에 있는 그대로(서로 붙은 채) 위치를 바꾸지 않는다 —
  * 모델 전체(modelRoot)만 바닥/중심 기준으로 한 번 정렬한다.
  *
- * 클릭 판정용으로 별도의 박스 메시를 만들지 않고, 각 방 노드 자체에
+ * 클릭 판정용으로 별도의 박스 메시를 만들지 않고, 매칭된 노드 자체에
  * userData.barnId를 붙인다 — modelRoot를 재귀적으로 레이캐스트해서 맞은 메시에서
- * 부모 쪽으로 올라가며 barnId를 찾으면, 방 3개가 서로 붙어있어도(경계가 맞닿아도)
+ * 부모 쪽으로 올라가며 barnId를 찾으면, 방들이 서로 붙어있어도(경계가 맞닿아도)
  * 항상 "실제로 클릭한 방"이 정확히 선택된다.
  *
  * @returns {Promise<{
  *   modelRoot: THREE.Object3D,
- *   sections: Array<{ barnId: number, node: THREE.Object3D, center: THREE.Vector3, size: THREE.Vector3 }>
+ *   sections: Array<{ barnId: number, node: THREE.Object3D, nodes: THREE.Object3D[], center: THREE.Vector3, size: THREE.Vector3 }>
  * }>}
  */
 // GLTFLoader는 노드 이름을 애니메이션 바인딩 경로에 쓸 수 있게 "정제"하면서
@@ -121,24 +122,48 @@ export async function loadBarnComplex(url, barns) {
 
   const sections = [];
   for (const barn of barns) {
-    const node = modelRoot.getObjectByName(sanitizeNodeName(barn.modelNodeName));
-    if (!node) {
-      console.warn(`[barn:${barn.id}] "${barn.modelNodeName}" 노드를 모델에서 찾지 못했습니다.`);
+    const nodes = findBarnNodes(modelRoot, barn);
+    if (nodes.length === 0) {
+      console.warn(`[barn:${barn.id}] "${barn.modelNodeName ?? barn.modelNodePrefix}" 노드를 모델에서 찾지 못했습니다.`);
       continue;
     }
 
-    node.userData.barnId = barn.id;
+    const box = new THREE.Box3();
+    for (const node of nodes) {
+      node.userData.barnId = barn.id;
+      box.expandByObject(node);
+    }
 
-    const box = new THREE.Box3().setFromObject(node);
     const size = new THREE.Vector3();
     box.getSize(size);
     const center = new THREE.Vector3();
     box.getCenter(center);
 
-    sections.push({ barnId: barn.id, node, center, size });
+    sections.push({ barnId: barn.id, node: nodes[0], nodes, center, size });
   }
 
   return { modelRoot, sections };
+}
+
+/**
+ * barn.modelNodeName(단일 노드, 정확히 일치)이면 그 노드 하나만, barn.modelNodePrefix면
+ * (예: "Grower_") 그 접두사로 시작하는 노드를 전부 찾아 배열로 반환한다 — 방이 하나의
+ * 루트 빈(empty)으로 묶이지 않고 낱개 노드들로만 모델링된 경우(육성/비육)를 위한 것.
+ */
+function findBarnNodes(modelRoot, barn) {
+  if (barn.modelNodeName) {
+    const node = modelRoot.getObjectByName(sanitizeNodeName(barn.modelNodeName));
+    return node ? [node] : [];
+  }
+  if (barn.modelNodePrefix) {
+    const prefix = sanitizeNodeName(barn.modelNodePrefix);
+    const matched = [];
+    modelRoot.traverse((obj) => {
+      if (obj.name && obj.name.startsWith(prefix)) matched.push(obj);
+    });
+    return matched;
+  }
+  return [];
 }
 
 /** hit(레이캐스트로 맞은 메시)에서 부모 쪽으로 올라가며 가장 가까운 userData.barnId를 찾는다. */

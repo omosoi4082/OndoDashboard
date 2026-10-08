@@ -26,10 +26,12 @@ export const BARN_LABEL_HEIGHT = 3.2;
 // 상세보기(detailScene.js)는 계속 이 모델을 그대로 쓴다.
 export const COMPLEX_MODEL_URL = "../assets/models/p1.glb?v=17";
 
-// 메인 화면(overviewScene.js) 전용 모델 — 자돈사 A동(웨이너룸) 실측 모델로 교체.
-// P1 노드(방+돼지+환기 장비 등) 하나로 구성되어 있어 BARNS의 자돈사 A동
-// (modelNodeName: "P1")에 그대로 매핑된다.
-export const OVERVIEW_MODEL_URL = "../assets/models/weaner_room_test.glb?v=1";
+// 메인 화면(overviewScene.js) 전용 모델 — 자돈·육성·비육 3개 방이 한 파일에 통합된
+// 실측 모델(2026-10-08 교체본)로 바뀌었다. 이전 weaner_room_test.glb(자돈 1개 방뿐)와
+// 달리, 자돈(P1)은 예전처럼 단일 루트 노드지만 육성/비육은 Blender에서 하나의 빈(empty)
+// 으로 묶이지 않고 "Grower_"/"Finisher_" 접두사가 붙은 낱개 노드들로만 구성돼 있어
+// BARNS에서 modelNodeName 대신 modelNodePrefix로 매칭한다(barnFactory.js 참고).
+export const OVERVIEW_MODEL_URL = "../assets/models/weaner_room_test-001.glb?v=1";
 
 // 모델 로드에 실패했을 때만 쓰는 placeholder 배치 (서로 떨어진 박스 3개)
 export const FALLBACK_POSITIONS = [
@@ -41,38 +43,37 @@ export const FALLBACK_POSITIONS = [
 /* ────────────────────────────────────────────────────────────
    축사 3개 설정 (실제로는 서버/CMS에서 가져올 목록)
 
-   modelNodeName: COMPLEX_MODEL_URL 안에서 이 축사에 해당하는 노드 이름.
-   해당 노드를 찾지 못하거나 모델 로드가 실패하면 FALLBACK_POSITIONS
-   순서대로 와이어프레임 박스(placeholder)로 대체된다.
+   modelNodeName: 노드 이름 "정확히 일치"로 찾는다(자돈/P1처럼 방 전체가 노드 하나).
+   modelNodePrefix: 이 접두사로 시작하는 노드를 전부 찾아 하나의 축사로 묶는다
+   (육성/비육처럼 방이 여러 낱개 노드로만 구성된 경우). 해당 노드를 찾지 못하거나
+   모델 로드가 실패하면 FALLBACK_POSITIONS 순서대로 와이어프레임 박스(placeholder)로
+   대체된다.
+
+   육성·비육은 모델 자체가 이미 벽·팬·가림막 전부 단일 회색 재질(PigRoom_Gray)로
+   만들어져 있어(자돈방만 콘크리트·크림·분홍 등으로 세부 재질이 다양함) 코드에서
+   따로 회색 처리를 하지 않는다 — 원본 재질 그대로 쓰는 것이 실험군(EX) 자돈방만
+   상세 패널 대상이라는 화면 설계 규칙과도 맞는다. 상세 패널은 항상 자돈방(id 0)만
+   보여준다(main.js, 클릭 인터랙션 없음) — 육성·비육은 ach/supplyTemp/humidity/seed
+   같은 상세용 합성 CFD 필드가 필요 없다.
 ──────────────────────────────────────────────────────────── */
-// B동/C동은 아직 실측 모델이 없어 일단 대시보드에서 뺐다 — 나중에 모델이 생기면
-// 아래 주석을 풀고 modelNodeName만 실제 노드 이름에 맞춰 넣으면 된다.
 export const BARNS = [
   {
     id: 0,
-    name: "자돈사 A동",
+    name: "자돈방",
     ach: 20,
     supplyTemp: 30,
     humidity: 62,
     seed: 0.0,
-    modelNodeName: "P1", // 가장 작은 방
+    modelNodeName: "P1", // 자돈(Weaner) 방 — 유일하게 상세 패널에서 쓰인다
   },
-  // {
-  //   id: 1,
-  //   name: "자돈사 B동",
-  //   ach: 15,
-  //   supplyTemp: 28,
-  //   humidity: 58,
-  //   seed: 1.7,
-  //   modelNodeName: "P1.001", // 중간 크기 방
-  // },
-  // {
-  //   id: 2,
-  //   name: "자돈사 C동",
-  //   ach: 25,
-  //   supplyTemp: 31,
-  //   humidity: 65,
-  //   seed: 3.3,
-  //   modelNodeName: "P1.002", // 가장 큰 방
-  // },
+  {
+    id: 1,
+    name: "육성돈방",
+    modelNodePrefix: "Grower_",
+  },
+  {
+    id: 2,
+    name: "비육돈방",
+    modelNodePrefix: "Finisher_",
+  },
 ];
