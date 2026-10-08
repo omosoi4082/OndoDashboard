@@ -112,7 +112,7 @@
 
 - 에너지 최적화 / 환경 최적화 전환 버튼(28). 기본값 에너지 최적화.
 - 탭 선택 시 `target=energy`, 버튼 전환 시 해당 target으로 `GET /api/detail/control`. 응답의 `control` 블록(기준·최적화 환기량, 절감률, 전력량, 최고 온도)을 사용. 현재는 목업 응답.
-- 환기량 비교 그래프(34, 32번 3D 영역 오버레이, C안·2026-10-08 화면설계서 확정): 요약 카드(절감률 `control.savingPct`, 팬 전력량 `control.energyKwh.baseline → optimized`, 최고 온도 `control.T_max.baseline → optimized`) + 그래프(y축 0~100%, x축 24시간 6시간 간격 눈금). 기준 환기량(`control.baselineFanPct`)은 점선, 최적화 환기량(`control.optimizedFanPct`)은 실선. 재생 위치는 세로선으로 표시하고 재생 중 타임라인과 함께 이동한다. 두 곡선은 `frames[i].time`(10분 간격 145프레임)을 시간축으로 공유.
+- 환기량 비교 그래프(34, 32번 3D 영역 오버레이, C안·2026-10-08 화면설계서 확정): 요약 카드(절감률 `control.savingPct`, 팬 전력량 `control.energyKwh.baseline → optimized`, 최고 온도 `control.T_max.baseline → optimized`) + 그래프(y축 0~100%, x축 24시간 6시간 간격 눈금). 기준 환기량(`control.baselineFanPct`)은 점선, 최적화 환기량(`control.optimizedFanPct`)은 실선. 재생 위치는 세로선으로 표시하고 재생 중 타임라인과 함께 이동한다. 두 곡선은 `frames[i].time`(10분 간격 145프레임)을 시간축으로 공유. 레퍼런스: `docs/design/screen-design.png`(on-05 34번), `docs/design/control-c-summary-card.png`(요약카드+그래프 상세).
 - 타임라인(31) 재생.
 
 ### 4.5 타임라인 (17·24·31)
