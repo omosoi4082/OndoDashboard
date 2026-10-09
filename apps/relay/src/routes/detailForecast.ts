@@ -82,7 +82,10 @@ export function registerDetailForecastRoute(
 ): void {
   app.get('/api/detail/forecast', async (_request, reply): Promise<ApiOk<ForecastDetail> | ApiError> => {
     const requestedAt = nowKstIso();
-    const now = kstWallClock(new Date());
+    // KmaClient는 실제 시각(Date)을 받아 내부에서 kstWallClock을 적용한다 — 이미 변환한 now를
+    // 넘기면 +9h가 두 번 걸려 아직 발표 전인 base_time을 요청하게 된다(mainWeatherKma.ts와 동일).
+    const realNow = new Date();
+    const now = kstWallClock(realNow);
     const window = completedTenMinuteWindow(now);
 
     // 1) 실측 37건(현재 모드와 같은 5분 집계 구간·결측 판정 공유).
@@ -128,7 +131,7 @@ export function registerDetailForecastRoute(
     }
     const hourMarks = hourlyMarks(floorToHour(forecastFromMin), ceilToHour(lastMark));
 
-    const primary = await deps.kmaClient.getVilageFcst(now);
+    const primary = await deps.kmaClient.getVilageFcst(realNow);
     if (!primary) {
       return sendError(reply, requestedAt, 'UPSTREAM_ERROR', 'kma', '기상청 예보 조회 실패');
     }
@@ -139,7 +142,7 @@ export function registerDetailForecastRoute(
     // 24시간을 못 채우면(결측 있으면) 직전 발표분을 재요청해 빈 슬롯만 보충한다(docs/02 6장).
     const issuedAt = primary.baseAt;
     if (tmpValues.includes(null) || rehValues.includes(null)) {
-      const fallback: KmaFcstResult | null = await deps.kmaClient.getVilageFcst(now, 1);
+      const fallback: KmaFcstResult | null = await deps.kmaClient.getVilageFcst(realNow, 1);
       if (fallback) {
         tmpValues = mergeHourlyFallback(tmpValues, hourlyValuesAtMarks(hourMarks, categoryMap(fallback.items, 'TMP')));
         rehValues = mergeHourlyFallback(rehValues, hourlyValuesAtMarks(hourMarks, categoryMap(fallback.items, 'REH')));
