@@ -66,7 +66,7 @@ npm run grid -- <lat> <lon>   # 위경도 → 기상청 격자(nx, ny)
 - 연산 서버 요청은 `POST /v1/current`·`/v1/forecast`, 본문 `request_id` + `inputs[]{time, T_out, RH_out, fan_pct}`. 센서 원자료는 반올림·보간하지 않는다(빈 분은 null).
 - 연산 서버 응답 구조는 우리 쪽 정의(docs/03 4.2)이며 시각별 값만 담는다. 포인트 좌표와 grid·flowGrid 정의는 고정 형상이라 `GET /api/detail/geometry`로 한 번만 받는다.
 - 3D 메쉬·2D 단면은 125개 포인트가 아니라 grid 값(2,584개)으로 그리고, 유동 실린더는 flowGrid 값(288개)으로 그린다. 개수는 하드코딩하지 않고 geometry에서 읽는다.
-- 현재 모드 입력 구간은 완료된 최근 10분 단위 정각을 끝으로 181건이다(docs/02 6장).
+- 현재 모드 입력 구간은 완료된 최근 10분 단위 정각을 끝으로 180분(1분 원자료 181개 → 5분 집계 37건)이다(docs/02 6장).
 
 ## 코드 규칙
 

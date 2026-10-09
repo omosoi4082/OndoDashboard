@@ -28,8 +28,13 @@ export interface KmaClient {
   getUltraSrtNcst(now: Date): Promise<KmaNcstResult | null>;
   /** 초단기예보(getUltraSrtFcst): SKY 등. */
   getUltraSrtFcst(now: Date): Promise<KmaFcstResult | null>;
-  /** 단기예보(getVilageFcst): TMP, REH(1시간 단위). */
-  getVilageFcst(now: Date): Promise<KmaFcstResult | null>;
+  /**
+   * 단기예보(getVilageFcst): TMP, REH(1시간 단위). startStepsBack을 생략하면 최신 발표분부터
+   * 시도하고 NO_DATA면 1회 직전으로 재시도한다(기본 동작). docs/02-relay-api.md 6장 "예보가
+   * 24시간을 못 채우면 직전 발표분 재요청" 용도로 startStepsBack=1을 명시해 "그 다음" 발표분
+   * (최신 발표분보다 한 단계 더 이전)부터 바로 시도할 수도 있다.
+   */
+  getVilageFcst(now: Date, startStepsBack?: number): Promise<KmaFcstResult | null>;
 }
 
 interface KmaClientOpts {
@@ -52,6 +57,7 @@ async function fetchOperation<T>(
   baseTimeFn: (now: Date, stepsBack?: number) => { baseDate: string; baseTime: string },
   now: Date,
   opts: KmaClientOpts,
+  startStepsBack = 0,
 ): Promise<{ items: T[]; baseAt: string } | null> {
   const attempt = async (stepsBack: number): Promise<{ items: T[]; baseAt: string } | null> => {
     const bt = baseTimeFn(now, stepsBack);
@@ -89,10 +95,10 @@ async function fetchOperation<T>(
   };
 
   try {
-    const first = await attempt(0);
+    const first = await attempt(startStepsBack);
     if (first) return first;
     // resultCode=03(NO_DATA) → 직전 발표 시각으로 1회 재요청(docs/03 2장).
-    return await attempt(1);
+    return await attempt(startStepsBack + 1);
   } catch {
     return null;
   }
@@ -112,9 +118,9 @@ export function createKmaClient(opts: KmaClientOpts): KmaClient {
       return fetchOperation('getUltraSrtFcst', kmaFcstItemSchema, ultraSrtFcstBaseTime, kstNow, opts);
     },
 
-    async getVilageFcst(now: Date): Promise<KmaFcstResult | null> {
+    async getVilageFcst(now: Date, startStepsBack = 0): Promise<KmaFcstResult | null> {
       const kstNow = kstWallClock(now);
-      return fetchOperation('getVilageFcst', kmaFcstItemSchema, vilageFcstBaseTime, kstNow, opts);
+      return fetchOperation('getVilageFcst', kmaFcstItemSchema, vilageFcstBaseTime, kstNow, opts, startStepsBack);
     },
   };
 }

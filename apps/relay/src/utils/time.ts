@@ -34,3 +34,38 @@ export function toNumberOrNull(v: string | number | null | undefined): number | 
   const n = typeof v === 'number' ? v : Number(v);
   return Number.isFinite(n) ? n : null;
 }
+
+function pad2(n: number): string {
+  return n.toString().padStart(2, '0');
+}
+
+/**
+ * kstWallClock()이 반환한 Date(getUTC*가 KST 벽시계 값)를 "YYYYMMDDHHmm"으로 포맷한다.
+ * 센서 서버 이력 조회(`?start=...&end=...`, docs/03-upstream-apis.md 1.2)에 쓴다.
+ */
+export function formatKstWallClockCompact(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = pad2(d.getUTCMonth() + 1);
+  const day = pad2(d.getUTCDate());
+  const hh = pad2(d.getUTCHours());
+  const mm = pad2(d.getUTCMinutes());
+  return `${y}${m}${day}${hh}${mm}`;
+}
+
+/**
+ * kstWallClock() 결과 Date를 센서 서버 timestamp 형식(타임존 없음, 분 단위)으로 포맷한다.
+ * "YYYY-MM-DDTHH:mm:00" — 센서 응답의 timestamp 문자열과 그대로 비교할 수 있는 키로 쓴다.
+ */
+export function formatKstWallClockNaive(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = pad2(d.getUTCMonth() + 1);
+  const day = pad2(d.getUTCDate());
+  const hh = pad2(d.getUTCHours());
+  const mm = pad2(d.getUTCMinutes());
+  return `${y}-${m}-${day}T${hh}:${mm}:00`;
+}
+
+/** kstWallClock() 결과 Date를 Iso8601(+09:00) 문자열로 포맷한다. */
+export function formatKstWallClockIso(d: Date): string {
+  return `${formatKstWallClockNaive(d)}+09:00`;
+}

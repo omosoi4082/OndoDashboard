@@ -78,8 +78,8 @@
 
 - 발표 시각 계산은 순수 함수 + 테스트(자정 넘김 포함). 제공 지연 시간은 하드코딩하지 말고 NO_DATA 재요청으로 처리.
 - 캐시: 같은 (오퍼레이션, base_date, base_time) 응답은 메모리 캐시.
-- 예측 입력 계산(series 형식): 각 정시 TMP·REH를 그 시각~59분에 같은 값으로 채워 1분 단위로 만든다. 마지막 실측 다음 분부터 1,440분. 해당 시간대 값이 없으면 가장 가까운 다음 시각 값. 예보 결측 처리: 1시간 값이 비면 앞뒤 정시 값으로 보간. 연속 `FORECAST_GAP_MAX_HOURS`시간(기본 3시간) 이상 결측이거나 조회 자체가 실패하면 "기상청 예보 조회 실패"로 표시하고 연산 서버를 호출하지 않는다.
-- summary 형식(연동명세서 v1.0, 확인 중): 24시간 TMP 최대 = T_max, 최소 = T_min, REH 평균 = RH_mean, fan은 `FAN_T_*` 설정값. 검증 T_min < T_max, T_20 < T_50 < T_100.
+- 예측 입력 계산(series 형식, 2026-10-08 5분 간격으로 확정): 정시 TMP·REH 사이를 5분 단위로 선형 보간한다(보간이 어려우면 그 시간대 내 동일값 유지). 마지막 실측(현재 모드와 같은 5분 집계 구간) 다음 5분부터 288건(24시간). 해당 시간대 값이 없으면 가장 가까운 다음 시각 값. 예보 결측 처리: 1시간 값이 비면 앞뒤 정시 값으로 보간. 연속 `FORECAST_GAP_MAX_HOURS`시간(기본 3시간) 이상 결측이거나 조회 자체가 실패하면 "기상청 예보 조회 실패"로 표시하고 연산 서버를 호출하지 않는다. 예보 구간의 `fan_pct`는 null 대신 외기 기온 기준 계산식으로 채운다: `fan_pct = clamp(20 + 80×(T_out−22)/8, 20, 100)`(`.env`: `FAN_T_LOW=22`·`FAN_T_HIGH=30`·`FAN_MIN=20`·`FAN_MAX=100`, 소수 1자리).
+- summary 형식(연동명세서 v1.0)은 폐기(2026-10-07 확정, 05-open-questions.md #4) — 빌더를 만들지 않는다. `FORECAST_INPUT_FORMAT` 분기도 series 고정으로 단순화한다.
 - 서비스키: 코드에서 URL 인코딩하면 Decoding 키 사용(이중 인코딩 방지). `.env.example` 주석.
 - 키 오류 등은 JSON 요청에도 XML 응답 → JSON 파싱 실패 시 본문에서 오류 코드 추출 → `UPSTREAM_ERROR`.
 - 격자 변환 스크립트 `apps/relay/scripts/latlon-to-grid.ts`: LCC 상수 RE=6371.00877, GRID=5.0, SLAT1=30, SLAT2=60, OLON=126, OLAT=38, XO=43, YO=136. 테스트: 서울시청(37.5665, 126.9780) → (60, 127).
@@ -121,19 +121,27 @@
 
 - current: 5분 간격 정각 기준 37건(15:26 → 12:20~15:20, 5분 집계).
 - forecast(회의 결정, series): 실측 37건 + 예보 288건(5분 간격 보간, fan_pct는 외기 기온 규칙으로 계산) = 325건.
-- 연동명세서 v1.0 요약 형식(summary: outdoor T_max·T_min·RH_mean + fan T_100·T_50·T_20)은 확인 중. `FORECAST_INPUT_FORMAT`로 전환 가능하게 빌더 분리.
+- 연동명세서 v1.0 요약 형식(summary: outdoor T_max·T_min·RH_mean + fan T_100·T_50·T_20)은 폐기(2026-10-07 확정, 05-open-questions.md #4) — series 빌더만 만든다. `FORECAST_INPUT_FORMAT` 분기는 제거해도 된다.
 - 센서 원자료는 반올림·보간 금지, 빈 분은 null. 결측 보간·센서 오류 판정은 1.2의 집계 규칙에서 끝내고, 연산 서버에는 null이 없는 입력만 보낸다(null 있으면 연산 서버가 BAD_REQUEST).
 
 ### 4.2 응답 (우리 쪽 정의)
 
 ```json
-{ "request_id": "uuid", "status": "ok",
+{ "request_id": "uuid", "status": "ok", "model_version": "pinn-v17.0",
   "frames": [ { "time": "2026-10-05T15:20:00",
     "points": { "temp": [], "rh": [], "flow": [[0.12,-0.03,0.01,0.12]] },
     "grid":   { "temp": [], "rh": [] },
-    "flow":   [[0.20,0.05,-0.01,0.21]] } ] }
+    "flow":   [[0.20,0.05,-0.01,0.21]],
+    "outdoor": { "T_out": 21.5, "RH_out": 89.7, "fan_pct": 65.0 },
+    "summary": { "T_mean": 27.3, "T_min": 23.9, "T_max": 30.4, "T_west": 27.3, "T_east": 27.3,
+                 "RH_mean": 67.2, "V_mean": 0.23, "V_max": 0.32 },
+    "quality": { "in_range": true, "warnings": [] } } ] }
 ```
 
+- `model_version`(top-level)·프레임별 `outdoor`(입력 그대로)·`summary`(프레임 요약 통계)·
+  `quality`(물리적 유효성 플래그·경고 문구) 4개 필드는 05-open-questions.md #2(2026-10-07
+  확정) 추가분이다. `packages/shared`의 `DetailBase.model_version`·`DetailFrame.outdoor`·
+  `DetailFrame.summary`·`DetailFrame.quality`로 반영돼 있다.
 - frames: current 1개(마지막 입력 시각), forecast 마지막 실측 시각부터 10분 간격 145개.
 - 포인트 좌표와 grid·flow_grid 정의는 응답에 넣지 않는다(고정 형상, 중계 서버 `GEOMETRY_FILE`). 배열 순서·개수는 그 정의를 따른다: points 125, grid 2,584(i + nx×(j + ny×k)), flow 288.
 - 125개 포인트 좌표는 온도에서 한 번만 받는다.
@@ -147,4 +155,4 @@
 
 ### 4.4 전문가·제어 목업
 
-`mock/expert/*.json`, `mock/control/{energy,environment}.json`을 4.2 형식으로 두고 같은 변환기로 읽는다. 온도 제공 전에는 `npm run mock:generate`.
+`mock/mock_expert.json`, `mock/mock_control.json`(2026-10-08 온도 측 v2 제공, 서브폴더 아님)을 "연산 서버 원응답 + 목업 전용 필드"로 두고 relay가 현재/예측과 같은 변환기(offsetMin·+09:00·range·geometryId 부착)로 감싸 읽는다. `mock_control.json`은 `target:"energy"` 시나리오 하나뿐 — `environment` 요청도 같은 파일을 쓰고 응답 `target` 필드만 요청값으로 덮어쓴다(05-open-questions.md #27). 온도 측 파일이 없을 때만 `npm run mock:generate`(합성 폴백)를 쓴다.

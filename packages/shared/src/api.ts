@@ -89,12 +89,39 @@ export interface GridDef {
 
 export type FlowVec = [number, number, number, number]; // vx, vy, vz, value
 
+// 05-open-questions.md #2 (2026-10-07 확정): 연산 서버 응답에 top-level model_version,
+// 프레임별 outdoor·summary·quality 4개 필드 추가.
+export interface DetailFrameOutdoor {
+  T_out: number | null;
+  RH_out: number | null;
+  fan_pct: number | null;
+}
+
+export interface DetailFrameSummary {
+  T_mean: number;
+  T_min: number;
+  T_max: number;
+  T_west: number;
+  T_east: number;
+  RH_mean: number;
+  V_mean: number;
+  V_max: number;
+}
+
+export interface DetailFrameQuality {
+  in_range: boolean;
+  warnings: string[];
+}
+
 export interface DetailFrame {
   offsetMin: number;
   time: Iso8601;
   points: { temp: number[]; rh: number[]; flow: FlowVec[] }; // 125
   grid: { temp: number[]; rh: number[] }; // nx*ny*nz
   flow: FlowVec[]; // flowGrid 노드 수
+  outdoor: DetailFrameOutdoor;
+  summary: DetailFrameSummary;
+  quality: DetailFrameQuality;
 }
 
 export interface MinMax {
@@ -115,6 +142,7 @@ export interface DetailBase {
   baseAt: Iso8601;
   intervalMin: 10;
   geometryId: string; // 보관한 Geometry와 다르면 geometry 재요청
+  model_version: string; // 연산 서버 원응답 필드명 그대로(05-open-questions.md #2)
   range: { temp: MinMax; rh: MinMax; flow: MinMax }; // 전체 프레임 기준
   frames: DetailFrame[];
 }

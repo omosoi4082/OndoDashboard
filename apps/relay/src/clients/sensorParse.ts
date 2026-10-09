@@ -43,3 +43,30 @@ export function parseSensorLatestResponse(json: unknown, devicePath: string): Se
   }
   return device;
 }
+
+/**
+ * `GET /sensors/{경로}/{항목}?start=...&end=...` 응답(docs/03-upstream-apis.md 1.2)에서
+ * 경로+항목 세그먼트를 따라 내려가 이력 배열(`SensorItemRaw[]`)을 얻는다. 최신값 조회와
+ * 달리 항목명까지 경로에 포함되고, 끝에 객체가 아니라 배열이 온다.
+ * 경로가 없거나 끝이 배열이 아니면 null. 반올림·보간 없이 원자료 그대로 둔다.
+ */
+export function parseSensorRangeResponse(json: unknown, itemPath: string): SensorItemRaw[] | null {
+  if (!isRecord(json)) return null;
+  const data = json['data'];
+  if (!isRecord(data)) return null;
+
+  const segments = itemPath.split('/').filter((s) => s.length > 0);
+  let cursor: unknown = data;
+  for (const seg of segments) {
+    if (!isRecord(cursor)) return null;
+    cursor = cursor[seg];
+  }
+  if (!Array.isArray(cursor)) return null;
+
+  const items: SensorItemRaw[] = [];
+  for (const entry of cursor) {
+    if (isSensorItemRaw(entry)) items.push(entry);
+    // 형식이 아닌 항목은 조용히 건너뛴다(결측과 동일하게 취급) — 호출부에서 슬롯 매칭 시 누락 처리.
+  }
+  return items;
+}
