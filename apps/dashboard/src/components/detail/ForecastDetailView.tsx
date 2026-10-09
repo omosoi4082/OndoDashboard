@@ -8,7 +8,7 @@ import { useDetailStore } from '../../store/detailStore.js';
 import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { ControlsRow } from './ControlsRow.js';
-import { Detail3DView } from './Detail3DView.js';
+import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
 import { Timeline } from './Timeline.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
@@ -34,7 +34,7 @@ export function ForecastDetailView(): ReactElement {
     return (
       <>
         <ControlsRow />
-        <DetailAreaMessage text="예측 결과를 계산하는 중입니다..." isError={false} />
+        <EmptyDetail3D geometry={geometry} text="예측 결과를 계산하는 중입니다..." isError={false} />
       </>
     );
   }
@@ -43,7 +43,7 @@ export function ForecastDetailView(): ReactElement {
     return (
       <>
         <ControlsRow />
-        <DetailAreaMessage text={forecast.error.message} isError />
+        <EmptyDetail3D geometry={geometry} text={forecast.error.message} isError />
       </>
     );
   }
@@ -56,7 +56,7 @@ export function ForecastDetailView(): ReactElement {
     return (
       <>
         <ControlsRow />
-        <DetailAreaMessage text="응답에 표시할 프레임이 없습니다." isError />
+        <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
       </>
     );
   }

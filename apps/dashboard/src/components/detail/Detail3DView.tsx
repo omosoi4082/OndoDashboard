@@ -3,7 +3,8 @@
 // 포팅해 둔 순수 함수, docs/07-starter-kit-assets.md)를 그대로 재사용한다. 배경 모델은
 // detailScene.js를 포팅한 scene/detailRoomModel.ts(돼지 있는 실측 자돈방 p1.glb + 컷어웨이
 // 셰이더)를 쓴다. 125개 포인트는 PointsInstanced(InstancedMesh 1개), 유동 토글 선택 시
-// 호버 포인트에 FlowArrow를 띄운다.
+// 호버 포인트에 FlowArrow를 띄운다. frame이 null이면(데이터 전·로딩·오류) 방 모델과 중립색
+// 포인트만 그리고 message를 3D 위에 겹쳐 띄운다(01-functional-spec.md 3장 "데이터가 없을 때").
 import { Suspense, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
 import { Html, OrbitControls, useGLTF } from '@react-three/drei';
@@ -23,8 +24,8 @@ import { FlowArrow } from './FlowArrow.js';
 
 interface Detail3DViewProps {
   geometry: Geometry;
-  frame: DetailFrame;
-  range: DetailBase['range'];
+  frame: DetailFrame | null;
+  range: DetailBase['range'] | null;
   /**
    * 예측·전문가·제어 모드 전용 추가 표현(IsosurfaceVolume 또는 FlowCylinders) — 카메라·
    * 조명·방 모델·125개 포인트·호버는 이 컴포넌트가 그대로 맡고, 모드별로 다른 내용만
@@ -40,6 +41,8 @@ interface Detail3DViewProps {
    * 이 컴포넌트 수정 없이 끼워 넣기)을 HTML 콘텐츠로 확장한 것이라 이름을 구분했다.
    */
   htmlOverlay?: ReactNode;
+  /** 데이터 없음 안내·로딩·오류 문구 — 3D 뷰 가운데에 겹쳐 표시한다. */
+  message?: { text: string; isError: boolean } | null;
 }
 
 function CameraFraming({ roomSize }: { roomSize: readonly [number, number, number] }): ReactElement {
@@ -151,13 +154,20 @@ function DetailRoomModel({ roomSizeYUp }: { roomSizeYUp: readonly [number, numbe
   return <primitive object={model} />;
 }
 
-export function Detail3DView({ geometry, frame, range, overlay = null, htmlOverlay = null }: Detail3DViewProps): ReactElement {
+export function Detail3DView({
+  geometry,
+  frame,
+  range,
+  overlay = null,
+  htmlOverlay = null,
+  message = null,
+}: Detail3DViewProps): ReactElement {
   const valueField = useDetailStore((s) => s.valueField);
   const pointsVisible = useDetailStore((s) => s.pointsVisible);
   const [hoveredPointId, setHoveredPointId] = useState<number | null>(null);
 
   const hoveredPoint = hoveredPointId !== null ? geometry.points.find((p) => p.id === hoveredPointId) ?? null : null;
-  const hoveredFlow = hoveredPoint ? getPointFlow(frame, hoveredPoint.id) : null;
+  const hoveredFlow = hoveredPoint && frame ? getPointFlow(frame, hoveredPoint.id) : null;
 
   // geometry는 상세 진입 시 1회만 받아오는 고정값(store에 보관)이라 참조가 안정적이다 —
   // useMemo로 묶어서 매 렌더마다 조명/모델 effect가 불필요하게 재생성되지 않게 한다.
@@ -191,7 +201,7 @@ export function Detail3DView({ geometry, frame, range, overlay = null, htmlOverl
 
         {overlay}
 
-        {valueField === 'flow' && hoveredPoint && hoveredFlow && (
+        {valueField === 'flow' && hoveredPoint && hoveredFlow && range && (
           <FlowArrow origin={hoveredPoint} flow={hoveredFlow} range={range.flow} />
         )}
 
@@ -200,17 +210,45 @@ export function Detail3DView({ geometry, frame, range, overlay = null, htmlOverl
             <div className="-translate-y-full whitespace-nowrap rounded bg-black/85 px-2 py-1 text-[11px] text-white">
               X {hoveredPoint.x.toFixed(2)} &nbsp; Y {hoveredPoint.y.toFixed(2)} &nbsp; Z {hoveredPoint.z.toFixed(2)}
               <br />
-              VALUE {formatValueOrDash(
-                getPointScalar(frame, valueField, hoveredPoint.id),
-                getFieldUnit(valueField),
-                valueField === 'flow' ? 2 : 1,
-              )}
+              VALUE{' '}
+              {frame
+                ? formatValueOrDash(
+                    getPointScalar(frame, valueField, hoveredPoint.id),
+                    getFieldUnit(valueField),
+                    valueField === 'flow' ? 2 : 1,
+                  )
+                : '-'}
             </div>
           </Html>
         )}
       </Canvas>
 
       {htmlOverlay && <div className="pointer-events-none absolute left-3 top-3">{htmlOverlay}</div>}
+
+      {message && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
+          <div
+            className={`rounded-md border px-4 py-2 text-center text-sm backdrop-blur-sm ${
+              message.isError ? 'border-red-500/30 bg-red-950/60 text-red-300' : 'border-white/10 bg-black/50 text-white/70'
+            }`}
+          >
+            {message.text}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * 데이터 없음·로딩·오류 상태의 3D 영역 — 방 모델과 중립색 포인트를 그대로 그리고 문구만
+ * 겹쳐 띄운다(01-functional-spec.md 3장 "데이터가 없을 때"). 높이는 데이터가 있을 때의
+ * 3D 영역과 같게 맞춰 상태가 바뀌어도 레이아웃이 튀지 않게 한다.
+ */
+export function EmptyDetail3D({ geometry, text, isError }: { geometry: Geometry; text: string; isError: boolean }): ReactElement {
+  return (
+    <div className="h-[340px] shrink-0">
+      <Detail3DView geometry={geometry} frame={null} range={null} message={{ text, isError }} />
     </div>
   );
 }

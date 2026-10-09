@@ -12,7 +12,7 @@ import { useDetailStore } from '../../store/detailStore.js';
 import { SHOW_2D_IN_CURRENT } from '../../config/constants.js';
 import { ModeTabs } from './ModeTabs.js';
 import { ControlsRow } from './ControlsRow.js';
-import { Detail3DView } from './Detail3DView.js';
+import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ForecastDetailView } from './ForecastDetailView.js';
@@ -40,11 +40,11 @@ export function DetailPanel(): ReactElement {
           {!geometry ? (
             <DetailAreaMessage text="형상 데이터를 불러오는 중입니다..." isError={false} />
           ) : current === null ? (
-            <DetailAreaMessage text="데이터를 불러오는 중입니다..." isError={false} />
+            <EmptyDetail3D geometry={geometry} text="데이터를 불러오는 중입니다..." isError={false} />
           ) : current.status === 'error' ? (
-            <DetailAreaMessage text={current.error.message} isError />
+            <EmptyDetail3D geometry={geometry} text={current.error.message} isError />
           ) : !current.data.frames[0] ? (
-            <DetailAreaMessage text="응답에 표시할 프레임이 없습니다." isError />
+            <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
           ) : (
             <>
               <div className="h-[340px] shrink-0">

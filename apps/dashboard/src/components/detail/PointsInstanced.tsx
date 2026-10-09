@@ -1,7 +1,8 @@
 // 상세 자돈방 3D 뷰(12·18·25·32)의 125개 포인트 — 전부 InstancedMesh 하나로 그린다
 // (CLAUDE.md "3D 포인트 125개는 InstancedMesh로 그린다" 규칙). 색상은 값→컬러맵
 // (detail/colormap.ts), 어떤 값을 쓸지는 pointSelection.ts에서 토글(유동/습도/온도)별로
-// 고른다. 좌표 변환은 scene/coords.ts 한 곳에서만 처리한다.
+// 고른다. 좌표 변환은 scene/coords.ts 한 곳에서만 처리한다. frame이 없으면(데이터 전·로딩·
+// 오류) 위치는 geometry 고정값이라 그대로 그리고 색만 중립색으로 칠한다(01-functional-spec.md 3장).
 import { useLayoutEffect, useMemo, useRef, type ReactElement } from 'react';
 import * as THREE from 'three';
 import type { ThreeEvent } from '@react-three/fiber';
@@ -12,11 +13,12 @@ import { getFieldRange, getPointScalar } from '../../detail/pointSelection.js';
 import { valueToRGB01 } from '../../detail/colormap.js';
 
 const POINT_RADIUS_M = 0.04;
+const NO_DATA_POINT_COLOR = new THREE.Color(0x8a94a6);
 
 interface PointsInstancedProps {
   geometry: Geometry;
-  frame: DetailFrame;
-  range: DetailBase['range'];
+  frame: DetailFrame | null;
+  range: DetailBase['range'] | null;
   valueField: ValueField;
   onHoverChange: (pointId: number | null) => void;
 }
@@ -24,7 +26,7 @@ interface PointsInstancedProps {
 export function PointsInstanced({ geometry, frame, range, valueField, onHoverChange }: PointsInstancedProps): ReactElement {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const count = geometry.points.length;
-  const fieldRange = useMemo(() => getFieldRange(range, valueField), [range, valueField]);
+  const fieldRange = useMemo(() => (range ? getFieldRange(range, valueField) : null), [range, valueField]);
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
@@ -39,6 +41,10 @@ export function PointsInstanced({ geometry, frame, range, valueField, onHoverCha
       matrix.compose(new THREE.Vector3(x, y, z), quaternion, scale);
       mesh.setMatrixAt(i, matrix);
 
+      if (!frame || !fieldRange) {
+        mesh.setColorAt(i, NO_DATA_POINT_COLOR);
+        return;
+      }
       const value = getPointScalar(frame, valueField, p.id);
       const [r, g, b] = valueToRGB01(value, fieldRange.min, fieldRange.max);
       mesh.setColorAt(i, color.setRGB(r, g, b));
