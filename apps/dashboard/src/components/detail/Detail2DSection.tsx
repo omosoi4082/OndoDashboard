@@ -9,7 +9,7 @@ import { buildHeatmapImage } from '../../detail/heatmapImage.js';
 import { colormapRGB01 } from '../../detail/colormap.js';
 import { getFieldRange, getFieldUnit } from '../../detail/pointSelection.js';
 import { useDetailStore } from '../../store/detailStore.js';
-import { SECTION_Z_M } from '../../config/constants.js';
+import { SECTION_PARTITION_SEGMENTS, SECTION_Z_M } from '../../config/constants.js';
 
 interface Detail2DSectionProps {
   geometry: Geometry;
@@ -47,11 +47,21 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
 
   if (valueField === 'flow' || !fieldRange) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-white/10 bg-[#0b0d12] text-xs text-white/40">
+      <div className="flex h-full items-center justify-center rounded-lg border border-ondo-border bg-ondo-bg text-xs text-white/40">
         유동은 2D 단면에 표시되지 않습니다
       </div>
     );
   }
+
+  // 칸막이 오버레이 좌표계 — 히트맵 픽셀 i는 2배 보간 격자의 x = origin + i*(spacing/2) 노드를
+  // 중심으로 그려지므로, viewBox를 반 픽셀씩 바깥으로 넓혀 canvas와 정확히 겹치게 한다.
+  // canvas가 컨테이너에 맞춰 늘어나므로 SVG도 preserveAspectRatio="none"으로 똑같이 늘린다.
+  const stepX = geometry.grid.spacing[0] / 2;
+  const stepY = geometry.grid.spacing[1] / 2;
+  const viewMinX = geometry.grid.origin[0] - stepX / 2;
+  const viewMinY = geometry.grid.origin[1] - stepY / 2;
+  const viewW = (geometry.grid.size[0] * 2 - 1) * stepX;
+  const viewH = (geometry.grid.size[1] * 2 - 1) * stepY;
 
   const unit = getFieldUnit(valueField);
   const legendStops = Array.from({ length: LEGEND_STEPS }, (_, i) => {
@@ -62,12 +72,33 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   }).join(', ');
 
   return (
-    <div className="flex h-full gap-3 rounded-lg border border-white/10 bg-[#0b0d12] p-2">
-      <canvas
-        ref={canvasRef}
-        className="flex-1 rounded"
-        style={{ width: '100%', height: '100%', imageRendering: 'auto' }}
-      />
+    <div className="flex h-full gap-3 rounded-lg border border-ondo-border bg-ondo-bg p-2">
+      <div className="relative flex-1">
+        <canvas
+          ref={canvasRef}
+          className="absolute inset-0 rounded"
+          style={{ width: '100%', height: '100%', imageRendering: 'auto' }}
+        />
+        <svg
+          className="pointer-events-none absolute inset-0 h-full w-full"
+          viewBox={`${viewMinX} ${viewMinY} ${viewW} ${viewH}`}
+          preserveAspectRatio="none"
+        >
+          {SECTION_PARTITION_SEGMENTS.map(([[x1, y1], [x2, y2]], idx) => (
+            <line
+              key={idx}
+              x1={x1}
+              y1={y1}
+              x2={x2}
+              y2={y2}
+              stroke="white"
+              strokeWidth={2}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        </svg>
+      </div>
       <div className="flex w-10 flex-col items-center justify-between py-1 text-[10px] text-white/60">
         <span>
           {fieldRange.max.toFixed(1)}

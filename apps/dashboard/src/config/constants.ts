@@ -37,6 +37,15 @@ export const MIN_VIEWPORT_HEIGHT_PX = 540;
 // 바꿀 때는 relay .env와 이 값을 함께 수정한다(05-open-questions.md #16: 0.5 확정).
 export const SECTION_Z_M = 0.5;
 
+// 2D 수평단면에 겹쳐 그리는 Y자 칸막이(m, room 좌표 x·y) — 고정 구조물이라 relay 응답으로
+// 받지 않고 상수로 둔다(01-functional-spec.md 3장, 2026-10-09 사용자 확정). 값은
+// config/geometry.json room.partition.segments와 동일(높이 0.78m라 단면 0.4m층을 지난다).
+export const SECTION_PARTITION_SEGMENTS: ReadonlyArray<readonly [readonly [number, number], readonly [number, number]]> = [
+  [[1.82, 0.0], [1.82, 3.25]],
+  [[1.82, 3.25], [1.42, 4.0]],
+  [[1.82, 3.25], [2.22, 4.0]],
+];
+
 // 현재 모드(9~13)에서도 2D 단면을 보여줄지 — 01-functional-spec.md 3장은 "현재 모드에
 // 2D가 필요한지 확인 중"이라 플래그로 숨길 수 있게 하라고 돼 있지만, 이미
 // 05-open-questions.md #15(2026-10-07 확정: "필요함", 현재 모드 응답에도 grid 포함)로
