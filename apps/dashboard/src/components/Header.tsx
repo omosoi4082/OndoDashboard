@@ -1,11 +1,15 @@
-// 상단 로고(1) + 날짜·요일·시간(2) — 01-functional-spec.md 2장.
-// 고해상도 로고는 온도 측 제공 예정(05-open-questions.md #19) — 수신 전까지 placeholder.
+// 상단 헤더 — 위치(기상청 동네 이름) + 로고(1) + 날짜·요일·시간(2). 01-functional-spec.md 2장,
+// 스타일은 docs/06-design-guide.md "헤더". 로고는 docs/design/logo/로고-light.svg 복사본.
 import { useEffect, useState, type ReactElement } from 'react';
+import { MapPin } from 'lucide-react';
 import { CLOCK_TICK_INTERVAL_MS } from '../config/constants.js';
-import { formatKoreanDateTime } from '../utils/formatDateTime.js';
+import { formatHeaderDate, formatHeaderTime } from '../utils/formatDateTime.js';
+import { okData } from '../api/client.js';
+import { useMainStore } from '../store/mainStore.js';
 
 export function Header(): ReactElement {
   const [now, setNow] = useState(() => new Date());
+  const areaName = okData(useMainStore((s) => s.weatherKma))?.areaName ?? null;
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), CLOCK_TICK_INTERVAL_MS);
@@ -13,15 +17,16 @@ export function Header(): ReactElement {
   }, []);
 
   return (
-    <header className="flex h-[60px] items-center justify-between border-b border-white/10 bg-[#11151c] px-6">
-      <div className="flex items-center gap-3">
-        {/* TODO(#19): 온도 제공 고해상도 로고로 교체 */}
-        <div className="flex h-9 w-9 items-center justify-center rounded bg-cyan-500/20 text-sm font-bold text-cyan-300">
-          온도
-        </div>
-        <span className="text-sm font-semibold text-white/80">스마트 축사 시뮬레이션 대시보드</span>
+    <header className="relative flex h-[74px] shrink-0 items-center justify-between px-[42px]">
+      <div className="flex items-center gap-2.5 text-[15px] text-white">
+        <MapPin size={18} fill="currentColor" stroke="var(--color-ondo-bg)" />
+        <span>{areaName ?? '-'}</span>
       </div>
-      <time className="text-sm tabular-nums text-white/70">{formatKoreanDateTime(now)}</time>
+      <img src="/assets/logo/logo-light.svg" alt="온도" className="absolute left-1/2 h-[42px] -translate-x-1/2" />
+      <div className="flex items-baseline gap-[18px] tabular-nums text-white">
+        <span className="text-[15px] font-medium">{formatHeaderDate(now)}</span>
+        <time className="text-[22px] font-semibold tracking-wide">{formatHeaderTime(now)}</time>
+      </div>
     </header>
   );
 }

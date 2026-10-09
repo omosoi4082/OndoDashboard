@@ -86,6 +86,7 @@ export type RoomsResponse = Record<RoomId, RoomSummary>;
 ```ts
 export interface KmaWeather {
   label: '기상청 실황';
+  areaName: string | null;     // 헤더 위치 표시(기상청 동네 이름, .env FARM_AREA_NAME). 미설정이면 null
   sourceStatus: SourceStatus;
   baseAt: Iso8601 | null;
   weatherCode: WeatherCode | null;

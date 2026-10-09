@@ -21,7 +21,7 @@ import {
 import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
-import { Timeline } from './Timeline.js';
+import { Detail2DBox, Detail3DSection, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ExpertInputForm } from './ExpertInputForm.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
@@ -85,7 +85,8 @@ export function ExpertModeView(): ReactElement {
         <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
       ) : (
         <>
-          <div className="h-[340px] shrink-0">
+          <TimelineSection frames={expert.data.frames} />
+          <Detail3DSection>
             <Detail3DView
               geometry={geometry}
               frame={frame}
@@ -103,11 +104,10 @@ export function ExpertModeView(): ReactElement {
                 )
               }
             />
-          </div>
-          <div className="h-[220px] shrink-0">
+          </Detail3DSection>
+          <Detail2DBox>
             <Detail2DSection geometry={geometry} frame={frame} range={expert.data.range} />
-          </div>
-          <Timeline frames={expert.data.frames} />
+          </Detail2DBox>
         </>
       )}
     </>

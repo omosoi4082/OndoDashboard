@@ -13,7 +13,7 @@ import { fetchDetailControl } from '../../api/endpoints.js';
 import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
-import { Timeline } from './Timeline.js';
+import { Detail2DBox, Detail3DSection, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ControlSummaryCard } from './ControlSummaryCard.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
@@ -114,7 +114,8 @@ export function ControlModeView(): ReactElement {
         <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
       ) : (
         <>
-          <div className="h-[340px] shrink-0">
+          <TimelineSection frames={control.data.frames} />
+          <Detail3DSection>
             <Detail3DView
               geometry={geometry}
               frame={frame}
@@ -133,11 +134,10 @@ export function ControlModeView(): ReactElement {
               }
               htmlOverlay={<ControlSummaryCard frames={control.data.frames} control={control.data.control} frameIndex={frameIndex} />}
             />
-          </div>
-          <div className="h-[220px] shrink-0">
+          </Detail3DSection>
+          <Detail2DBox>
             <Detail2DSection geometry={geometry} frame={frame} range={control.data.range} />
-          </div>
-          <Timeline frames={control.data.frames} />
+          </Detail2DBox>
         </>
       )}
     </>

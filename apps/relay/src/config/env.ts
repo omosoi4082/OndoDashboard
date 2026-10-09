@@ -28,6 +28,8 @@ const envSchema = z.object({
   FARM_LON: z.coerce.number(),
   KMA_NX: z.coerce.number().int(),
   KMA_NY: z.coerce.number().int(),
+  // 헤더 위치 표시용 동네 이름(기상청 격자 KMA_NX·NY의 예보구역). 비우면 화면에 표시 안 함.
+  FARM_AREA_NAME: z.string().default(''),
 
   COMPUTE_MODE: z.enum(['mock', 'http']).default('mock'),
   COMPUTE_BASE_URL: z.string().min(1).default('http://localhost:9000'),

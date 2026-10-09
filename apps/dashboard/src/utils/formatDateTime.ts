@@ -1,17 +1,18 @@
-// 상단 날짜·요일·시간 표시(01-functional-spec.md 2장 #2). 예: 2026년 10월 05일 (월) 15:30:24
+// 상단 날짜·요일·시간 표시(01-functional-spec.md 2장 #2, docs/06-design-guide.md 헤더).
+// 예: 날짜 "2026-10-05 월요일", 시각 "15:30:24"(디자인상 시각만 크게 따로 표시).
 const WEEKDAYS_KO = ['일', '월', '화', '수', '목', '금', '토'] as const;
 
 function pad2(n: number): string {
   return n.toString().padStart(2, '0');
 }
 
-export function formatKoreanDateTime(date: Date): string {
+export function formatHeaderDate(date: Date): string {
   const y = date.getFullYear();
   const m = pad2(date.getMonth() + 1);
   const d = pad2(date.getDate());
-  const weekday = WEEKDAYS_KO[date.getDay()];
-  const hh = pad2(date.getHours());
-  const mm = pad2(date.getMinutes());
-  const ss = pad2(date.getSeconds());
-  return `${y}년 ${m}월 ${d}일 (${weekday}) ${hh}:${mm}:${ss}`;
+  return `${y}-${m}-${d} ${WEEKDAYS_KO[date.getDay()]}요일`;
+}
+
+export function formatHeaderTime(date: Date): string {
+  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
 }

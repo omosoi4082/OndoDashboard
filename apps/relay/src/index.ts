@@ -74,7 +74,7 @@ const aggThresholds: { temp: AggregateThresholds; rh: AggregateThresholds; fan: 
 
 registerHealthRoute(app, { sensorClient, kmaClient });
 registerMainRoomsRoute(app, { sensorClient });
-registerMainWeatherKmaRoute(app, { kmaClient, farmLat: env.FARM_LAT, farmLon: env.FARM_LON });
+registerMainWeatherKmaRoute(app, { kmaClient, farmLat: env.FARM_LAT, farmLon: env.FARM_LON, areaName: env.FARM_AREA_NAME });
 registerMainWeatherStationRoute(app, { sensorClient, farmLat: env.FARM_LAT, farmLon: env.FARM_LON });
 registerDetailGeometryRoute(app, { geometry });
 registerDetailCurrentRoute(app, {

@@ -1,5 +1,28 @@
 @import 'tailwindcss';
 
+/* 디자인 색상 토큰(docs/06-design-guide.md 1장) — bg-ondo-surface, text-ondo-muted 등으로 쓴다. */
+/* 글꼴: Pretendard 가변 글꼴(굵기 45~920 한 파일, docs/design/font 원본의 복사본). */
+@font-face {
+  font-family: 'Pretendard Variable';
+  font-weight: 45 920;
+  font-style: normal;
+  font-display: swap;
+  src: url('/assets/fonts/PretendardVariable.woff2') format('woff2-variations');
+}
+
+@theme {
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, 'Apple SD Gothic Neo',
+    'Malgun Gothic', sans-serif;
+  --color-ondo-bg: #1b1a1f;
+  --color-ondo-surface: #232328;
+  --color-ondo-surface-2: #2b2c31;
+  --color-ondo-border: #3a3b41;
+  --color-ondo-muted: #a3a4ab;
+  --color-ondo-accent: #1f6e45;
+  --color-ondo-accent-on: #22c55e;
+  --color-ondo-accent-bar: #2ee59d;
+}
+
 :root {
   color-scheme: dark;
 }

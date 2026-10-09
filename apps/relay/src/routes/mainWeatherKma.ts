@@ -10,7 +10,7 @@ import { kstWallClock, nowKstIso, toNumberOrNull } from '../utils/time.js';
 
 export function registerMainWeatherKmaRoute(
   app: FastifyInstance,
-  deps: { kmaClient: KmaClient; farmLat: number; farmLon: number },
+  deps: { kmaClient: KmaClient; farmLat: number; farmLon: number; areaName: string },
 ): void {
   app.get('/api/main/weather/kma', async (): Promise<ApiOk<KmaWeather>> => {
     const requestedAt = nowKstIso();
@@ -39,6 +39,8 @@ export function registerMainWeatherKmaRoute(
 
     const data: KmaWeather = {
       label: '기상청 실황',
+      // 기상청 API는 동네 이름을 돌려주지 않아, 격자(KMA_NX·NY)에 해당하는 동네 이름을 .env로 받는다.
+      areaName: deps.areaName === '' ? null : deps.areaName,
       sourceStatus,
       baseAt: ncst ? ncst.baseAt : null,
       weatherCode,

@@ -15,6 +15,7 @@ import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
+import { Detail2DBox, Detail3DSection } from './DetailSections.js';
 import { ForecastDetailView } from './ForecastDetailView.js';
 import { ExpertModeView } from './ExpertModeView.js';
 import { ControlModeView } from './ControlModeView.js';
@@ -25,8 +26,11 @@ export function DetailPanel(): ReactElement {
   const current = useDetailStore((s) => s.current);
 
   return (
-    <aside className="flex h-full w-full flex-col gap-3 border-l border-white/10 bg-[#11151c] p-4">
+    <aside className="flex h-full w-full flex-col gap-5">
       <ModeTabs />
+
+      {/* 탭 아래 카드 하나에 모드별 내용을 담는다(docs/06-design-guide.md). 길면 카드 안에서 스크롤. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto rounded-[22px] bg-ondo-surface p-5">
 
       {mode === 'forecast' && <ForecastDetailView />}
 
@@ -47,18 +51,19 @@ export function DetailPanel(): ReactElement {
             <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
           ) : (
             <>
-              <div className="h-[340px] shrink-0">
+              <Detail3DSection>
                 <Detail3DView geometry={geometry} frame={current.data.frames[0]} range={current.data.range} />
-              </div>
+              </Detail3DSection>
               {SHOW_2D_IN_CURRENT && (
-                <div className="h-[220px] shrink-0">
+                <Detail2DBox>
                   <Detail2DSection geometry={geometry} frame={current.data.frames[0]} range={current.data.range} />
-                </div>
+                </Detail2DBox>
               )}
             </>
           )}
         </>
       )}
+      </div>
     </aside>
   );
 }

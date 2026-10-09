@@ -55,6 +55,8 @@ export type RoomsResponse = Record<RoomId, RoomSummary>;
 // 4.2 GET /api/main/weather/kma
 export interface KmaWeather {
   label: '기상청 실황';
+  /** 헤더 위치 표시용 기상청 동네(예보구역) 이름 — .env FARM_AREA_NAME. 비어 있으면 null. */
+  areaName: string | null;
   sourceStatus: SourceStatus;
   baseAt: Iso8601 | null;
   weatherCode: WeatherCode | null;

@@ -18,9 +18,10 @@
 | `docs/04-tasks.md` | 단계별 작업 목록과 완료 조건 |
 | `docs/05-open-questions.md` | 미확정 사항. 여기 있는 항목은 임의로 확정하지 말고 설정값이나 TODO로 남긴다 |
 | `docs/07-starter-kit-assets.md` | `technical-review/pig-farm-cfd-demo` 중 포팅해 재사용할 3D/카메라 코드 목록 |
-| `docs/design/screen-design.png` | 화면설계서(on-01~05). 번호는 기능 명세의 설계 번호와 같다 |
+| `docs/06-design-guide.md` | UI 디자인 사양(색상 토큰, 영역별 스타일). 디자인은 시각 참고용, 기능은 기능 명세 기준 |
+| `docs/design/` | 디자인 자료 모음: `screen-design.png`(화면설계서 on-01~05, 번호는 기능 명세의 설계 번호와 같다), `UI/`(모드별 UI 디자인), `icon/`(날씨 아이콘 원본) |
 
-디자인 가이드(`docs/06-design-guide.md`)는 아직 없다 — 디자인 자료 수신 전이라 `05-open-questions.md` #23에 TBD로 남겨둠.
+UI 디자인 자료는 `docs/design/`에만 모은다(2026-10-09).
 
 ## 구조
 

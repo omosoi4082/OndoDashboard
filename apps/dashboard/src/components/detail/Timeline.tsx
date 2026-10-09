@@ -36,7 +36,7 @@ export function Timeline({ frames }: TimelineProps): ReactElement {
   }, [playing, frameCount, advanceTimeline]);
 
   return (
-    <div className="flex shrink-0 flex-col gap-1.5 rounded-lg border border-white/10 bg-[#0b0d12] p-2">
+    <div className="flex shrink-0 flex-col gap-1.5 rounded-lg border border-ondo-border bg-ondo-bg p-2">
       <div className="flex items-center gap-2">
         <button
           type="button"

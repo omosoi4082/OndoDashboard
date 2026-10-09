@@ -39,27 +39,28 @@ function App(): ReactElement {
       >
         <Header />
 
-        <div className="flex flex-1">
+        <div className="flex min-h-0 flex-1">
           {/* 좌측: 외부환경(3) + 3D 메인 모델링(4) + 정보 판넬(5) + 축척(8) — 화면설계(on-01)대로
               외부환경은 모델링 영역 위에 떠 있는 카드 묶음이다(별도 세로 사이드바가 아님). 가로로
               배치해 모델링이 보이는 공간을 최대한 넓게 둔다(2026-10-09 사용자 요청). */}
           <div className="relative flex flex-1 flex-col">
             <div className="relative flex-1">
               <MainScene />
-              <div className="pointer-events-none absolute left-0 top-0 p-3">
+              <div className="pointer-events-none absolute left-0 top-0 pl-[42px] pt-[18px]">
                 <div className="pointer-events-auto">
                   <OutdoorPanel />
                 </div>
               </div>
+              {/* 축척(8) — 메인 3D 왼쪽 아래(docs/06-design-guide.md) */}
+              <div className="pointer-events-none absolute bottom-6 left-10">
+                <ScaleBar />
+              </div>
               {isFirstLoading && <LoadingOverlay />}
-            </div>
-            <div className="flex justify-end border-t border-white/10 px-4 py-2">
-              <ScaleBar />
             </div>
           </div>
 
-          {/* 우측: 상세보기 패널(6) — 항상 노출 */}
-          <div className="w-[768px]">
+          {/* 우측: 상세보기 패널(6) — 항상 노출, 가로 768px */}
+          <div className="w-[788px] shrink-0 pb-5 pr-5">
             <DetailPanel />
           </div>
         </div>

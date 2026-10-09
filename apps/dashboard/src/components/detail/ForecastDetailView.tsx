@@ -10,7 +10,7 @@ import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
-import { Timeline } from './Timeline.js';
+import { Detail2DBox, Detail3DSection, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
 import { FlowCylinders } from '../../scene/FlowCylinders.js';
@@ -76,13 +76,13 @@ export function ForecastDetailView(): ReactElement {
   return (
     <>
       <ControlsRow />
-      <div className="h-[340px] shrink-0">
+      <TimelineSection frames={frames} />
+      <Detail3DSection>
         <Detail3DView geometry={geometry} frame={frame} range={range} overlay={overlay} />
-      </div>
-      <div className="h-[220px] shrink-0">
+      </Detail3DSection>
+      <Detail2DBox>
         <Detail2DSection geometry={geometry} frame={frame} range={range} />
-      </div>
-      <Timeline frames={frames} />
+      </Detail2DBox>
     </>
   );
 }

@@ -28,7 +28,7 @@ describe('GET /api/main/weather/kma', () => {
     };
 
     const app = Fastify();
-    registerMainWeatherKmaRoute(app, { kmaClient, farmLat: FARM_LAT, farmLon: FARM_LON });
+    registerMainWeatherKmaRoute(app, { kmaClient, farmLat: FARM_LAT, farmLon: FARM_LON, areaName: '' });
 
     const res = await app.inject({ method: 'GET', url: '/api/main/weather/kma' });
     const body = res.json() as ApiOk<KmaWeather>;
@@ -57,7 +57,7 @@ describe('GET /api/main/weather/kma', () => {
     };
 
     const app = Fastify();
-    registerMainWeatherKmaRoute(app, { kmaClient, farmLat: FARM_LAT, farmLon: FARM_LON });
+    registerMainWeatherKmaRoute(app, { kmaClient, farmLat: FARM_LAT, farmLon: FARM_LON, areaName: '' });
 
     const res = await app.inject({ method: 'GET', url: '/api/main/weather/kma' });
     const body = res.json() as ApiOk<KmaWeather>;
@@ -84,7 +84,7 @@ describe('GET /api/main/weather/kma', () => {
     };
 
     const app = Fastify();
-    registerMainWeatherKmaRoute(app, { kmaClient, farmLat: FARM_LAT, farmLon: FARM_LON });
+    registerMainWeatherKmaRoute(app, { kmaClient, farmLat: FARM_LAT, farmLon: FARM_LON, areaName: '' });
 
     const res = await app.inject({ method: 'GET', url: '/api/main/weather/kma' });
     const body = res.json() as ApiOk<KmaWeather>;
