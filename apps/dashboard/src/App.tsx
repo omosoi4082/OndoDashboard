@@ -32,9 +32,9 @@ function App(): ReactElement {
   const isFirstLoading = rooms === null || weatherKma === null || weatherStation === null;
 
   return (
-    <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-[#0e1116]">
+    <div className="flex h-screen w-screen items-center justify-center overflow-hidden bg-[#1b1a1f]">
       <div
-        className="relative flex h-full w-full flex-col overflow-hidden bg-[#0e1116] text-white"
+        className="relative flex h-full w-full flex-col overflow-hidden bg-[#1b1a1f] text-white"
         style={{ minWidth: MIN_VIEWPORT_WIDTH_PX, minHeight: MIN_VIEWPORT_HEIGHT_PX }}
       >
         <Header />
@@ -59,7 +59,7 @@ function App(): ReactElement {
           </div>
 
           {/* 우측: 상세보기 패널(6) — 항상 노출 */}
-          <div className="w-[480px]">
+          <div className="w-[768px]">
             <DetailPanel />
           </div>
         </div>

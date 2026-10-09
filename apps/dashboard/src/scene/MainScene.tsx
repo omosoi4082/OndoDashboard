@@ -1,7 +1,7 @@
 // 메인 3D 돈사(01-functional-spec.md 2장 #4) — Canvas 렌더러 설정은
 // technical-review/pig-farm-cfd-demo/src/overviewScene.js에서 포팅
 // (logarithmicDepthBuffer:true 등, docs/07-starter-kit-assets.md). 자돈·육성·비육 3방이
-// 통합된 실측 모델(weaner_room_test-001.glb) 로드·상호작용은 OverviewScene.tsx가 맡는다.
+// 통합된 실측 모델(weaner_room_test_op.glb) 로드·상호작용은 OverviewScene.tsx가 맡는다.
 // 그림자를 지는 방향광은 여기 고정 위치로 두지 않는다 — 모델 로드 전에는 실제 크기를
 // 몰라 그림자 카메라 프러스텀을 맞출 수 없기 때문에, 로드된 sections 박스를 아는
 // OverviewScene.tsx 쪽(scene/SceneLighting.tsx)에서 매번 다시 계산해 배치한다
@@ -16,13 +16,16 @@ export function MainScene(): ReactElement {
   const setHoveredRoomId = useMainStore((s) => s.setHoveredRoomId);
 
   return (
+    // flat = 톤 매핑 끔(NoToneMapping). R3F 기본 ACES가 중간 밝기를 눌러 glb 머티리얼 색
+    // (육성·비육 PigRoom_Gray #adadad 등)이 실제보다 진하게 보여서 끈다(2026-10-09 사용자 요청).
     <Canvas
       shadows
+      flat
       gl={{ antialias: true, logarithmicDepthBuffer: true }}
       camera={{ fov: 45, near: 0.1, far: 300 }}
       onPointerMissed={() => setHoveredRoomId(null)}
     >
-      <color attach="background" args={['#eef2f6']} />
+      <color attach="background" args={['#1b1a1f']} />
       <hemisphereLight args={['#ffffff', '#d9dfe6', 0.55]} />
       <ambientLight intensity={0.18} />
       <directionalLight position={[-8, 6, -6]} intensity={0.12} />

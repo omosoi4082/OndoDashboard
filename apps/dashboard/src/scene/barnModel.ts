@@ -6,9 +6,11 @@
 import * as THREE from 'three';
 import type { RoomId } from '@ondo/shared';
 
-// 2026-10-08 교체본 — 자돈(P1 단일 노드)·육성(Grower_ 접두사)·비육(Finisher_ 접두사) 3방이
+// 2026-10-09 교체본 — 자돈(P1 단일 노드)·육성(Grower_ 접두사)·비육(Finisher_ 접두사) 3방이
 // 하나로 붙은 실측 모델. public/assets/models에 복사해 Vite가 정적으로 서빙한다.
-export const OVERVIEW_MODEL_URL = '/assets/models/weaner_room_test-001.glb';
+// 머티리얼은 glb에 들어 있는 것을 그대로 쓴다(육성·비육 회색 PigRoom_Gray 포함) — 코드에서
+// 덮어쓰지 않는다.
+export const OVERVIEW_MODEL_URL = '/assets/models/weaner_room_test_op.glb';
 
 export interface BarnNodeConfig {
   roomId: RoomId;

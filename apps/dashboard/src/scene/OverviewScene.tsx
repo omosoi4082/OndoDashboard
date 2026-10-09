@@ -1,8 +1,8 @@
 // 메인 3D 돈사(01-functional-spec.md 2장 #4) — 자돈·육성·비육 3방이 통합된 실측 모델
-// (weaner_room_test-001.glb)을 로드해 보여준다. 모델 로드·정렬·방 노드 태깅은
+// (weaner_room_test_op.glb, 머티리얼은 glb 그대로)을 로드해 보여준다. 모델 로드·정렬·방 노드 태깅은
 // scene/barnModel.ts(technical-review/pig-farm-cfd-demo/src/barnFactory.js 포팅,
-// docs/07-starter-kit-assets.md)에 둔 순수 함수를 쓴다. 정보 판넬(5-1~5-3)은 3개 방 모두
-// 상시 표시(2026-10-09, 호버 전용 여부는 추후 결정 — 05-open-questions.md #29). 클릭은
+// docs/07-starter-kit-assets.md)에 둔 순수 함수를 쓴다. 정보 판넬(5-1~5-3)은 호버한 방에만
+// 표시(01-functional-spec.md 2장, 05-open-questions.md #29 — 2026-10-09 호버 전용으로 확정). 클릭은
 // 자돈방(NH)만 반응한다(회색 방은 클릭 핸들러 자체를 달지 않는다 — 05-open-questions.md #22).
 import { useMemo, type ReactElement } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
@@ -35,6 +35,7 @@ export function OverviewScene(): ReactElement {
 
   const selectedRoomId = useMainStore((s) => s.selectedRoomId);
   const setSelectedRoomId = useMainStore((s) => s.setSelectedRoomId);
+  const hoveredRoomId = useMainStore((s) => s.hoveredRoomId);
   const setHoveredRoomId = useMainStore((s) => s.setHoveredRoomId);
   const rooms = useMainStore((s) => s.rooms);
   const roomsData = okData(rooms);
@@ -80,12 +81,9 @@ export function OverviewScene(): ReactElement {
         <primitive object={scene} />
       </group>
 
-      {/* 정보 판넬(5-1~5-3) — 방 바로 위에 뜨는 콜아웃(docs/design/screen-design.png on-01
-          ④⑤). 2026-10-09 사용자 요청: 호버 여부와 무관하게 3개 방 모두 상시 표시로 단순화
-          (호버 전용 vs 상시 노출은 추후 결정 — 05-open-questions.md #29). 호버 상태(hoveredRoomId)
-          자체는 커서 전환용으로 계속 추적하므로, 나중에 호버 전용으로 되돌리려면 이 블록만
-          `sections.filter(s => s.roomId === hoveredRoomId)`로 바꾸면 된다. */}
-      {sections.map((section) => (
+      {/* 정보 판넬(5-1~5-3) — 호버한 방 바로 위에 뜨는 콜아웃(docs/design/screen-design.png on-01
+          ④⑤). 3개 방 모두 호버 시에만 표시(05-open-questions.md #29, 2026-10-09 확정). */}
+      {sections.filter((section) => section.roomId === hoveredRoomId).map((section) => (
         <Html
           key={section.roomId}
           position={[section.center.x, section.center.y + section.size.y / 2 + ROOM_CALLOUT_OFFSET_M, section.center.z]}
