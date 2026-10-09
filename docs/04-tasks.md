@@ -37,6 +37,7 @@
 - `GET /api/health`.
 - 단위 테스트: 변환 함수 전부, 발표 시각 계산(자정 넘김 포함), 센서 응답 파싱(항목 순서 뒤섞인 픽스처, 항목 누락 픽스처), rooms partial.
 - `SENSOR_MODE=mock` 옵션: 센서 서버에 접근할 수 없는 환경에서도 개발할 수 있게 픽스처를 반환.
+- `SENSOR_HISTORY_MODE`(선택): 현재·예측 입력 이력만 따로 mock/live 지정. 비우면 `SENSOR_MODE`를 따름(05-open-questions #34).
 
 완료 조건: 실제 센서 서버·기상청에 붙여 세 API가 응답한다. 센서 하나를 막으면 해당 방만 disconnected, 기상청을 막으면 3-1만 끊김.
 

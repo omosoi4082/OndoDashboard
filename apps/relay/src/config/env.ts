@@ -15,6 +15,9 @@ const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
 
   SENSOR_MODE: z.enum(['live', 'mock']).default('live'),
+  // 현재·예측 모드 입력용 이력(range)만 따로 전환. 비우면 SENSOR_MODE를 따른다
+  // (외기 3시간 이력 미제공 기간에 메인은 live, 상세 입력만 mock으로 쓰기 위함 — 05-open-questions #34).
+  SENSOR_HISTORY_MODE: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['live', 'mock']).optional()),
   SENSOR_BASE_URL: z.string().min(1),
   INPUT_T_OUT_PATH: z.string().min(1).default('JE/OU/WS/WS1/TEMP'),
   INPUT_RH_OUT_PATH: z.string().min(1).default('JE/OU/WS/WS1/RH'),

@@ -45,7 +45,7 @@ const kmaClient = createKmaClient({
 });
 
 const sensorHistoryClient = createSensorHistoryClient({
-  mode: env.SENSOR_MODE,
+  mode: env.SENSOR_HISTORY_MODE ?? env.SENSOR_MODE,
   baseUrl: env.SENSOR_BASE_URL,
   timeoutMs: env.UPSTREAM_TIMEOUT_MS,
 });
