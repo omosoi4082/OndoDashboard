@@ -5,6 +5,7 @@
 // 구조를 재사용하고, 3D 영역(32) 위에 환기량 비교 그래프 카드(34, C안)를
 // Detail3DView의 htmlOverlay 슬롯으로 얹는다.
 import { useEffect, useState, type ReactElement } from 'react';
+import { Settings, Zap } from 'lucide-react';
 import type { ControlDetail } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
@@ -21,11 +22,17 @@ import { FlowVisualization } from '../../scene/FlowVisualization.js';
 
 type ControlTarget = ControlDetail['target'];
 
-const TARGETS: ReadonlyArray<{ id: ControlTarget; label: string }> = [
-  { id: 'energy', label: '에너지 최적화' },
-  { id: 'environment', label: '환경 최적화' },
+// 아이콘은 아직 받지 않아 lucide-react로 임시 대체(2026-10-11 사용자: "아이콘은 넣어
+// 줄께" — docs/design/icon/에 전달되면 icons/designIcons.tsx 패턴으로 교체).
+const TARGETS: ReadonlyArray<{ id: ControlTarget; label: string; Icon: typeof Zap }> = [
+  { id: 'energy', label: '에너지 최적화', Icon: Zap },
+  { id: 'environment', label: '환경 최적화', Icon: Settings },
 ];
 
+// 버튼 728×56, radius 8, 글씨 16px, 선택 #ffffff·비선택 #a4abb5(2026-10-11 사용자 실측
+// 지시). 컨테이너를 w-full·버튼을 flex-1로 둬 폭을 하드코딩하지 않고 카드 폭(패널 기준
+// 728px)에 맞춘다 — gap-2(8px)까지 합치면 실측값과 같다. 배경색은 04_제어모드_디자인_01
+// 픽셀 실측(선택 rgb(60,88,128), 비선택 rgb(48,50,55)).
 function ControlTargetToggle({
   target,
   disabled,
@@ -36,18 +43,19 @@ function ControlTargetToggle({
   onChange: (next: ControlTarget) => void;
 }): ReactElement {
   return (
-    <div className="flex shrink-0 gap-1.5">
-      {TARGETS.map((t) => (
+    <div className="flex h-14 w-full shrink-0 gap-2">
+      {TARGETS.map(({ id, label, Icon }) => (
         <button
-          key={t.id}
+          key={id}
           type="button"
           disabled={disabled}
-          onClick={() => onChange(t.id)}
-          className={`rounded px-3 py-1.5 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-            target === t.id ? 'bg-cyan-500/20 text-cyan-300' : 'bg-white/5 text-white/50 hover:text-white/70'
+          onClick={() => onChange(id)}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-lg text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            target === id ? 'bg-[#3c5880] text-white' : 'bg-[#303237] text-[#a4abb5] hover:text-white'
           }`}
         >
-          {t.label}
+          <Icon size={18} />
+          {label}
         </button>
       ))}
     </div>
@@ -102,6 +110,9 @@ export function ControlModeView(): ReactElement {
   return (
     <>
       <ControlTargetToggle target={target} disabled={isLoading} onChange={handleTargetChange} />
+      {/* 토글 버튼과 분석 항목 사이 구분선 — ExpertModeView와 같은 패턴(2026-10-11 사용자:
+          "분석항목 사이에 라인"). */}
+      <div className="h-px shrink-0 bg-ondo-border" />
       <ControlsRow />
 
       {isLoading ? (
