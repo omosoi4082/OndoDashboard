@@ -61,7 +61,7 @@ function ControlTargetToggle({
               사용자: "아이콘도 선택 비선택 색상이 글씨와 같아야지"). */}
           <span
             aria-hidden="true"
-            className="h-[18px] w-[18px] shrink-0 bg-current"
+            className="h-[26px] w-[26px] shrink-0 bg-current"
             style={{
               WebkitMaskImage: `url(${icon})`,
               maskImage: `url(${icon})`,
