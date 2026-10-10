@@ -1,8 +1,9 @@
 // 외부환경(3) — 3-1 기상청 실황 + 3-2 미세기후 (01-functional-spec.md 2장). 스타일·크기는
 // docs/06-design-guide.md "외부환경"(디자인 원본 실측: 블록 폭 338, 타일 82×66, 간격 4,
 // 타일 안 아이콘 18×18·아이콘-값 간격 12, 2026-10-10 Figma 재확인).
-// 타일 4칸: 풍향·풍속·습도·강수량. 풍속(양쪽)·기상청 강수량은 아직 API에 없어 '-'
-// (05-open-questions.md #36, 사용자가 온도 측 확인 중).
+// 타일 4칸: 풍향·풍속·강수량·습도(2026-10-10 사용자 재확정 — 05-open-questions.md #36의
+// 2026-10-09 순서(풍향·풍속·습도·강수량)에서 변경). 풍속(양쪽)·기상청 강수량은 아직 API에
+// 없어 '-'(05-open-questions.md #36, 사용자가 온도 측 확인 중).
 import type { ReactElement, ReactNode } from 'react';
 import type { WeatherCode } from '@ondo/shared';
 import { okData } from '../api/client.js';
@@ -73,8 +74,8 @@ function WeatherBlock(props: WeatherBlockProps): ReactElement {
           value={windDir}
         />
         <Tile icon={<WindSpeedIcon size={18} />} value={num(windSpeed, 1)} unit="m/s" />
-        <Tile icon={<HumidityTileIcon size={18} />} value={num(rh, 0)} unit="%" />
         <Tile icon={<RainAmountIcon size={18} />} value={num(rain, 1)} unit="mm" />
+        <Tile icon={<HumidityTileIcon size={18} />} value={num(rh, 0)} unit="%" />
       </div>
     </div>
   );
