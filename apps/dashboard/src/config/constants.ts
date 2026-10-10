@@ -32,6 +32,11 @@ export const SCALE_BAR_TARGET_PX = 120;
 export const MIN_VIEWPORT_WIDTH_PX = 960;
 export const MIN_VIEWPORT_HEIGHT_PX = 540;
 
+// 상세보기 패널(6) 고정 폭 — App.tsx 레이아웃과 scene/CameraRig.tsx(메인 3D 캔버스가 전체
+// 화면 폭이라, 상세 패널에 가려지지 않는 "보이는 영역"의 중앙을 계산할 때)가 공유한다.
+// 둘 중 하나만 바꾸면 어긋나므로 반드시 같이 바꿀 것.
+export const DETAIL_PANEL_WIDTH_PX = 788;
+
 // 상세 패널(6) 2D 수평단면 높이(m) — relay .env의 SECTION_Z_M(기본 0.5, docs/02-relay-api.md
 // 5장)과 같은 값을 유지해야 한다. 대시보드는 .env를 읽지 않으므로 상수로 따로 두고, 값을
 // 바꿀 때는 relay .env와 이 값을 함께 수정한다(05-open-questions.md #16: 0.5 확정).

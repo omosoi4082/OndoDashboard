@@ -15,7 +15,7 @@ import { useDetailGeometryBootstrap } from './hooks/useDetailGeometryBootstrap.j
 import { useCurrentDetailPolling } from './hooks/useCurrentDetailPolling.js';
 import { useForecastDetailOnDemand } from './hooks/useForecastDetailOnDemand.js';
 import { useMainStore } from './store/mainStore.js';
-import { MIN_VIEWPORT_HEIGHT_PX, MIN_VIEWPORT_WIDTH_PX } from './config/constants.js';
+import { DETAIL_PANEL_WIDTH_PX, MIN_VIEWPORT_HEIGHT_PX, MIN_VIEWPORT_WIDTH_PX } from './config/constants.js';
 
 function App(): ReactElement {
   useMainDataPolling();
@@ -76,7 +76,7 @@ function App(): ReactElement {
           </div>
 
           {/* 우측: 상세보기 패널(6) — 항상 노출, 가로 768px. 캔버스와 안 겹치니 클릭 정상 작동하게 auto로 복구 */}
-          <div className="pointer-events-auto w-[788px] shrink-0 pb-5 pr-5">
+          <div className="pointer-events-auto shrink-0 pb-5 pr-5" style={{ width: DETAIL_PANEL_WIDTH_PX }}>
             <DetailPanel />
           </div>
         </div>
