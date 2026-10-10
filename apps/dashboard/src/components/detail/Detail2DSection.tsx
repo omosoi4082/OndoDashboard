@@ -108,6 +108,14 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
     const pct = ((1 - t) * 100).toFixed(1);
     return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}) ${pct}%`;
   }).join(', ');
+  // 범례 칫수(값) — 최솟값·최댓값만이 아니라 중간 눈금도 보여준다(2026-10-10 사용자 요청:
+  // "범례에도 값에 대한 색상이 나오고 치수들이 보여야지"). niceAxisTicks는 공간 좌표뿐 아니라
+  // 임의의 min~max 범위에 적당한 간격 눈금을 고르는 범용 함수라 그대로 재사용한다.
+  const legendTicks = useMemo(
+    () => niceAxisTicks(fieldRange.min, fieldRange.max, 4),
+    [fieldRange.min, fieldRange.max],
+  );
+  const legendSpan = Math.max(fieldRange.max - fieldRange.min, 1e-9);
 
   return (
     <div className="flex h-full gap-3 rounded-lg border border-ondo-border bg-ondo-surface p-2">
@@ -171,16 +179,22 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
           </div>
         </div>
       </div>
-      <div className="flex w-10 flex-col items-center justify-between py-1 text-[10px] text-white/60">
-        <span>
-          {fieldRange.max.toFixed(1)}
-          {unit}
-        </span>
-        <div className="my-1 w-3 flex-1 rounded" style={{ background: `linear-gradient(to bottom, ${legendStops})` }} />
-        <span>
-          {fieldRange.min.toFixed(1)}
-          {unit}
-        </span>
+      <div className="flex w-16 shrink-0 items-stretch py-1">
+        <div className="relative my-1 w-3 rounded" style={{ background: `linear-gradient(to bottom, ${legendStops})` }}>
+          {legendTicks.map((v) => (
+            <div
+              key={v}
+              className="absolute left-full flex -translate-y-1/2 items-center gap-1 pl-1"
+              style={{ top: `${(1 - (v - fieldRange.min) / legendSpan) * 100}%` }}
+            >
+              <span className="h-px w-1.5 bg-white/40" />
+              <span className="whitespace-nowrap text-[9px] text-white/60">
+                {v.toFixed(1)}
+                {unit}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
