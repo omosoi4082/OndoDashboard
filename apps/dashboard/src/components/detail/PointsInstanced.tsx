@@ -83,7 +83,11 @@ export function PointsInstanced({ geometry, frame, range, valueField, onHoverCha
       onPointerOut={handlePointerOut}
     >
       <primitive object={boxGeom} attach="geometry" />
-      <meshBasicMaterial vertexColors />
+      {/* toneMapped=false: R3F 기본 ACESFilmic 톤매핑이 채도 높은 색을 눈에 띄게
+          바래 보이게 만들었다(2026-10-10 확인 — 컬러맵 채도를 아무리 올려도 3D 포인트만
+          그대로였음, 반지름을 키워도 동일 → 안티에일리어싱이 아니라 톤매핑 문제로 확인).
+          값→색 매핑을 그대로 보여줘야 하는 데이터 시각화라 톤매핑을 끈다. */}
+      <meshBasicMaterial vertexColors toneMapped={false} />
     </instancedMesh>
   );
 }

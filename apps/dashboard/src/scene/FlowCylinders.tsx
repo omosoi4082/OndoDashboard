@@ -75,7 +75,9 @@ export function FlowCylinders({ geometry, frame, range }: FlowCylindersProps): R
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       {/* height=1 — 실제 길이는 인스턴스 스케일(scale.y)로만 조절한다(지오메트리는 고정). */}
       <primitive object={cylGeom} attach="geometry" />
-      <meshStandardMaterial vertexColors roughness={0.4} metalness={0.1} />
+      {/* toneMapped=false: R3F 기본 ACESFilmic 톤매핑이 채도 높은 색을 바래 보이게 만든다
+          (PointsInstanced.tsx와 같은 이유, 2026-10-10 확인). */}
+      <meshStandardMaterial vertexColors roughness={0.4} metalness={0.1} toneMapped={false} />
     </instancedMesh>
   );
 }

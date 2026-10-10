@@ -116,7 +116,9 @@ export function FlowStreamlines({ geometry, frame, range }: FlowStreamlinesProps
           색이 제대로 보여서(두께 키운 채로 확인) 투명도는 빼고 두께만 원래 값(FLOW_CYLINDER_
           RADIUS_M)으로 되돌렸다 — 사용자 확인: "이전 크기가 괜찮았다". */}
       <primitive object={cylGeom} attach="geometry" />
-      <meshBasicMaterial vertexColors />
+      {/* toneMapped=false: R3F 기본 ACESFilmic 톤매핑이 채도 높은 색을 바래 보이게 만든다
+          (PointsInstanced.tsx와 같은 이유, 2026-10-10 확인). */}
+      <meshBasicMaterial vertexColors toneMapped={false} />
     </instancedMesh>
   );
 }

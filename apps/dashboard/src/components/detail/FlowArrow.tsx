@@ -50,13 +50,15 @@ export function FlowArrow({ origin, flow, range }: FlowArrowProps): ReactElement
 
   return (
     <group position={position} quaternion={transform.quaternion}>
+      {/* toneMapped=false: R3F 기본 ACESFilmic 톤매핑이 채도 높은 색을 바래 보이게 만든다
+          (PointsInstanced.tsx와 같은 이유, 2026-10-10 확인). */}
       <mesh position={[0, transform.length / 2, 0]}>
         <cylinderGeometry args={[SHAFT_RADIUS_M, SHAFT_RADIUS_M, transform.length, 8]} />
-        <meshBasicMaterial color={arrowColor} transparent opacity={ARROW_OPACITY} />
+        <meshBasicMaterial color={arrowColor} transparent opacity={ARROW_OPACITY} toneMapped={false} />
       </mesh>
       <mesh position={[0, transform.length, 0]}>
         <coneGeometry args={[CONE_RADIUS_M, CONE_HEIGHT_M, 10]} />
-        <meshBasicMaterial color={arrowColor} transparent opacity={ARROW_OPACITY} />
+        <meshBasicMaterial color={arrowColor} transparent opacity={ARROW_OPACITY} toneMapped={false} />
       </mesh>
     </group>
   );

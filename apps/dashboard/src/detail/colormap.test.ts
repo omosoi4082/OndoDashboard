@@ -1,19 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { colormapRGB01, normalize, valueToRGB01, valueToRGB255 } from './colormap.js';
 
+// 색상 자체(RGB 값)는 colormap.ts의 SATURATION_BOOST 하나로 튜닝하는 값이라(사용자가 직접
+// 조정) 여기서 정확한 색을 하드코딩하지 않는다 — 보간·클램프 등 알고리즘만 검증한다.
 describe('colormapRGB01', () => {
-  it('t=0이면 첫 색상 스탑(원본 색상에 SATURATION_BOOST를 적용한 값)', () => {
-    const [r, g, b] = colormapRGB01(0);
-    expect(r).toBeCloseTo(0.04, 5);
-    expect(g).toBeCloseTo(0.2, 5);
-    expect(b).toBeCloseTo(1.0, 5);
+  it('0~1 범위 안에서는 항상 유효한 RGB(0~1) 값을 돌려준다', () => {
+    for (const t of [0, 0.15, 0.3, 0.55, 0.75, 1]) {
+      for (const c of colormapRGB01(t)) {
+        expect(c).toBeGreaterThanOrEqual(0);
+        expect(c).toBeLessThanOrEqual(1);
+      }
+    }
   });
 
-  it('t=1이면 마지막 색상 스탑(원본 색상에 SATURATION_BOOST를 적용한 값)', () => {
-    const [r, g, b] = colormapRGB01(1);
-    expect(r).toBeCloseTo(1.0, 5);
-    expect(g).toBeCloseTo(0.1133, 3);
-    expect(b).toBeCloseTo(0.05, 5);
+  it('t=0과 t=1은 고정된(결정적인) 색이고 서로 다르다', () => {
+    expect(colormapRGB01(0)).toEqual(colormapRGB01(0));
+    expect(colormapRGB01(1)).toEqual(colormapRGB01(1));
+    expect(colormapRGB01(0)).not.toEqual(colormapRGB01(1));
   });
 
   it('범위를 벗어난 값은 0~1로 클램프된다', () => {
@@ -22,8 +25,12 @@ describe('colormapRGB01', () => {
   });
 
   it('스탑 사이 값은 선형 보간된다', () => {
-    const [r] = colormapRGB01(0.15); // 0.0~0.3 구간의 중간
-    expect(r).toBeCloseTo((0.04 + 0.0) / 2, 5);
+    const c0 = colormapRGB01(0);
+    const c03 = colormapRGB01(0.3);
+    const mid = colormapRGB01(0.15); // 0.0~0.3 구간의 중간
+    for (let i = 0; i < 3; i++) {
+      expect(mid[i]).toBeCloseTo((c0[i] + c03[i]) / 2, 5);
+    }
   });
 });
 

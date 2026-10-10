@@ -16,7 +16,7 @@ const BASE_STOPS: ReadonlyArray<readonly [number, RGB01]> = [
 ];
 
 // 1.0 = 원본 채도 그대로, 2.0 = 채도 2배(흰색 섞인 비율을 절반으로). 1보다 작으면 더 연하게.
-const SATURATION_BOOST = 1.6;
+const SATURATION_BOOST = 1;
 
 function rgbToHsl([r, g, b]: RGB01): readonly [number, number, number] {
   const max = Math.max(r, g, b);
@@ -54,7 +54,10 @@ function boostSaturation(rgb: RGB01, factor: number): RGB01 {
   return hslToRgb(h, Math.min(1, s * factor), l);
 }
 
-const STOPS: ReadonlyArray<readonly [number, RGB01]> = BASE_STOPS.map(([t, c]) => [t, boostSaturation(c, SATURATION_BOOST)]);
+const STOPS: ReadonlyArray<readonly [number, RGB01]> = BASE_STOPS.map(([t, c]) => [
+  t,
+  boostSaturation(c, SATURATION_BOOST),
+]);
 
 /** 0~1로 정규화된 값을 RGB(0~1)로 변환한다. */
 export function colormapRGB01(tInput: number): RGB01 {
@@ -67,7 +70,11 @@ export function colormapRGB01(tInput: number): RGB01 {
     const [t1, c1] = stop1;
     if (t >= t0 && t <= t1) {
       const f = t1 === t0 ? 0 : (t - t0) / (t1 - t0);
-      return [c0[0] + (c1[0] - c0[0]) * f, c0[1] + (c1[1] - c0[1]) * f, c0[2] + (c1[2] - c0[2]) * f];
+      return [
+        c0[0] + (c1[0] - c0[0]) * f,
+        c0[1] + (c1[1] - c0[1]) * f,
+        c0[2] + (c1[2] - c0[2]) * f,
+      ];
     }
   }
   const last = STOPS[STOPS.length - 1];
@@ -88,7 +95,11 @@ export function valueToRGB01(value: number, min: number, max: number): RGB01 {
   return colormapRGB01(normalize(value, min, max));
 }
 
-export function valueToRGB255(value: number, min: number, max: number): readonly [number, number, number] {
+export function valueToRGB255(
+  value: number,
+  min: number,
+  max: number,
+): readonly [number, number, number] {
   const [r, g, b] = valueToRGB01(value, min, max);
   return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
 }
