@@ -5,7 +5,7 @@
 // 유동은 flowGrid가 grid와 해상도가 달라(9×8×4 vs 19×17×8) 별도 분기로 처리한다 — 색은
 // FlowVec의 4번째 값(유속 크기)을 쓴다(2026-10-10 사용자 요청: "유동도 값에 따른 히트맵이
 // 있어야 한다", 명세에 명시적 금지는 없고 그간 구현이 없었을 뿐이라 추가함).
-import { useEffect, useMemo, useRef, type ReactElement } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { DetailBase, DetailFrame, Geometry, GridDef } from '@ondo/shared';
 import { bilinearUpsample2x, extractZLayer, nearestZIndex } from '../../detail/sectionGrid.js';
 import { buildHeatmapImage } from '../../detail/heatmapImage.js';
@@ -22,10 +22,17 @@ interface Detail2DSectionProps {
 }
 
 const LEGEND_STEPS = 24;
+// 레이아웃 고정 여백(px) — 가로세로 비율 맞춤 계산에 쓴다. Tailwind 클래스(w-7=28, h-3=12,
+// gap-1=4)와 값이 어긋나지 않게 같이 바꿔야 한다.
+const Y_AXIS_GUTTER_PX = 28;
+const X_AXIS_ROW_PX = 12;
+const ROW_GAP_PX = 4;
 
 export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps): ReactElement {
   const valueField = useDetailStore((s) => s.valueField);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const areaRef = useRef<HTMLDivElement>(null);
+  const [areaSize, setAreaSize] = useState({ width: 0, height: 0 });
 
   // 필드별로 어느 격자(해상도)·값 배열을 쓸지만 다르고, 그 뒤 보간·히트맵·범례 파이프라인은 같다.
   const activeGrid: GridDef = valueField === 'flow' ? geometry.flowGrid : geometry.grid;
@@ -71,6 +78,29 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   const xTicks = useMemo(() => niceAxisTicks(viewMinX, viewMinX + viewW), [viewMinX, viewW]);
   const yTicks = useMemo(() => niceAxisTicks(viewMinY, viewMinY + viewH), [viewMinY, viewH]);
 
+  // 실제 방 가로세로 비율(m)을 그대로 유지한 채 영역 안에 맞춘다(2026-10-10 사용자 확인 —
+  // "가로가 너무 길다, 비율이 안 받는다". 이전엔 SVG preserveAspectRatio="none"으로 캔버스를
+  // 컨테이너 모양에 맞춰 억지로 늘렸었다). 컨테이너 크기는 ResizeObserver로 재서 JS로 직접
+  // 가로세로를 계산한다 — CSS aspect-ratio만으로는 (Y축 눈금 칸 폭 같은) 고정 여백이 섞인
+  // 레이아웃에서 양쪽 방향 모두를 안정적으로 줄이지 못한다.
+  useLayoutEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
+      const { width, height } = entry.contentRect;
+      setAreaSize({ width, height });
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const canvasW = Math.max(0, areaSize.width - Y_AXIS_GUTTER_PX - ROW_GAP_PX);
+  const canvasHFromW = canvasW / (viewW / viewH);
+  const canvasHCap = Math.max(0, areaSize.height - X_AXIS_ROW_PX - ROW_GAP_PX);
+  const fittedCanvasH = Math.min(canvasHFromW, canvasHCap);
+  const fittedCanvasW = fittedCanvasH * (viewW / viewH);
+
   const unit = getFieldUnit(valueField);
   const legendStops = Array.from({ length: LEGEND_STEPS }, (_, i) => {
     const t = i / (LEGEND_STEPS - 1);
@@ -81,58 +111,64 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
 
   return (
     <div className="flex h-full gap-3 rounded-lg border border-ondo-border bg-ondo-surface p-2">
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <div className="flex min-h-0 flex-1 gap-1">
-          {/* Y축 칫수(m) — 아래 X축 행의 ml-8과 폭을 맞춰야 눈금이 캔버스와 정렬된다. */}
-          <div className="relative w-7 shrink-0">
-            {yTicks.map((v) => (
+      {/* 실제 치수 비율대로 맞춘 박스를 이 영역 안에서 가운데 정렬한다(남는 공간은 레터박스). */}
+      <div ref={areaRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+        <div style={{ width: fittedCanvasW + Y_AXIS_GUTTER_PX + ROW_GAP_PX }}>
+          <div className="flex gap-1" style={{ height: fittedCanvasH }}>
+            {/* Y축 칫수(m) — 아래 X축 행의 marginLeft와 폭을 맞춰야 눈금이 캔버스와 정렬된다. */}
+            <div className="relative shrink-0" style={{ width: Y_AXIS_GUTTER_PX }}>
+              {yTicks.map((v) => (
+                <span
+                  key={v}
+                  className="absolute right-1 -translate-y-1/2 whitespace-nowrap text-[9px] text-white/50"
+                  style={{ top: `${((v - viewMinY) / viewH) * 100}%` }}
+                >
+                  {v}m
+                </span>
+              ))}
+            </div>
+            <div className="relative" style={{ width: fittedCanvasW }}>
+              <canvas
+                ref={canvasRef}
+                className="absolute inset-0 rounded"
+                style={{ width: '100%', height: '100%', imageRendering: 'auto' }}
+              />
+              <svg
+                className="pointer-events-none absolute inset-0 h-full w-full"
+                viewBox={`${viewMinX} ${viewMinY} ${viewW} ${viewH}`}
+                preserveAspectRatio="none"
+              >
+                {SECTION_PARTITION_SEGMENTS.map(([[x1, y1], [x2, y2]], idx) => (
+                  <line
+                    key={idx}
+                    x1={x1}
+                    y1={y1}
+                    x2={x2}
+                    y2={y2}
+                    stroke="white"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              </svg>
+            </div>
+          </div>
+          {/* X축 칫수(m) */}
+          <div
+            className="relative shrink-0"
+            style={{ height: X_AXIS_ROW_PX, marginTop: ROW_GAP_PX, marginLeft: Y_AXIS_GUTTER_PX + ROW_GAP_PX, width: fittedCanvasW }}
+          >
+            {xTicks.map((v) => (
               <span
                 key={v}
-                className="absolute right-1 -translate-y-1/2 whitespace-nowrap text-[9px] text-white/50"
-                style={{ top: `${((v - viewMinY) / viewH) * 100}%` }}
+                className="absolute -translate-x-1/2 whitespace-nowrap text-[9px] text-white/50"
+                style={{ left: `${((v - viewMinX) / viewW) * 100}%` }}
               >
                 {v}m
               </span>
             ))}
           </div>
-          <div className="relative min-w-0 flex-1">
-            <canvas
-              ref={canvasRef}
-              className="absolute inset-0 rounded"
-              style={{ width: '100%', height: '100%', imageRendering: 'auto' }}
-            />
-            <svg
-              className="pointer-events-none absolute inset-0 h-full w-full"
-              viewBox={`${viewMinX} ${viewMinY} ${viewW} ${viewH}`}
-              preserveAspectRatio="none"
-            >
-              {SECTION_PARTITION_SEGMENTS.map(([[x1, y1], [x2, y2]], idx) => (
-                <line
-                  key={idx}
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
-                  stroke="white"
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                  vectorEffect="non-scaling-stroke"
-                />
-              ))}
-            </svg>
-          </div>
-        </div>
-        {/* X축 칫수(m) */}
-        <div className="relative ml-8 h-3 shrink-0">
-          {xTicks.map((v) => (
-            <span
-              key={v}
-              className="absolute -translate-x-1/2 whitespace-nowrap text-[9px] text-white/50"
-              style={{ left: `${((v - viewMinX) / viewW) * 100}%` }}
-            >
-              {v}m
-            </span>
-          ))}
         </div>
       </div>
       <div className="flex w-10 flex-col items-center justify-between py-1 text-[10px] text-white/60">
