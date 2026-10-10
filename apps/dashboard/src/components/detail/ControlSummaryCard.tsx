@@ -41,14 +41,21 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
 
   return (
     <div
-      className="pointer-events-auto rounded-lg bg-[#141414]/70 p-5 backdrop-blur-sm"
+      className="pointer-events-auto rounded-lg bg-[#141414]/70"
       style={{
         width: CARD_WIDTH,
         height: CARD_HEIGHT,
+        // 패딩 15/14/12는 CSS 3-값 shorthand(top | left&right | bottom) — 지금까지 p-5(20
+        // 균일)로 돼 있던 걸 시안 실측대로 고친다(사용자: "디자인 시안에 15,14,12 이렇게
+        // 나오는데 20으로 통일되게 되어있어").
+        padding: '15px 14px 12px',
         // "그래프 백그라운드참고.png"(2026-10-11 전달) Figma Effects 패널 실측 — 3겹 drop
         // shadow(X0/Y6/blur12/48%, X0/Y12/blur32/32%, X0/Y18/blur56/20%)를 그대로 옮긴다.
         boxShadow:
           '0 6px 12px rgba(0,0,0,0.48), 0 12px 32px rgba(0,0,0,0.32), 0 18px 56px rgba(0,0,0,0.2)',
+        // backdrop-blur-sm은 시안에 없는 효과였다(2026-10-11 사용자: "뒤에 3d비치는게 부연데
+        // 이유가 뭐야?? 부연 효과는 안줬는데") — 원래 코드에 있던 걸 그대로 들고 온 실수라
+        // 제거한다. 불투명도(70%)만으로 뒤 3D가 비친다.
       }}
     >
       {/* 라벨에 단위를 괄호로 붙이고(팬 절감률 (kWh), 최고 온도 (℃)), 값에선 단위를 뺀다
