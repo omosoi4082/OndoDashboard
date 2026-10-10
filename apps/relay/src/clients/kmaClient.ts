@@ -89,7 +89,16 @@ async function fetchOperation<T>(
       return { items: parsed.items };
     })();
 
-    cache.set(key, task as Promise<{ items: unknown[] } | null>);
+    const cacheableTask = task as Promise<{ items: unknown[] } | null>;
+    cache.set(key, cacheableTask);
+    // 실패(타임아웃·네트워크 오류 등)는 캐시하지 않는다 — 캐시해 두면 다음 폴링(몇 분 뒤)에도
+    // 같은 발표 시각(baseTime, 보통 최대 1시간 단위)인 동안 계속 재시도 없이 실패만 돌려줘서
+    // "기상청 연결이 계속 끊겨 보이는" 문제가 있었다(2026-10-10 확인 — 실제 기상청 API는
+    // 정상 응답하는데도 앱에서는 disconnected가 유지됨). 성공한 응답만 캐시해서 다음 폴링 때
+    // 다시 시도하게 한다.
+    task.catch(() => {
+      if (cache.get(key) === cacheableTask) cache.delete(key);
+    });
     const result = await task;
     return result ? { items: result.items, baseAt: kmaBaseTimeToIso(bt) } : null;
   };
