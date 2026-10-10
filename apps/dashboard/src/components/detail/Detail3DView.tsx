@@ -170,6 +170,12 @@ export function Detail3DView({
   const hoveredPoint = hoveredPointId !== null ? geometry.points.find((p) => p.id === hoveredPointId) ?? null : null;
   const hoveredFlow = hoveredPoint && frame ? getPointFlow(frame, hoveredPoint.id) : null;
 
+  // 유동 화살표 반대쪽에 호버 패널을 띄우는 시도는 "반대 방향"의 기준이 화면상 애매해
+  // 되돌렸다(2026-10-11 사용자: "유동시 보여 호버는 화살표 반대 방향이라는게 애매 적용
+  // 하지 말아줘") — 다른 모드와 동일하게 포인트 위치 그대로 쓴다.
+  const hoveredPointYUp = hoveredPoint ? zUpToYUp([hoveredPoint.x, hoveredPoint.y, hoveredPoint.z]) : null;
+  const tooltipPosition = hoveredPointYUp;
+
   // geometry는 상세 진입 시 1회만 받아오는 고정값(store에 보관)이라 참조가 안정적이다 —
   // useMemo로 묶어서 매 렌더마다 조명/모델 effect가 불필요하게 재생성되지 않게 한다.
   const roomSizeYUp = useMemo(() => zUpToYUp(geometry.room.size), [geometry.room.size]);
@@ -206,19 +212,44 @@ export function Detail3DView({
           <FlowArrow origin={hoveredPoint} flow={hoveredFlow} range={range.flow} />
         )}
 
-        {hoveredPoint && (
-          <Html position={zUpToYUp([hoveredPoint.x, hoveredPoint.y, hoveredPoint.z])} style={{ pointerEvents: 'none' }}>
-            <div className="-translate-y-full whitespace-nowrap rounded bg-black/85 px-2 py-1 text-[11px] text-white">
-              X {hoveredPoint.x.toFixed(2)} &nbsp; Y {hoveredPoint.y.toFixed(2)} &nbsp; Z {hoveredPoint.z.toFixed(2)}
-              <br />
-              VALUE{' '}
-              {frame
-                ? formatValueOrDash(
-                    getPointScalar(frame, valueField, hoveredPoint.id),
-                    getFieldUnit(valueField),
-                    valueField === 'flow' ? 2 : 1,
-                  )
-                : '-'}
+        {hoveredPoint && tooltipPosition && (
+          <Html position={tooltipPosition} style={{ pointerEvents: 'none' }}>
+            {/* 호버 패널(상세보기3d호버패널.png, 2026-10-11 전달) — 85×64는 고정 크기가
+                아니라 패딩 6·줄 간격 4·글씨 10px의 결과값이다(너비를 85px로 박아두면 줄마다
+                글자 길이가 달라 오른쪽 여백이 들쭉날쭉해진다, 2026-10-11 사용자: "사이즈에
+                마추지말고 패딩과 갭으로 맞춰줘"). 그래프 요약 카드와 같은 효과(배경 #141414
+                80%, 테두리 없음, 3겹 drop shadow, backdrop-blur 없음). 포인트 바로 위에
+                띄운다(유동 화살표 반대쪽 배치는 "반대 방향" 기준이 애매해 되돌림). */}
+            <div className="inline-flex w-fit -translate-y-full flex-col whitespace-nowrap rounded-lg bg-[#141414]/80 text-[10px] leading-none text-white"
+              style={{
+                padding: 6,
+                gap: 4,
+                boxShadow:
+                  '0 6px 12px rgba(0,0,0,0.48), 0 12px 32px rgba(0,0,0,0.32), 0 18px 56px rgba(0,0,0,0.2)',
+              }}
+            >
+              {(
+                [
+                  ['X', hoveredPoint.x.toFixed(2)],
+                  ['Y', hoveredPoint.y.toFixed(2)],
+                  ['Z', hoveredPoint.z.toFixed(2)],
+                  [
+                    'VALUE',
+                    frame
+                      ? formatValueOrDash(
+                          getPointScalar(frame, valueField, hoveredPoint.id),
+                          getFieldUnit(valueField),
+                          valueField === 'flow' ? 2 : 1,
+                        )
+                      : '-',
+                  ],
+                ] as const
+              ).map(([label, value]) => (
+                <div key={label} className="flex items-center gap-1.5">
+                  <span className="h-[10px] w-[2px] shrink-0 rounded-sm bg-[#2af5c0]" />
+                  {label} : {value}
+                </div>
+              ))}
             </div>
           </Html>
         )}

@@ -1,7 +1,7 @@
 // 상세 패널 카드 안 공통 섹션(docs/06-design-guide.md "상세 패널") — 제목 줄 + 내용 박스.
 // 네 모드(DetailPanel·ForecastDetailView·ExpertModeView·ControlModeView)가 같은 틀을 쓴다.
 import type { ReactElement, ReactNode } from 'react';
-import { History, Info } from 'lucide-react';
+import { History } from 'lucide-react';
 import type { DetailFrame } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { Timeline } from './Timeline.js';
@@ -65,18 +65,27 @@ export function Detail2DBox({ children }: { children: ReactNode }): ReactElement
 }
 
 /** "시간 설정"(17·24·31) 제목 줄 + 타임라인, 아래 구분선. 제목 줄 구성(왼쪽부터): 제목 +
- * 안내 아이콘 + "10분 단위" 배지 + (오른쪽 끝) "초기화" — 02_예측모드_디자인_04 실측
- * (2026-10-10, docs/design/UI). "초기화"는 옛 "정지" 버튼이 이름만 바뀐 것(기능은 그대로
- * stop(): 첫 프레임으로 되돌리고 멈춤). 예측·전문가·제어 세 모드 전부 같은 디자인
- * (사용자 확인). */
+ * 안내 아이콘(호버 시 "10분 단위" 표시) + (오른쪽 끝) "초기화" — 02_예측모드_디자인_04
+ * 실측(2026-10-10, docs/design/UI), 안내 아이콘·호버 동작은 2026-10-11 사용자 지시(아이콘
+ * icons/control/info.png 18×18, "호버시 10분 단위 ui 보이게"). "초기화"는 옛 "정지" 버튼이
+ * 이름만 바뀐 것(기능은 그대로 stop(): 첫 프레임으로 되돌리고 멈춤). 예측·전문가·제어 세
+ * 모드 전부 같은 디자인(사용자 확인). */
 export function TimelineSection({ frames }: { frames: readonly DetailFrame[] }): ReactElement {
   const stop = useDetailStore((s) => s.stop);
   return (
     <section className="flex shrink-0 flex-col gap-3 border-b border-ondo-border pb-5">
-      <div className="flex h-6 shrink-0 items-center gap-2">
+      {/* "시간 설정" 글씨-info 아이콘 갭 6px(2026-10-11 사용자 지시) — 뒤 "초기화" 버튼은
+          ml-auto로 밀려나므로 이 gap-1.5가 실질적으로 둘 사이에만 적용된다. */}
+      <div className="flex h-6 shrink-0 items-center gap-1.5">
         <span className="text-[16px] font-semibold text-[#ccc]">시간 설정</span>
-        <Info size={16} className="text-ondo-muted" />
-        <span className="rounded bg-[#474748] px-2 py-0.5 text-xs text-white/80">10분 단위</span>
+        <div className="group relative flex h-[18px] w-[18px] shrink-0 items-center justify-center">
+          <img src="/assets/icons/control/info.png" alt="" width={18} height={18} />
+          {/* 아이콘 옆(오른쪽)에 갭 4px로 — 2026-10-11 사용자 정정: "info호버시 나오는
+              10분단위 위치는 옆이여야지 아이콘과 갭 4로 해서". */}
+          <span className="pointer-events-none absolute left-full top-1/2 z-10 ml-1 -translate-y-1/2 whitespace-nowrap rounded bg-[#474748] px-2 py-0.5 text-xs text-white/80 opacity-0 transition-opacity group-hover:opacity-100">
+            10분 단위
+          </span>
+        </div>
         <button
           type="button"
           onClick={stop}
