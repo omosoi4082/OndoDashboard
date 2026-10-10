@@ -16,11 +16,12 @@ interface ControlSummaryCardProps {
   frameIndex: number;
 }
 
-// 350×172, 그림자 있음·테두리 없음·불투명도 70%, 가로 기준선 간격 25px, 글씨 크기
-// (절감률 등 라벨 13px·퍼센트/값 숫자 16px·그래프 축 숫자 9px) — 2026-10-11 사용자 실측
-// 지시.
+// 가로 350, 세로는 고정값이 아니라 내용(패딩+값 숫자 줄+간격+그래프)에 따라 자연스럽게
+// 정해진다 — 값↔그래프 간격을 20px로 맞추면서 전체 세로 크기도 같이 바뀌는 걸 허용한다
+// (2026-10-11 사용자: "그거에 따른 전체 세로 사이즈 변경해도 돼"). 그림자 있음·테두리
+// 없음·불투명도 80%, 가로 기준선 간격 25px, 글씨 크기(절감률 등 라벨 13px·퍼센트/값
+// 숫자 16px·그래프 축 숫자 9px).
 const CARD_WIDTH = 350;
-const CARD_HEIGHT = 172;
 const CHART_WIDTH = 278;
 const CHART_HEIGHT = 50;
 const CHART_PADDING_LEFT = 32;
@@ -44,7 +45,6 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
       className="pointer-events-auto rounded-lg bg-[#141414]/80"
       style={{
         width: CARD_WIDTH,
-        height: CARD_HEIGHT,
         // 패딩 15/14/12는 CSS 3-값 shorthand(top | left&right | bottom), 아래 패딩 12는
         // 2026-10-11 재확인됨(사용자: "그래프 바탕에서 내용에 아래 패딩이 12야").
         padding: '15px 14px 12px',
@@ -89,9 +89,9 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
       <svg
         width={CHART_WIDTH + CHART_PADDING_LEFT}
         height={CHART_HEIGHT + CHART_PADDING_BOTTOM}
-        // 값 숫자 줄 바로 아래부터 그래프 상단 기준선까지 간격 실측 31px(2026-10-11
-        // 사용자: "그래프와 바로 위 수자 갭 확인해줘" — 기존 mt-4(16px)는 시안보다 좁았다).
-        className="mt-[31px] overflow-visible"
+        // 값 숫자 줄 바로 아래부터 그래프 상단 기준선까지 간격 20px(2026-10-11 사용자 재확인
+        // — 전체 세로 크기는 이 간격에 따라 자연스럽게 바뀌어도 된다고 확인함).
+        className="mt-5 overflow-visible"
         role="img"
         aria-label="기준·최적화 환기량 비교 그래프"
       >
