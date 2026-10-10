@@ -1,5 +1,6 @@
 // 화면 전역 상수. 미확정/개발자 결정 값은 docs/05-open-questions.md를 참고하고,
 // 여기서는 그 상수만 모아둔다(CLAUDE.md "치수는 설정 상수로 분리").
+import type { Vector3Tuple } from 'three';
 
 // 메인 화면 데이터 갱신 주기 — 접속 시 1회 + 10분마다(01-functional-spec.md 2장).
 export const MAIN_POLL_INTERVAL_MS = 10 * 60 * 1000;
@@ -18,6 +19,11 @@ export const CAMERA_MARGIN_FACTOR = 1.5;
 // 메인 화면(4) 3D 카메라 초기 프레이밍 여유(배율) — technical-review/pig-farm-cfd-demo의
 // overviewScene.js OVERVIEW_MARGIN_FACTOR 그대로 포팅(docs/07-starter-kit-assets.md).
 export const OVERVIEW_CAMERA_MARGIN_FACTOR = 1.4;
+
+// 메인 화면(4) 3D 카메라 각도(center에서 떠는 축별 비율 [x,y,z]) — 상세 패널 3D 뷰
+// (scene/cameraFraming.ts DEFAULT_CAMERA_DIRECTION, 포팅 원본값)와 분리된 메인 화면 전용 값
+// (2026-10-10 사용자가 메인 화면만 직접 조정 — 수작업으로 바꿀 때는 이 배열만 수정할 것).
+export const OVERVIEW_CAMERA_DIRECTION: Vector3Tuple = [0.24, 0.18, 0.18];
 
 // 방 호버 정보 판넬(5-1~5-3) 콜아웃 앵커 — 방 바운딩박스 중심에서 위로 띄우는 높이(m).
 // overviewScene.js의 labelAnchors(center.y + size.y/2 + 0.4)와 동일.
@@ -45,10 +51,21 @@ export const SECTION_Z_M = 0.5;
 // 2D 수평단면에 겹쳐 그리는 Y자 칸막이(m, room 좌표 x·y) — 고정 구조물이라 relay 응답으로
 // 받지 않고 상수로 둔다(01-functional-spec.md 3장, 2026-10-09 사용자 확정). 값은
 // config/geometry.json room.partition.segments와 동일(높이 0.78m라 단면 0.4m층을 지난다).
-export const SECTION_PARTITION_SEGMENTS: ReadonlyArray<readonly [readonly [number, number], readonly [number, number]]> = [
-  [[1.82, 0.0], [1.82, 3.25]],
-  [[1.82, 3.25], [1.42, 4.0]],
-  [[1.82, 3.25], [2.22, 4.0]],
+export const SECTION_PARTITION_SEGMENTS: ReadonlyArray<
+  readonly [readonly [number, number], readonly [number, number]]
+> = [
+  [
+    [1.82, 0.0],
+    [1.82, 3.25],
+  ],
+  [
+    [1.82, 3.25],
+    [1.42, 4.0],
+  ],
+  [
+    [1.82, 3.25],
+    [2.22, 4.0],
+  ],
 ];
 
 // 현재 모드(9~13)에서도 2D 단면을 보여줄지 — 01-functional-spec.md 3장은 "현재 모드에

@@ -11,7 +11,12 @@ import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { computeCameraFrame } from './cameraFraming.js';
 import { metersPerPixel, pickScaleBar } from './scaleBar.js';
-import { DETAIL_PANEL_WIDTH_PX, OVERVIEW_CAMERA_MARGIN_FACTOR, SCALE_BAR_TARGET_PX } from '../config/constants.js';
+import {
+  DETAIL_PANEL_WIDTH_PX,
+  OVERVIEW_CAMERA_DIRECTION,
+  OVERVIEW_CAMERA_MARGIN_FACTOR,
+  SCALE_BAR_TARGET_PX,
+} from '../config/constants.js';
 import { useMainStore } from '../store/mainStore.js';
 
 interface CameraRigProps {
@@ -27,7 +32,7 @@ export function CameraRig({ box, rotationCenter }: CameraRigProps): ReactElement
   const setScaleBar = useMainStore((s) => s.setScaleBar);
 
   useEffect(() => {
-    const frame = computeCameraFrame(box, OVERVIEW_CAMERA_MARGIN_FACTOR, rotationCenter);
+    const frame = computeCameraFrame(box, OVERVIEW_CAMERA_MARGIN_FACTOR, rotationCenter, OVERVIEW_CAMERA_DIRECTION);
 
     camera.position.copy(frame.position);
     if (camera instanceof THREE.PerspectiveCamera) {
@@ -44,9 +49,18 @@ export function CameraRig({ box, rotationCenter }: CameraRigProps): ReactElement
       // fullWidth/2 - offsetX = (W+P)/2 - P = (W-P)/2 지점, 즉 보이는 영역(W−P)의 정중앙에
       // 오게 된다. 프레이밍 시 한 번만 설정하고 드래그 중엔 안 건드리므로 과거 "뜅김"
       // 문제와도 무관하다.
+      //
+      // 주의(2026-10-10 수정): aspect를 "실제 캔버스 비율"(w/h)로 두면 setViewOffset이 가로
+      // 폭만 w/fullWidth 비율로 한 번 더 줄여버려서 모델이 가로로 찌그러진다 — aspect는
+      // "가상의 더 넓은 프레임 비율"(fullWidth/h)로 둬야 찌그러짐 없이 정확히 크롭된다.
+      // MainScene의 Canvas camera에 manual:true를 줘서 R3F가 리사이즈마다 aspect를
+      // 실제 캔버스 비율로 자동으로 되돌리지 못하게 했다 — 안 그러면 다음 프레임에 다시 깨짐.
       const w = size.width;
+      const h = size.height;
       const p = DETAIL_PANEL_WIDTH_PX;
-      camera.setViewOffset(w + p, size.height, p, 0, w, size.height);
+      const fullWidth = w + p;
+      camera.aspect = fullWidth / h;
+      camera.setViewOffset(fullWidth, h, p, 0, w, h);
       camera.updateProjectionMatrix();
     }
     const controls = controlsRef.current;

@@ -31,7 +31,7 @@ import { RoomInfoPanel } from '../components/RoomInfoPanel.js';
 // 전체화면 캔버스에서 고정 중심 회전이 불편하다는 피드백에 대한 1차 완화책. 드래그 지점으로
 // pivot을 옮기는 방식은 과거 폐기 이력이 있어 재시도 안 함, CameraRig.tsx 상단 주석 참고).
 const PRIMARY_ROOM_ID: RoomId = 'NH';
-const ROTATION_CENTER_WEIGHT = 1.0;
+const ROTATION_CENTER_WEIGHT = 1;
 
 export function OverviewScene(): ReactElement {
   const { scene } = useGLTF(OVERVIEW_MODEL_URL);
@@ -52,7 +52,10 @@ export function OverviewScene(): ReactElement {
 
   const frameBox = useMemo(() => unionSectionsBox(sections), [sections]);
   const rotationCenter = useMemo(
-    () => (frameBox ? computeRotationCenter(sections, frameBox, PRIMARY_ROOM_ID, ROTATION_CENTER_WEIGHT) : null),
+    () =>
+      frameBox
+        ? computeRotationCenter(sections, frameBox, PRIMARY_ROOM_ID, ROTATION_CENTER_WEIGHT)
+        : null,
     [sections, frameBox],
   );
 
@@ -80,21 +83,32 @@ export function OverviewScene(): ReactElement {
       {frameBox && <CameraRig box={frameBox} rotationCenter={rotationCenter ?? undefined} />}
       {frameBox && <SceneLighting box={frameBox} />}
 
-      <group onPointerOver={handlePointerOver} onPointerMove={handlePointerMove} onPointerOut={handlePointerOut} onClick={handleClick}>
+      <group
+        onPointerOver={handlePointerOver}
+        onPointerMove={handlePointerMove}
+        onPointerOut={handlePointerOut}
+        onClick={handleClick}
+      >
         <primitive object={scene} />
       </group>
 
       {/* 정보 판넬(5-1~5-3) — 호버한 방 바로 위에 뜨는 콜아웃(docs/design/screen-design.png on-01
           ④⑤). 3개 방 모두 호버 시에만 표시(05-open-questions.md #29, 2026-10-09 확정). */}
-      {sections.filter((section) => section.roomId === hoveredRoomId).map((section) => (
-        <Html
-          key={section.roomId}
-          position={[section.center.x, section.center.y + section.size.y / 2 + ROOM_CALLOUT_OFFSET_M, section.center.z]}
-          style={{ pointerEvents: 'none' }}
-        >
-          <RoomInfoPanel roomId={section.roomId} summary={roomsData?.[section.roomId] ?? null} />
-        </Html>
-      ))}
+      {sections
+        .filter((section) => section.roomId === hoveredRoomId)
+        .map((section) => (
+          <Html
+            key={section.roomId}
+            position={[
+              section.center.x,
+              section.center.y + section.size.y / 2 + ROOM_CALLOUT_OFFSET_M,
+              section.center.z,
+            ]}
+            style={{ pointerEvents: 'none' }}
+          >
+            <RoomInfoPanel roomId={section.roomId} summary={roomsData?.[section.roomId] ?? null} />
+          </Html>
+        ))}
     </>
   );
 }

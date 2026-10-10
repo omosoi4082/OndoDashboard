@@ -10,14 +10,24 @@ export interface CameraFrame {
   far: number;
 }
 
+/** 카메라가 center에서 어느 방향으로 떨어져 앉을지(각 축 비율) — technical-review/pig-farm-cfd-demo
+ * overviewScene.js 원본 값. 메인 화면(OverviewScene)은 이와 별도로
+ * OVERVIEW_CAMERA_DIRECTION(config/constants.ts)으로 자기만의 각도를 쓴다(2026-10-10 분리 —
+ * 같은 함수를 메인 화면과 상세 패널 3D 뷰가 공유해서, 메인 화면 각도를 조정하면 상세 패널
+ * 쪽도 같이 바뀌는 문제가 있었음). 상세 패널(Detail3DView)은 인자를 안 주면 이 기본값을 쓴다.
+ */
+export const DEFAULT_CAMERA_DIRECTION: THREE.Vector3Tuple = [0.433, 0.379, 0.462];
+
 /**
  * box가 화면에 들어오도록 카메라 위치·시야를 계산한다. rotationCenter를 따로 주면
  * 줌 거리(box 크기 기준)는 그대로 두고 회전 중심만 그 지점으로 옮긴다(기본은 box 중심).
+ * direction은 center에서 카메라를 띄우는 축별 비율([x,y,z], 기본 DEFAULT_CAMERA_DIRECTION).
  */
 export function computeCameraFrame(
   box: THREE.Box3,
   marginFactor = 1.4,
   rotationCenter?: THREE.Vector3,
+  direction: THREE.Vector3Tuple = DEFAULT_CAMERA_DIRECTION,
 ): CameraFrame {
   const size = new THREE.Vector3();
   box.getSize(size);
@@ -28,10 +38,11 @@ export function computeCameraFrame(
   const maxDim = Math.max(size.x, size.y, size.z, 1);
   const dist = maxDim * marginFactor;
 
+  const [dx, dy, dz] = direction;
   const position = new THREE.Vector3(
-    center.x + dist * 0.433,
-    center.y + dist * 0.379,
-    center.z + dist * 0.462,
+    center.x + dist * dx,
+    center.y + dist * dy,
+    center.z + dist * dz,
   );
 
   return {

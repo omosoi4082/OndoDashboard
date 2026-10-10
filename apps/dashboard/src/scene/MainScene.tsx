@@ -22,7 +22,10 @@ export function MainScene(): ReactElement {
       shadows
       flat
       gl={{ antialias: true, logarithmicDepthBuffer: true }}
-      camera={{ fov: 45, near: 0.1, far: 300 }}
+      // manual: true — CameraRig가 setViewOffset을 쓰면서 aspect를 "실제 캔버스 비율"이 아니라
+      // "가상의 더 넓은 프레임 비율"로 직접 관리해야 하기 때문(2026-10-10). R3F 기본 동작(리사이즈마다
+      // aspect=canvas비율로 자동 덮어쓰기)에 맡기면 그 값이 다시 깨져서 모델이 가로로 찌그러진다.
+      camera={{ fov: 45, near: 0.1, far: 300, manual: true }}
       onPointerMissed={() => setHoveredRoomId(null)}
     >
       <color attach="background" args={['#1b1a1f']} />

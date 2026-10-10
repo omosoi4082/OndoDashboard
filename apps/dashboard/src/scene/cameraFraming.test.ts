@@ -22,6 +22,14 @@ describe('computeCameraFrame', () => {
     expect(frame.position.x).toBeCloseTo(1 + 4 * 0.433);
   });
 
+  it('direction을 주면 메인 화면 전용 각도로 독립적으로 계산한다(상세 패널 기본값과 분리)', () => {
+    const box = new Box3(new Vector3(0, 0, 0), new Vector3(2, 2, 2));
+    const frame = computeCameraFrame(box, 1, undefined, [0.24, 0.18, 0.18]);
+    expect(frame.position.x).toBeCloseTo(1 + 2 * 0.24);
+    expect(frame.position.y).toBeCloseTo(1 + 2 * 0.18);
+    expect(frame.position.z).toBeCloseTo(1 + 2 * 0.18);
+  });
+
   it('near/far는 거리에 비례한다', () => {
     const box = new Box3(new Vector3(0, 0, 0), new Vector3(10, 10, 10));
     const frame = computeCameraFrame(box, 2);
