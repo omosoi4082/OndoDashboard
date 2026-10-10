@@ -38,6 +38,14 @@ export const SCALE_BAR_TARGET_PX = 120;
 export const MIN_VIEWPORT_WIDTH_PX = 960;
 export const MIN_VIEWPORT_HEIGHT_PX = 540;
 
+// 메인 3D 모델링 배경 레이어(App.tsx) 고정 크기 — 패널들(헤더·외부환경·상세패널)은 창 크기에
+// 맞춰 반응형으로 늘어나지만, 3D 캔버스만은 창 리사이즈에 반응하지 않고 이 크기로 고정한다
+// (2026-10-10 사용자 확정 — 리사이즈마다 카메라 비율을 다시 계산하면 setViewOffset 각도 계산이
+// 복잡해지고 자칫 찌그러질 수 있어서, 아예 안 바뀌게 고정하는 쪽을 선택함). 창이 이보다 작으면
+// 바깥쪽 overflow-hidden에 의해 잘리고, 크면 캔버스 바깥은 그냥 페이지 배경색으로 남는다.
+export const MAIN_SCENE_WIDTH_PX = 1920;
+export const MAIN_SCENE_HEIGHT_PX = 1080;
+
 // 상세보기 패널(6) 고정 폭 — App.tsx 레이아웃과 scene/CameraRig.tsx(메인 3D 캔버스가 전체
 // 화면 폭이라, 상세 패널에 가려지지 않는 "보이는 영역"의 중앙을 계산할 때)가 공유한다.
 // 둘 중 하나만 바꾸면 어긋나므로 반드시 같이 바꿀 것.

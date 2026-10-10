@@ -15,7 +15,13 @@ import { useDetailGeometryBootstrap } from './hooks/useDetailGeometryBootstrap.j
 import { useCurrentDetailPolling } from './hooks/useCurrentDetailPolling.js';
 import { useForecastDetailOnDemand } from './hooks/useForecastDetailOnDemand.js';
 import { useMainStore } from './store/mainStore.js';
-import { DETAIL_PANEL_WIDTH_PX, MIN_VIEWPORT_HEIGHT_PX, MIN_VIEWPORT_WIDTH_PX } from './config/constants.js';
+import {
+  DETAIL_PANEL_WIDTH_PX,
+  MAIN_SCENE_HEIGHT_PX,
+  MAIN_SCENE_WIDTH_PX,
+  MIN_VIEWPORT_HEIGHT_PX,
+  MIN_VIEWPORT_WIDTH_PX,
+} from './config/constants.js';
 
 function App(): ReactElement {
   useMainDataPolling();
@@ -37,16 +43,20 @@ function App(): ReactElement {
         className="relative flex h-full w-full flex-col overflow-hidden bg-[#1b1a1f] text-white"
         style={{ minWidth: MIN_VIEWPORT_WIDTH_PX, minHeight: MIN_VIEWPORT_HEIGHT_PX }}
       >
-        {/* 3D 메인 모델링(4) 배경 레이어 — 화면 전체(헤더·상세 패널 뒤까지)를 덮는 배경이고,
-            그 위에 패널들이 얹히는 구조다(2026-10-10 사용자 확정: "모델링 캔버스는 전체 화면이고
-            그 위에 패널들 레이어 되는 방식"). 폭을 전체로 넓히면 카메라 종횡비가 바뀌어 모델
-            구도 중심이 상세 패널 쪽으로 밀리긴 하는데(회전 중심이 이미 자돈방 쪽으로 치우쳐
-            있어서 자돈방 자체는 거의 안 밀림, 비육돈방 끝부분만 패널 뒤로 더 가려짐), 사용자가
-            이 트레이드오프를 감수하고 전체화면을 택함. pointer-events-none이라 클릭/드래그는
-            OutdoorPanel처럼 안에서 다시 auto로 켠 요소만 받고, 나머지는 이 레이어(캔버스)까지
-            그대로 통과해 OrbitControls가 받는다 — 이 레이어 자체는 pointer-events를 꺼두면
-            안 된다(껐더니 OrbitControls가 죽었음, 자식 요소까지 상속되는 속성이라). */}
-        <div className="absolute inset-0">
+        {/* 3D 메인 모델링(4) 배경 레이어 — 헤더·상세 패널 뒤까지 덮는 배경이고 그 위에 패널들이
+            얹히는 구조다(2026-10-10 사용자 확정: "모델링 캔버스는 전체 화면이고 그 위에 패널들
+            레이어 되는 방식"). 단, 패널들과 달리 이 레이어는 창 크기에 반응하지 않는 고정
+            크기다(MAIN_SCENE_WIDTH/HEIGHT_PX, 2026-10-10 사용자 확정 — "패널은 반응형, 캔버스는
+            고정"). 리사이즈마다 카메라 비율을 다시 계산하면 setViewOffset 계산이 복잡해지고
+            자칫 찌그러지는데, 애초에 안 바뀌면 그 문제 자체가 없다. pointer-events-none이라
+            클릭/드래그는 OutdoorPanel처럼 안에서 다시 auto로 켠 요소만 받고, 나머지는 이
+            레이어(캔버스)까지 그대로 통과해 OrbitControls가 받는다 — 이 레이어 자체는
+            pointer-events를 꺼두면 안 된다(껐더니 OrbitControls가 죽었음, 자식 요소까지
+            상속되는 속성이라). */}
+        <div
+          className="absolute left-0 top-0"
+          style={{ width: MAIN_SCENE_WIDTH_PX, height: MAIN_SCENE_HEIGHT_PX }}
+        >
           <MainScene />
         </div>
 

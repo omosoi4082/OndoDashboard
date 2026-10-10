@@ -70,9 +70,10 @@ export function CameraRig({ box, rotationCenter }: CameraRigProps): ReactElement
     }
     updateScaleBar();
     // box/rotationCenter는 모델 로드 후 1회 계산되는 고정값 — 처음 프레이밍할 때만 적용한다.
-    // size는 일부러 deps에서 뺐다 — 넣으면 창 크기 바뀔 때마다 사용자가 돌려둔 각도까지
-    // 초기화돼버린다(같은 이유로 setViewOffset도 마운트 시점 크기 기준 — 창 리사이즈 후
-    // 다시 들어와야 반영됨).
+    // size는 일부러 deps에서 뺐다(어차피 App.tsx에서 이 캔버스 컨테이너를
+    // MAIN_SCENE_WIDTH/HEIGHT_PX로 고정해놔서 리사이즈로 값이 바뀔 일도 없다 — 2026-10-10
+    // 사용자 확정: "패널은 반응형, 캔버스는 고정". 패널이 창 크기에 맞춰 반응형으로 움직여도
+    // 이 3D 레이어 자체는 그대로다).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, box, rotationCenter]);
 
