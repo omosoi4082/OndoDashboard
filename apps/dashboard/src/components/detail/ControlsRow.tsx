@@ -21,14 +21,14 @@ export function ControlsRow(): ReactElement {
 
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-ondo-border pb-5">
-      <span className="text-sm font-medium text-ondo-muted">분석 항목</span>
+      <span className="text-[16px] font-semibold text-[#ccc]">분석 항목</span>
       <div className="flex gap-2">
         {VALUE_FIELDS.map(({ id, label, Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => setValueField(id)}
-            className={`flex h-[42px] w-[110px] items-center justify-center gap-1.5 rounded-md border text-[15px] transition-colors ${
+            className={`flex h-[42px] w-[116px] items-center justify-center gap-1.5 rounded-md border text-[15px] transition-colors ${
               valueField === id
                 ? 'border-white/50 bg-[#3b3c42] text-white'
                 : 'border-ondo-border bg-ondo-surface-2 text-ondo-muted hover:text-white'

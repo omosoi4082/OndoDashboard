@@ -32,22 +32,22 @@ export interface ExpertInputValidation {
   isValid: boolean;
 }
 
-// 안내 문구 형식은 Figma node 374:13401(03_전문가모드_디자인_03) 실측:
-// "-30°C ~ 50°C 외 값을 입력해 주세요." — 비어 있을 때는 문구를 안 보여주고(해당 디자인
-// node 374:11616의 빈 상태엔 문구가 없음), 값을 적었는데 범위를 벗어나거나 숫자가 아닐
-// 때만 보여준다.
+// 안내 문구 형식은 Figma node 374:13401(03_전문가모드_디자인_03) 실측 그대로:
+// "-30℃ ~ 50℃ 의 값을 입력해 주세요." (단위는 °C 두 글자가 아니라 ℃ 한 글자, 조사는
+// "외"가 아니라 "의"). 비어 있을 때는 문구를 안 보여주고(디자인 node 374:11616의 빈
+// 상태엔 문구가 없음), 값을 적었는데 범위를 벗어나거나 숫자가 아닐 때만 보여준다.
 function validateField(raw: string, min: number, max: number, unit: string): ExpertFieldValidation {
   const trimmed = raw.trim();
   if (trimmed === '') return { value: null, error: null };
   const n = Number(trimmed);
   if (!Number.isFinite(n) || n < min || n > max) {
-    return { value: null, error: `${min}${unit} ~ ${max}${unit} 외 값을 입력해 주세요.` };
+    return { value: null, error: `${min}${unit} ~ ${max}${unit} 의 값을 입력해 주세요.` };
   }
   return { value: n, error: null };
 }
 
 export function validateExpertInput(draft: ExpertInputDraft, range: ExpertInputFieldRange): ExpertInputValidation {
-  const temp = validateField(draft.temp, range.tempMin, range.tempMax, '°C');
+  const temp = validateField(draft.temp, range.tempMin, range.tempMax, '℃');
   const rh = validateField(draft.rh, range.rhMin, range.rhMax, '%');
   // 환기량 단위는 05-open-questions.md #41 — 시안은 "cmm"인데 #11에서 "%"로 이미 확정돼
   // 있어 일단 %로 둔다.

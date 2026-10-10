@@ -29,17 +29,17 @@ describe('validateExpertInput', () => {
   it('숫자가 아니면 범위 안내 문구를 돌려준다', () => {
     const result = validateExpertInput({ temp: 'abc', rh: '60', vent: '50' }, RANGE);
     expect(result.isValid).toBe(false);
-    expect(result.temp.error).toBe('-30°C ~ 50°C 외 값을 입력해 주세요.');
+    expect(result.temp.error).toBe('-30℃ ~ 50℃ 의 값을 입력해 주세요.');
   });
 
   it('범위를 벗어나면 실패한다', () => {
     const tooLow = validateExpertInput({ temp: '-31', rh: '60', vent: '50' }, RANGE);
     expect(tooLow.isValid).toBe(false);
-    expect(tooLow.temp.error).toBe('-30°C ~ 50°C 외 값을 입력해 주세요.');
+    expect(tooLow.temp.error).toBe('-30℃ ~ 50℃ 의 값을 입력해 주세요.');
 
     const tooHigh = validateExpertInput({ temp: '25', rh: '60', vent: '101' }, RANGE);
     expect(tooHigh.isValid).toBe(false);
-    expect(tooHigh.vent.error).toBe('20% ~ 100% 외 값을 입력해 주세요.');
+    expect(tooHigh.vent.error).toBe('20% ~ 100% 의 값을 입력해 주세요.');
   });
 
   it('경계값(최솟값·최댓값)은 통과한다', () => {

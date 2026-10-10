@@ -80,6 +80,9 @@ export function ExpertModeView(): ReactElement {
         onChange={setDraft}
         onSubmit={handleSubmit}
       />
+      {/* 입력 폼과 분석 항목 사이 구분선 — Figma node 374:11732(03_전문가모드_디자인) 실측,
+          ControlsRow 자체엔 없어서(다른 모드는 탭 바로 아래라 필요 없음) 여기서만 그린다. */}
+      <div className="h-px shrink-0 bg-ondo-border" />
       <ControlsRow />
 
       {isLoading ? (

@@ -31,7 +31,7 @@ function PointsToggle(): ReactElement {
 function SectionTitle({ title, right }: { title: string; right?: ReactNode }): ReactElement {
   return (
     <div className="flex h-6 shrink-0 items-center justify-between">
-      <span className="text-sm font-medium text-white">{title}</span>
+      <span className="text-[16px] font-semibold text-[#ccc]">{title}</span>
       {right}
     </div>
   );
