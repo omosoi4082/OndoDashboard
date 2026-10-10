@@ -16,12 +16,14 @@ import { Timeline } from './Timeline.js';
  * overflow-y만 auto로 두면 overflow-x가 'visible'에서 'auto'로 강제 계산되는 CSS 규칙
  * 때문에(두 축 중 하나라도 visible이 아니면 다른 축의 visible도 auto로 바뀐다) 2D 단면
  * 내부 몇 px 오차만으로도 가로 스크롤바가 떴다(2026-10-11 사용자: "가로 스크롤없어") —
- * overflow-x-hidden으로 막는다. 세로 스크롤바는 패널 배경과 5px 띄운다(사용자: "세로
- * 스크롤 바탕 패널과 5 패딩이야") — mr-[5px]로 스크롤 영역 자체를 안쪽으로 당긴다
- * (padding은 네이티브 스크롤바 위치에 영향을 주지 않는다). */
+ * overflow-x-hidden으로 막는다. 끝(오른쪽) 여백은 margin으로 억지로 만들지 않는다 —
+ * 앞(왼쪽) 패딩만 카드 기본 20px로 두고, 안쪽 3D 영역을 728px로 고정하면 네이티브
+ * 스크롤바(.ondo-scrollbar, 5px)가 차지하는 만큼 자연스럽게 끝 여백이 생긴다(2026-10-11
+ * 사용자: "3d영역 앞에 패딩 20으로만 맞추고 끝에 패딩은 안에 내용으로 마춰줘 그럼 끝에
+ * 패딩이 5가 되던데"). */
 export function DetailScrollBody({ children }: { children: ReactNode }): ReactElement {
   return (
-    <div className="ondo-scrollbar mr-[5px] flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden">
+    <div className="ondo-scrollbar flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden">
       {children}
     </div>
   );
@@ -65,12 +67,14 @@ function SectionTitle({ title, right }: { title: string; right?: ReactNode }): R
   );
 }
 
-/** "3D 자돈방"(12·18·25·32) 제목 줄(포인트 토글 포함) + 3D 뷰 박스. */
+/** "3D 자돈방"(12·18·25·32) 제목 줄(포인트 토글 포함) + 3D 뷰 박스. 728×424(2026-10-11
+ * 사용자 지시) — 너비를 고정해 두면 스크롤바가 생길 때 그만큼 자연스럽게 끝 여백이
+ * 생긴다(DetailScrollBody 주석 참고, mr로 억지로 만들지 않는다). */
 export function Detail3DSection({ children }: { children: ReactNode }): ReactElement {
   return (
     <section className="flex shrink-0 flex-col gap-3">
       <SectionTitle title="3D 자돈방" right={<PointsToggle />} />
-      <div className="h-[420px]">{children}</div>
+      <div className="h-[424px] w-[728px]">{children}</div>
     </section>
   );
 }
