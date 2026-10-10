@@ -16,14 +16,17 @@ import { Timeline } from './Timeline.js';
  * overflow-y만 auto로 두면 overflow-x가 'visible'에서 'auto'로 강제 계산되는 CSS 규칙
  * 때문에(두 축 중 하나라도 visible이 아니면 다른 축의 visible도 auto로 바뀐다) 2D 단면
  * 내부 몇 px 오차만으로도 가로 스크롤바가 떴다(2026-10-11 사용자: "가로 스크롤없어") —
- * overflow-x-hidden으로 막는다. 끝(오른쪽) 여백은 margin으로 억지로 만들지 않는다 —
- * 앞(왼쪽) 패딩만 카드 기본 20px로 두고, 안쪽 3D 영역을 728px로 고정하면 네이티브
- * 스크롤바(.ondo-scrollbar, 5px)가 차지하는 만큼 자연스럽게 끝 여백이 생긴다(2026-10-11
- * 사용자: "3d영역 앞에 패딩 20으로만 맞추고 끝에 패딩은 안에 내용으로 마춰줘 그럼 끝에
- * 패딩이 5가 되던데"). */
+ * overflow-x-hidden으로 막는다.
+ *
+ * 스크롤바~카드 배경 간격은 5px(Figma 실측), 3D/2D 콘텐츠는 스크롤바에 바로 붙는다
+ * (2026-10-11 사용자: "스크롤과 3d영역이 붙어있어 ... 스크롤옆 상세패널과에 패딩이
+ * 5야"). 카드 자체는 p-5(20px 균일)를 유지해야 분석 항목 등 고정 버튼 줄이 그대로
+ * 정렬되므로, 이 스크롤 영역만 -mr-[15px]로 카드 패딩 안쪽을 파고들어(20-15=5) 스크롤바를
+ * 5px 지점까지 옮긴다 — Detail3DSection 너비(728+15=743)도 같이 넓혀야 내용이 다시
+ * 스크롤바에 붙는다. */
 export function DetailScrollBody({ children }: { children: ReactNode }): ReactElement {
   return (
-    <div className="ondo-scrollbar flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden">
+    <div className="ondo-scrollbar -mr-[15px] flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden">
       {children}
     </div>
   );
@@ -67,14 +70,14 @@ function SectionTitle({ title, right }: { title: string; right?: ReactNode }): R
   );
 }
 
-/** "3D 자돈방"(12·18·25·32) 제목 줄(포인트 토글 포함) + 3D 뷰 박스. 728×424(2026-10-11
- * 사용자 지시) — 너비를 고정해 두면 스크롤바가 생길 때 그만큼 자연스럽게 끝 여백이
- * 생긴다(DetailScrollBody 주석 참고, mr로 억지로 만들지 않는다). */
+/** "3D 자돈방"(12·18·25·32) 제목 줄(포인트 토글 포함) + 3D 뷰 박스. 기본 728×424에 +15
+ * (DetailScrollBody의 -mr-[15px]만큼)를 더해 743×424 — 스크롤바가 5px 지점으로 옮겨간
+ * 만큼 내용도 넓혀야 스크롤바에 다시 붙는다(DetailScrollBody 주석 참고). */
 export function Detail3DSection({ children }: { children: ReactNode }): ReactElement {
   return (
     <section className="flex shrink-0 flex-col gap-3">
       <SectionTitle title="3D 자돈방" right={<PointsToggle />} />
-      <div className="h-[424px] w-[728px]">{children}</div>
+      <div className="h-[424px] w-[743px]">{children}</div>
     </section>
   );
 }
