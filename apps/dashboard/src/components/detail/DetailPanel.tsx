@@ -30,7 +30,7 @@ export function DetailPanel(): ReactElement {
       <ModeTabs />
 
       {/* 탭 아래 카드 하나에 모드별 내용을 담는다(docs/06-design-guide.md). 길면 카드 안에서 스크롤. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto rounded-xl bg-ondo-surface p-5">
+      <div className="ondo-scrollbar flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto rounded-xl bg-ondo-surface p-5">
 
       {mode === 'forecast' && <ForecastDetailView />}
 

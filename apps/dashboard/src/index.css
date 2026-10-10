@@ -41,3 +41,20 @@ body {
   background: #1b1a1f;
   color: #e6e8eb;
 }
+
+/* 상세 패널 스크롤바 — Figma node 374:25491("03_전문가모드_디자인_01" 2026-10-10 재확인본)
+   실측: 폭 5px, 둥근 모양, #ccc 30% 불투명도. 브라우저 기본 스크롤바 대신 이 모양으로. */
+.ondo-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(204, 204, 204, 0.3) transparent;
+}
+.ondo-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.ondo-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.ondo-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(204, 204, 204, 0.3);
+  border-radius: 9999px;
+}

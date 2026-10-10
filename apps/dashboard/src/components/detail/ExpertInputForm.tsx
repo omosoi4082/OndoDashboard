@@ -59,7 +59,9 @@ export function ExpertInputForm({ draft, validation, isLoading, isApplied, onCha
   return (
     <div className="flex shrink-0 flex-col gap-4">
       <span className="text-sm font-semibold text-[#ccc]">필수값 설정</span>
-      <div className="flex items-start gap-5">
+      {/* 입력칸 줄 전체가 타이틀보다 4px 더 들어가 있다(Figma node 374:25416 온도 입력칸
+          left=1162 vs "필수값 설정" 타이틀 left=1158 실측, 2026-10-10 사용자 확인 요청). */}
+      <div className="ml-1 flex items-start gap-5">
         {FIELDS.map((field) => {
           const fieldValidation = validation[field.key];
           return (

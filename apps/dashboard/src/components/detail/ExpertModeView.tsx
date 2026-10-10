@@ -5,7 +5,6 @@
 // 응답을 받은 뒤에는 ForecastDetailView와 같은 구조(ControlsRow + Detail3DView(포인트+
 // 등치면/실린더 overlay) + Detail2DSection + Timeline)로 145프레임을 재생한다(중복 구현 금지).
 import { useState, type ReactElement } from 'react';
-import { History } from 'lucide-react';
 import { useDetailStore } from '../../store/detailStore.js';
 import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
@@ -69,16 +68,6 @@ export function ExpertModeView(): ReactElement {
     });
   }
 
-  // "초기화"(Figma node 374:25528 "03_전문가모드_디자인_01" 2026-10-10 재확인본) — 입력값과
-  // 결과를 전부 지우고 "입력 전" 상태로 되돌린다. 정확한 동작은 시안에 따로 안 적혀 있어
-  // 가장 단순하게 이렇게 뒀다(05-open-questions.md #41, Figma 호출 제한으로 나머지 6개
-  // 시안을 다 못 봐서 이 버튼의 의도를 완전히 확인하지는 못했다).
-  function handleReset(): void {
-    setDraft({ temp: '', rh: '', vent: '' });
-    setAppliedDraft(null);
-    setExpert(null);
-  }
-
   if (!geometry) {
     return <DetailAreaMessage text="형상 데이터를 불러오는 중입니다..." isError={false} />;
   }
@@ -119,19 +108,7 @@ export function ExpertModeView(): ReactElement {
         <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
       ) : (
         <>
-          <TimelineSection
-            frames={expert.data.frames}
-            right={
-              <button
-                type="button"
-                onClick={handleReset}
-                className="flex items-center gap-1 text-sm font-medium text-[#a4abb5] transition-colors hover:text-white"
-              >
-                <History size={20} />
-                초기화
-              </button>
-            }
-          />
+          <TimelineSection frames={expert.data.frames} />
           <Detail3DSection>
             <Detail3DView
               geometry={geometry}
