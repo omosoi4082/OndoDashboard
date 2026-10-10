@@ -22,7 +22,8 @@ function PointsToggle(): ReactElement {
         onChange={(e) => setPointsVisible(e.target.checked)}
         className="peer sr-only"
       />
-      <span className="relative ml-2 h-6 w-11 rounded-full bg-ondo-border transition-colors peer-checked:bg-ondo-accent-on after:absolute after:left-0.5 after:top-0.5 after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-5" />
+      {/* 트랙 46×24, 손잡이 18×18, 여백 3px — Figma node 374:11805(03_전문가모드) 실측값. */}
+      <span className="relative ml-2 h-6 w-[46px] rounded-full bg-ondo-border transition-colors peer-checked:bg-ondo-accent-on after:absolute after:left-[3px] after:top-[3px] after:h-[18px] after:w-[18px] after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-[22px]" />
     </label>
   );
 }
