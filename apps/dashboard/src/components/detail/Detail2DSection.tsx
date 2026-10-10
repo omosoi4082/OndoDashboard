@@ -10,6 +10,7 @@ import type { DetailBase, DetailFrame, Geometry, GridDef } from '@ondo/shared';
 import { bilinearUpsample2x, extractZLayer, nearestZIndex } from '../../detail/sectionGrid.js';
 import { buildHeatmapImage } from '../../detail/heatmapImage.js';
 import { colormapRGB01 } from '../../detail/colormap.js';
+import { niceAxisTicks } from '../../detail/axisTicks.js';
 import { getFieldRange, getFieldUnit } from '../../detail/pointSelection.js';
 import { useDetailStore } from '../../store/detailStore.js';
 import { SECTION_PARTITION_SEGMENTS, SECTION_Z_M } from '../../config/constants.js';
@@ -65,6 +66,11 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   const viewW = (activeGrid.size[0] * 2 - 1) * stepX;
   const viewH = (activeGrid.size[1] * 2 - 1) * stepY;
 
+  // X·Y축 칫수(m) — 참고 자료(Plotly 2D 히트맵)처럼 축에 실측 길이를 표기한다
+  // (2026-10-10 사용자 요청). 보여주는 좌표 범위는 SVG 오버레이와 같은 viewBox 기준.
+  const xTicks = useMemo(() => niceAxisTicks(viewMinX, viewMinX + viewW), [viewMinX, viewW]);
+  const yTicks = useMemo(() => niceAxisTicks(viewMinY, viewMinY + viewH), [viewMinY, viewH]);
+
   const unit = getFieldUnit(valueField);
   const legendStops = Array.from({ length: LEGEND_STEPS }, (_, i) => {
     const t = i / (LEGEND_STEPS - 1);
@@ -75,31 +81,59 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
 
   return (
     <div className="flex h-full gap-3 rounded-lg border border-ondo-border bg-ondo-surface p-2">
-      <div className="relative flex-1">
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 rounded"
-          style={{ width: '100%', height: '100%', imageRendering: 'auto' }}
-        />
-        <svg
-          className="pointer-events-none absolute inset-0 h-full w-full"
-          viewBox={`${viewMinX} ${viewMinY} ${viewW} ${viewH}`}
-          preserveAspectRatio="none"
-        >
-          {SECTION_PARTITION_SEGMENTS.map(([[x1, y1], [x2, y2]], idx) => (
-            <line
-              key={idx}
-              x1={x1}
-              y1={y1}
-              x2={x2}
-              y2={y2}
-              stroke="white"
-              strokeWidth={2}
-              strokeLinecap="round"
-              vectorEffect="non-scaling-stroke"
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-h-0 flex-1 gap-1">
+          {/* Y축 칫수(m) — 아래 X축 행의 ml-8과 폭을 맞춰야 눈금이 캔버스와 정렬된다. */}
+          <div className="relative w-7 shrink-0">
+            {yTicks.map((v) => (
+              <span
+                key={v}
+                className="absolute right-1 -translate-y-1/2 whitespace-nowrap text-[9px] text-white/50"
+                style={{ top: `${((v - viewMinY) / viewH) * 100}%` }}
+              >
+                {v}m
+              </span>
+            ))}
+          </div>
+          <div className="relative min-w-0 flex-1">
+            <canvas
+              ref={canvasRef}
+              className="absolute inset-0 rounded"
+              style={{ width: '100%', height: '100%', imageRendering: 'auto' }}
             />
+            <svg
+              className="pointer-events-none absolute inset-0 h-full w-full"
+              viewBox={`${viewMinX} ${viewMinY} ${viewW} ${viewH}`}
+              preserveAspectRatio="none"
+            >
+              {SECTION_PARTITION_SEGMENTS.map(([[x1, y1], [x2, y2]], idx) => (
+                <line
+                  key={idx}
+                  x1={x1}
+                  y1={y1}
+                  x2={x2}
+                  y2={y2}
+                  stroke="white"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  vectorEffect="non-scaling-stroke"
+                />
+              ))}
+            </svg>
+          </div>
+        </div>
+        {/* X축 칫수(m) */}
+        <div className="relative ml-8 h-3 shrink-0">
+          {xTicks.map((v) => (
+            <span
+              key={v}
+              className="absolute -translate-x-1/2 whitespace-nowrap text-[9px] text-white/50"
+              style={{ left: `${((v - viewMinX) / viewW) * 100}%` }}
+            >
+              {v}m
+            </span>
           ))}
-        </svg>
+        </div>
       </div>
       <div className="flex w-10 flex-col items-center justify-between py-1 text-[10px] text-white/60">
         <span>
