@@ -26,7 +26,7 @@ export function DetailPanel(): ReactElement {
   const current = useDetailStore((s) => s.current);
 
   return (
-    <aside className="flex h-full w-full flex-col gap-5">
+    <aside className="flex h-full w-full flex-col gap-2.5">
       <ModeTabs />
 
       {/* 탭 아래 카드 하나에 모드별 내용을 담는다(docs/06-design-guide.md). 길면 카드 안에서 스크롤. */}

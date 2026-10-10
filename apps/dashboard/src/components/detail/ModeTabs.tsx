@@ -21,7 +21,7 @@ export function ModeTabs(): ReactElement {
           key={tab.id}
           type="button"
           onClick={() => setMode(tab.id)}
-          className={`h-[52px] w-[182px] rounded-[24px] text-base text-white transition-colors ${
+          className={`h-[46px] w-[182px] rounded-[24px] text-base text-white transition-colors ${
             mode === tab.id ? 'bg-ondo-accent font-semibold' : 'hover:bg-ondo-surface-2'
           }`}
         >
