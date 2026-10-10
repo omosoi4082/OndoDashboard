@@ -6,6 +6,27 @@ import type { DetailFrame } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { Timeline } from './Timeline.js';
 
+/** 상세 패널 스크롤 영역 — "3D 자돈방"부터 "2D 수평단면"까지만 스크롤되고, 그 위의
+ * 분석 항목·시간 설정·전문가 입력폼·제어 토글 같은 버튼류는 스크롤 밖에 고정된다
+ * (2026-10-11 사용자: "상세보기 패널 스크롤은 3d구역부터 2d까지만이고 위에 설정하고
+ * 클릭하는 버튼들은 스크롤 영역에 안들어가고 고정이야"). 네 모드(DetailPanel·
+ * ForecastDetailView·ExpertModeView·ControlModeView) 전부 이 컴포넌트로 3D/2D(또는 로딩·
+ * 오류 자리표시자) 부분만 감싼다.
+ *
+ * overflow-y만 auto로 두면 overflow-x가 'visible'에서 'auto'로 강제 계산되는 CSS 규칙
+ * 때문에(두 축 중 하나라도 visible이 아니면 다른 축의 visible도 auto로 바뀐다) 2D 단면
+ * 내부 몇 px 오차만으로도 가로 스크롤바가 떴다(2026-10-11 사용자: "가로 스크롤없어") —
+ * overflow-x-hidden으로 막는다. 세로 스크롤바는 패널 배경과 5px 띄운다(사용자: "세로
+ * 스크롤 바탕 패널과 5 패딩이야") — mr-[5px]로 스크롤 영역 자체를 안쪽으로 당긴다
+ * (padding은 네이티브 스크롤바 위치에 영향을 주지 않는다). */
+export function DetailScrollBody({ children }: { children: ReactNode }): ReactElement {
+  return (
+    <div className="ondo-scrollbar mr-[5px] flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden">
+      {children}
+    </div>
+  );
+}
+
 /** 포인트 on/off(11·16·23·30, 기본 on) — 초록 점 + 토글 스위치. */
 function PointsToggle(): ReactElement {
   const pointsVisible = useDetailStore((s) => s.pointsVisible);

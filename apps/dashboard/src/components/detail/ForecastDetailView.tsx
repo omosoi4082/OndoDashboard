@@ -10,7 +10,7 @@ import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
-import { Detail2DBox, Detail3DSection, TimelineSection } from './DetailSections.js';
+import { Detail2DBox, Detail3DSection, DetailScrollBody, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
 import { FlowVisualization } from '../../scene/FlowVisualization.js';
@@ -34,7 +34,9 @@ export function ForecastDetailView(): ReactElement {
     return (
       <>
         <ControlsRow />
-        <EmptyDetail3D geometry={geometry} text="예측 결과를 계산하는 중입니다..." isError={false} />
+        <DetailScrollBody>
+          <EmptyDetail3D geometry={geometry} text="예측 결과를 계산하는 중입니다..." isError={false} />
+        </DetailScrollBody>
       </>
     );
   }
@@ -43,7 +45,9 @@ export function ForecastDetailView(): ReactElement {
     return (
       <>
         <ControlsRow />
-        <EmptyDetail3D geometry={geometry} text={forecast.error.message} isError />
+        <DetailScrollBody>
+          <EmptyDetail3D geometry={geometry} text={forecast.error.message} isError />
+        </DetailScrollBody>
       </>
     );
   }
@@ -56,7 +60,9 @@ export function ForecastDetailView(): ReactElement {
     return (
       <>
         <ControlsRow />
-        <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
+        <DetailScrollBody>
+          <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
+        </DetailScrollBody>
       </>
     );
   }
@@ -77,12 +83,14 @@ export function ForecastDetailView(): ReactElement {
     <>
       <ControlsRow />
       <TimelineSection frames={frames} />
-      <Detail3DSection>
-        <Detail3DView geometry={geometry} frame={frame} range={range} overlay={overlay} />
-      </Detail3DSection>
-      <Detail2DBox>
-        <Detail2DSection geometry={geometry} frame={frame} range={range} />
-      </Detail2DBox>
+      <DetailScrollBody>
+        <Detail3DSection>
+          <Detail3DView geometry={geometry} frame={frame} range={range} overlay={overlay} />
+        </Detail3DSection>
+        <Detail2DBox>
+          <Detail2DSection geometry={geometry} frame={frame} range={range} />
+        </Detail2DBox>
+      </DetailScrollBody>
     </>
   );
 }

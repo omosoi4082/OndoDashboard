@@ -21,7 +21,7 @@ import {
 import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
-import { Detail2DBox, Detail3DSection, TimelineSection } from './DetailSections.js';
+import { Detail2DBox, Detail3DSection, DetailScrollBody, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ExpertInputForm } from './ExpertInputForm.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
@@ -98,41 +98,46 @@ export function ExpertModeView(): ReactElement {
       <div className="h-px shrink-0 bg-ondo-border" />
       <ControlsRow />
 
-      {isLoading ? (
-        <EmptyDetail3D geometry={geometry} text="전문가 모드 결과를 계산하는 중입니다..." isError={false} />
-      ) : expert === null ? (
-        <EmptyDetail3D geometry={geometry} text="데이터 값을 입력해주세요." isError={false} />
-      ) : expert.status === 'error' ? (
-        <EmptyDetail3D geometry={geometry} text={expert.error.message} isError />
-      ) : !frame ? (
-        <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
-      ) : (
-        <>
-          <TimelineSection frames={expert.data.frames} />
-          <Detail3DSection>
-            <Detail3DView
-              geometry={geometry}
-              frame={frame}
-              range={expert.data.range}
-              overlay={
-                valueField === 'flow' ? (
-                  <FlowVisualization geometry={geometry} frame={frame} range={expert.data.range.flow} />
-                ) : (
-                  <IsosurfaceVolume
-                    geometry={geometry}
-                    range={expert.data.range}
-                    valueField={valueField}
-                    frameCache={isosurfaceCache.getFrame(frameIndex)}
-                  />
-                )
-              }
-            />
-          </Detail3DSection>
-          <Detail2DBox>
-            <Detail2DSection geometry={geometry} frame={frame} range={expert.data.range} />
-          </Detail2DBox>
-        </>
-      )}
+      {/* frame이 있을 때만(= 로딩도 오류도 아니고 데이터도 있을 때만) 타임라인을 보여준다
+          — expertFrames와 같은 조건이라 그 참 거짓만 보면 된다. */}
+      {expertFrames && frame && <TimelineSection frames={expertFrames} />}
+
+      <DetailScrollBody>
+        {isLoading ? (
+          <EmptyDetail3D geometry={geometry} text="전문가 모드 결과를 계산하는 중입니다..." isError={false} />
+        ) : expert === null ? (
+          <EmptyDetail3D geometry={geometry} text="데이터 값을 입력해주세요." isError={false} />
+        ) : expert.status === 'error' ? (
+          <EmptyDetail3D geometry={geometry} text={expert.error.message} isError />
+        ) : !frame ? (
+          <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
+        ) : (
+          <>
+            <Detail3DSection>
+              <Detail3DView
+                geometry={geometry}
+                frame={frame}
+                range={expert.data.range}
+                overlay={
+                  valueField === 'flow' ? (
+                    <FlowVisualization geometry={geometry} frame={frame} range={expert.data.range.flow} />
+                  ) : (
+                    <IsosurfaceVolume
+                      geometry={geometry}
+                      range={expert.data.range}
+                      valueField={valueField}
+                      frameCache={isosurfaceCache.getFrame(frameIndex)}
+                    />
+                  )
+                }
+              />
+            </Detail3DSection>
+            <Detail2DBox>
+              <Detail2DSection geometry={geometry} frame={frame} range={expert.data.range} />
+            </Detail2DBox>
+          </>
+        )}
+      </DetailScrollBody>
     </>
   );
 }

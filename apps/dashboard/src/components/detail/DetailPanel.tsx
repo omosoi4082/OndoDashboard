@@ -15,7 +15,7 @@ import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
-import { Detail2DBox, Detail3DSection } from './DetailSections.js';
+import { Detail2DBox, Detail3DSection, DetailScrollBody } from './DetailSections.js';
 import { ForecastDetailView } from './ForecastDetailView.js';
 import { ExpertModeView } from './ExpertModeView.js';
 import { ControlModeView } from './ControlModeView.js';
@@ -29,8 +29,9 @@ export function DetailPanel(): ReactElement {
     <aside className="flex h-full w-full flex-col gap-2.5">
       <ModeTabs />
 
-      {/* 탭 아래 카드 하나에 모드별 내용을 담는다(docs/06-design-guide.md). 길면 카드 안에서 스크롤. */}
-      <div className="ondo-scrollbar flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto rounded-xl bg-ondo-surface p-5">
+      {/* 탭 아래 카드 하나에 모드별 내용을 담는다(docs/06-design-guide.md). 스크롤은
+          DetailScrollBody(3D~2D)만 — 분석 항목 같은 위쪽 버튼류는 고정. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-5 rounded-xl bg-ondo-surface p-5">
 
       {mode === 'forecast' && <ForecastDetailView />}
 
@@ -41,26 +42,28 @@ export function DetailPanel(): ReactElement {
       {mode === 'current' && (
         <>
           <ControlsRow />
-          {!geometry ? (
-            <DetailAreaMessage text="형상 데이터를 불러오는 중입니다..." isError={false} />
-          ) : current === null ? (
-            <EmptyDetail3D geometry={geometry} text="데이터를 불러오는 중입니다..." isError={false} />
-          ) : current.status === 'error' ? (
-            <EmptyDetail3D geometry={geometry} text={current.error.message} isError />
-          ) : !current.data.frames[0] ? (
-            <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
-          ) : (
-            <>
-              <Detail3DSection>
-                <Detail3DView geometry={geometry} frame={current.data.frames[0]} range={current.data.range} />
-              </Detail3DSection>
-              {SHOW_2D_IN_CURRENT && (
-                <Detail2DBox>
-                  <Detail2DSection geometry={geometry} frame={current.data.frames[0]} range={current.data.range} />
-                </Detail2DBox>
-              )}
-            </>
-          )}
+          <DetailScrollBody>
+            {!geometry ? (
+              <DetailAreaMessage text="형상 데이터를 불러오는 중입니다..." isError={false} />
+            ) : current === null ? (
+              <EmptyDetail3D geometry={geometry} text="데이터를 불러오는 중입니다..." isError={false} />
+            ) : current.status === 'error' ? (
+              <EmptyDetail3D geometry={geometry} text={current.error.message} isError />
+            ) : !current.data.frames[0] ? (
+              <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
+            ) : (
+              <>
+                <Detail3DSection>
+                  <Detail3DView geometry={geometry} frame={current.data.frames[0]} range={current.data.range} />
+                </Detail3DSection>
+                {SHOW_2D_IN_CURRENT && (
+                  <Detail2DBox>
+                    <Detail2DSection geometry={geometry} frame={current.data.frames[0]} range={current.data.range} />
+                  </Detail2DBox>
+                )}
+              </>
+            )}
+          </DetailScrollBody>
         </>
       )}
       </div>

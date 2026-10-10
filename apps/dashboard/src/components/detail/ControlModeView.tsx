@@ -13,7 +13,7 @@ import { fetchDetailControl } from '../../api/endpoints.js';
 import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
 import { Detail2DSection } from './Detail2DSection.js';
-import { Detail2DBox, Detail3DSection, TimelineSection } from './DetailSections.js';
+import { Detail2DBox, Detail3DSection, DetailScrollBody, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ControlSummaryCard } from './ControlSummaryCard.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
@@ -133,42 +133,47 @@ export function ControlModeView(): ReactElement {
       <div className="h-px shrink-0 bg-ondo-border" />
       <ControlsRow />
 
-      {isLoading ? (
-        <EmptyDetail3D geometry={geometry} text="제어 최적화 결과를 계산하는 중입니다..." isError={false} />
-      ) : control === null ? (
-        <EmptyDetail3D geometry={geometry} text="제어 결과를 불러오는 중입니다..." isError={false} />
-      ) : control.status === 'error' ? (
-        <EmptyDetail3D geometry={geometry} text={control.error.message} isError />
-      ) : !frame ? (
-        <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
-      ) : (
-        <>
-          <TimelineSection frames={control.data.frames} />
-          <Detail3DSection>
-            <Detail3DView
-              geometry={geometry}
-              frame={frame}
-              range={control.data.range}
-              overlay={
-                valueField === 'flow' ? (
-                  <FlowVisualization geometry={geometry} frame={frame} range={control.data.range.flow} />
-                ) : (
-                  <IsosurfaceVolume
-                    geometry={geometry}
-                    range={control.data.range}
-                    valueField={valueField}
-                    frameCache={isosurfaceCache.getFrame(frameIndex)}
-                  />
-                )
-              }
-              htmlOverlay={<ControlSummaryCard frames={control.data.frames} control={control.data.control} frameIndex={frameIndex} />}
-            />
-          </Detail3DSection>
-          <Detail2DBox>
-            <Detail2DSection geometry={geometry} frame={frame} range={control.data.range} />
-          </Detail2DBox>
-        </>
-      )}
+      {/* controlFrames와 같은 조건(로딩도 오류도 아니고 데이터도 있을 때)이라 frame
+          truthy 여부만 보면 된다. */}
+      {controlFrames && frame && <TimelineSection frames={controlFrames} />}
+
+      <DetailScrollBody>
+        {isLoading ? (
+          <EmptyDetail3D geometry={geometry} text="제어 최적화 결과를 계산하는 중입니다..." isError={false} />
+        ) : control === null ? (
+          <EmptyDetail3D geometry={geometry} text="제어 결과를 불러오는 중입니다..." isError={false} />
+        ) : control.status === 'error' ? (
+          <EmptyDetail3D geometry={geometry} text={control.error.message} isError />
+        ) : !frame ? (
+          <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
+        ) : (
+          <>
+            <Detail3DSection>
+              <Detail3DView
+                geometry={geometry}
+                frame={frame}
+                range={control.data.range}
+                overlay={
+                  valueField === 'flow' ? (
+                    <FlowVisualization geometry={geometry} frame={frame} range={control.data.range.flow} />
+                  ) : (
+                    <IsosurfaceVolume
+                      geometry={geometry}
+                      range={control.data.range}
+                      valueField={valueField}
+                      frameCache={isosurfaceCache.getFrame(frameIndex)}
+                    />
+                  )
+                }
+                htmlOverlay={<ControlSummaryCard frames={control.data.frames} control={control.data.control} frameIndex={frameIndex} />}
+              />
+            </Detail3DSection>
+            <Detail2DBox>
+              <Detail2DSection geometry={geometry} frame={frame} range={control.data.range} />
+            </Detail2DBox>
+          </>
+        )}
+      </DetailScrollBody>
     </>
   );
 }
