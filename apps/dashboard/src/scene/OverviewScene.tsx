@@ -27,8 +27,11 @@ import { RoomInfoPanel } from '../components/RoomInfoPanel.js';
 // 실험군(EX) 자돈방 — 상세 패널 대상이자 메인 화면에서 유일하게 클릭 가능한 방
 // (01-functional-spec.md 2장 "3D 모델링 규칙"). 카메라 회전 중심을 이 방 쪽으로
 // 치우치게 두는 기준이기도 하다(overviewScene.js, 2026-10-09).
+// 가중치 1.0 = 박스 전체 중심이 아니라 자돈방 중심에 완전히 고정(2026-10-10 사용자 요청 —
+// 전체화면 캔버스에서 고정 중심 회전이 불편하다는 피드백에 대한 1차 완화책. 드래그 지점으로
+// pivot을 옮기는 방식은 과거 폐기 이력이 있어 재시도 안 함, CameraRig.tsx 상단 주석 참고).
 const PRIMARY_ROOM_ID: RoomId = 'NH';
-const ROTATION_CENTER_WEIGHT = 0.5;
+const ROTATION_CENTER_WEIGHT = 1.0;
 
 export function OverviewScene(): ReactElement {
   const { scene } = useGLTF(OVERVIEW_MODEL_URL);
