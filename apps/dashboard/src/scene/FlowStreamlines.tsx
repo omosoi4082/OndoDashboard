@@ -86,7 +86,7 @@ export function FlowStreamlines({ geometry, frame, range }: FlowStreamlinesProps
         // flowGrid 노드별 실린더(FlowCylinders.tsx)와 같은 컬러맵·range를 쓴다.
         const midData: Vec3 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
         const value = sampleFlowVelocity(geometry.flowGrid, frame.flow, midData)[3];
-        const [r, g, bCol] = valueToRGB01(value, range.min, range.max);
+        const [r, g, bCol] = valueToRGB01(value, range.min, range.max, 'flow');
         mesh.setColorAt(instanceIdx, color.setRGB(r, g, bCol));
 
         instanceIdx += 1;

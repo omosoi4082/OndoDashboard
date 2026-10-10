@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { colormapRGB01, normalize, valueToRGB01, valueToRGB255 } from './colormap.js';
+import { colormapRGB01, FIELD_COLOR_RANGES, normalize, valueToRGB01, valueToRGB255 } from './colormap.js';
 
 // 색상 자체(RGB 값)는 colormap.ts의 SATURATION_BOOST 하나로 튜닝하는 값이라(사용자가 직접
 // 조정) 여기서 정확한 색을 하드코딩하지 않는다 — 보간·클램프 등 알고리즘만 검증한다.
@@ -30,6 +30,18 @@ describe('colormapRGB01', () => {
     const mid = colormapRGB01(0.15); // 0.0~0.3 구간의 중간
     for (let i = 0; i < 3; i++) {
       expect(mid[i]).toBeCloseTo((c0[i] + c03[i]) / 2, 5);
+    }
+  });
+
+  it('필드(온도/습도/유동)별로 독립된 색 범위를 쓴다 — FIELD_COLOR_RANGES를 hex로 지정', () => {
+    for (const field of ['temp', 'rh', 'flow'] as const) {
+      expect(FIELD_COLOR_RANGES[field].low).toMatch(/^[0-9a-fA-F]{6}$/);
+      expect(FIELD_COLOR_RANGES[field].high).toMatch(/^[0-9a-fA-F]{6}$/);
+      // field를 지정해도 유효한 RGB(0~1)를 돌려준다(hex 파싱·채도 보정이 깨지지 않는다).
+      for (const c of colormapRGB01(0.5, field)) {
+        expect(c).toBeGreaterThanOrEqual(0);
+        expect(c).toBeLessThanOrEqual(1);
+      }
     }
   });
 });

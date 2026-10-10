@@ -63,7 +63,7 @@ export function FlowCylinders({ geometry, frame, range }: FlowCylindersProps): R
       matrix.compose(position, quaternion, scale);
       mesh.setMatrixAt(idx, matrix);
 
-      const [r, g, b] = valueToRGB01(value, range.min, range.max);
+      const [r, g, b] = valueToRGB01(value, range.min, range.max, 'flow');
       mesh.setColorAt(idx, color.setRGB(r, g, b));
     }
 

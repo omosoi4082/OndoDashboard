@@ -56,7 +56,7 @@ export function PointsInstanced({ geometry, frame, range, valueField, onHoverCha
         return;
       }
       const value = getPointScalar(frame, valueField, p.id);
-      const [r, g, b] = valueToRGB01(value, fieldRange.min, fieldRange.max);
+      const [r, g, b] = valueToRGB01(value, fieldRange.min, fieldRange.max, valueField);
       mesh.setColorAt(i, color.setRGB(r, g, b));
     });
 

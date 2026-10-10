@@ -45,7 +45,7 @@ export function FlowArrow({ origin, flow, range }: FlowArrowProps): ReactElement
 
   const position = zUpToYUp([origin.x, origin.y, origin.z]);
   // 포인트(PointsInstanced)와 같은 값→컬러맵이라 호버한 포인트의 색과 화살표 색이 일치한다.
-  const [r, g, b] = valueToRGB01(value, range.min, range.max);
+  const [r, g, b] = valueToRGB01(value, range.min, range.max, 'flow');
   const arrowColor = new THREE.Color(r, g, b);
 
   return (

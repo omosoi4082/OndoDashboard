@@ -46,4 +46,13 @@ describe('buildHeatmapImage', () => {
     expect(image.height).toBe(0);
     expect(image.data).toHaveLength(0);
   });
+
+  it('field를 지정하면 그 필드의 색 범위(FIELD_COLOR_RANGES)로 칠한다', () => {
+    const layer = [[0, 30]];
+    const image = buildHeatmapImage(layer, 0, 30, 'flow');
+    const [r, g, b] = valueToRGB255(0, 0, 30, 'flow');
+    expect(image.data[0]).toBe(r);
+    expect(image.data[1]).toBe(g);
+    expect(image.data[2]).toBe(b);
+  });
 });

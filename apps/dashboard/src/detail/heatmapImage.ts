@@ -2,6 +2,7 @@
 // 자체(putImageData 등)는 컴포넌트(Detail2DSection)에서 호출한다. 순수 함수로 분리해
 // 테스트 가능하게 한다(CLAUDE.md 코드 규칙).
 import { valueToRGB255 } from './colormap.js';
+import type { ValueField } from '../store/detailStore.js';
 
 export interface HeatmapImage {
   width: number;
@@ -12,7 +13,12 @@ export interface HeatmapImage {
 }
 
 /** layer[i][j](i=x, j=y) → RGBA 픽셀 버퍼. 이미지 row=j, col=i로 둔다. */
-export function buildHeatmapImage(layer: readonly (readonly number[])[], min: number, max: number): HeatmapImage {
+export function buildHeatmapImage(
+  layer: readonly (readonly number[])[],
+  min: number,
+  max: number,
+  field: ValueField = 'temp',
+): HeatmapImage {
   const width = layer.length;
   const firstRow = layer[0];
   const height = firstRow ? firstRow.length : 0;
@@ -22,7 +28,7 @@ export function buildHeatmapImage(layer: readonly (readonly number[])[], min: nu
     for (let i = 0; i < width; i++) {
       const row = layer[i];
       const value = row ? row[j] ?? 0 : 0;
-      const [r, g, b] = valueToRGB255(value, min, max);
+      const [r, g, b] = valueToRGB255(value, min, max, field);
       const pixelIndex = (j * width + i) * 4;
       data[pixelIndex] = r;
       data[pixelIndex + 1] = g;

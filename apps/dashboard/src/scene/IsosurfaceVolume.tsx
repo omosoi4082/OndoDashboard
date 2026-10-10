@@ -81,7 +81,7 @@ export function IsosurfaceVolume({ geometry, range, valueField, frameCache }: Is
       mc.field.set(fieldScratch);
       const isolation = isolations[i] ?? fieldRange.max;
       mc.isolation = isolation;
-      const [r, g, b] = valueToRGB01(isolation, fieldRange.min, fieldRange.max);
+      const [r, g, b] = valueToRGB01(isolation, fieldRange.min, fieldRange.max, valueField);
       const material = mc.material;
       if (!Array.isArray(material)) (material as THREE.MeshStandardMaterial).color.setRGB(r, g, b);
       mc.update();

@@ -53,14 +53,14 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !upsampled || !fieldRange) return;
-    const image = buildHeatmapImage(upsampled, fieldRange.min, fieldRange.max);
+    const image = buildHeatmapImage(upsampled, fieldRange.min, fieldRange.max, valueField);
     if (image.width === 0 || image.height === 0) return;
     canvas.width = image.width;
     canvas.height = image.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
-  }, [upsampled, fieldRange]);
+  }, [upsampled, fieldRange, valueField]);
 
   // 칸막이 오버레이 좌표계 — 히트맵 픽셀 i는 2배 보간 격자의 x = origin + i*(spacing/2) 노드를
   // 중심으로 그려지므로, viewBox를 반 픽셀씩 바깥으로 넓혀 canvas와 정확히 겹치게 한다.
@@ -104,7 +104,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   const unit = getFieldUnit(valueField);
   const legendStops = Array.from({ length: LEGEND_STEPS }, (_, i) => {
     const t = i / (LEGEND_STEPS - 1);
-    const [r, g, b] = colormapRGB01(t);
+    const [r, g, b] = colormapRGB01(t, valueField);
     const pct = ((1 - t) * 100).toFixed(1);
     return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}) ${pct}%`;
   }).join(', ');
