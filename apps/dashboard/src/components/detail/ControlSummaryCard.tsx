@@ -16,9 +16,13 @@ interface ControlSummaryCardProps {
   frameIndex: number;
 }
 
+// 350×172, 그림자 있음·테두리 없음·불투명도 70%, 가로 기준선 간격 25px, 글씨 크기
+// (절감률 등 라벨 13px·퍼센트/값 숫자 16px·그래프 축 숫자 9px) — 2026-10-11 사용자 실측
+// 지시.
 const CARD_WIDTH = 350;
+const CARD_HEIGHT = 172;
 const CHART_WIDTH = 278;
-const CHART_HEIGHT = 120;
+const CHART_HEIGHT = 50;
 const CHART_PADDING_LEFT = 32;
 const CHART_PADDING_BOTTOM = 18;
 const INNER_WIDTH = CHART_WIDTH;
@@ -37,34 +41,34 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
 
   return (
     <div
-      className="pointer-events-auto rounded-2xl border border-white/15 bg-[#111111]/95 p-5 shadow-lg backdrop-blur-sm"
-      style={{ width: CARD_WIDTH }}
+      className="pointer-events-auto rounded-2xl bg-[#111111]/70 p-5 shadow-lg backdrop-blur-sm"
+      style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
     >
       {/* 라벨에 단위를 괄호로 붙이고(팬 절감률 (kWh), 최고 온도 (℃)), 값에선 단위를 뺀다
           — 그래프.png 실측(2026-10-11 전달). */}
       <div className="flex justify-between gap-2">
         <div>
-          <div className="flex items-center gap-1.5 text-xs text-white/60">
+          <div className="flex items-center gap-1.5 text-[13px] text-white/60">
             <SummaryTick />
             절감률
           </div>
-          <div className="mt-1 text-lg font-bold text-white">{control.savingPct.toFixed(0)}%</div>
+          <div className="mt-1 text-base font-bold text-white">{control.savingPct.toFixed(0)}%</div>
         </div>
         <div>
-          <div className="flex items-center gap-1.5 whitespace-nowrap text-xs text-white/60">
+          <div className="flex items-center gap-1.5 whitespace-nowrap text-[13px] text-white/60">
             <SummaryTick />
             팬 절감률 (kWh)
           </div>
-          <div className="mt-1 whitespace-nowrap text-lg font-bold text-white">
+          <div className="mt-1 whitespace-nowrap text-base font-bold text-white">
             {control.energyKwh.baseline.toFixed(2)} → {control.energyKwh.optimized.toFixed(2)}
           </div>
         </div>
         <div>
-          <div className="flex items-center gap-1.5 whitespace-nowrap text-xs text-white/60">
+          <div className="flex items-center gap-1.5 whitespace-nowrap text-[13px] text-white/60">
             <SummaryTick />
             최고 온도 (℃)
           </div>
-          <div className="mt-1 whitespace-nowrap text-lg font-bold text-white">
+          <div className="mt-1 whitespace-nowrap text-base font-bold text-white">
             {control.tMax.baseline.toFixed(1)} → {control.tMax.optimized.toFixed(1)}
           </div>
         </div>
