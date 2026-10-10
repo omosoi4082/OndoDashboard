@@ -191,7 +191,8 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
         </div>
       </div>
       <div className="flex shrink-0 items-stretch justify-center py-1" style={{ width: `${(1 - PLAN_WIDTH_SHARE) * 100}%` }}>
-        <div className="relative my-1 w-3 rounded" style={{ background: `linear-gradient(to bottom, ${legendStops})` }}>
+        {/* 범례 두께 24px(2026-10-10 사용자 요청: "범례두께 24로 변경"). */}
+        <div className="relative my-1 w-6 rounded" style={{ background: `linear-gradient(to bottom, ${legendStops})` }}>
           {legendTicks.map((v) => (
             <div
               key={v}
