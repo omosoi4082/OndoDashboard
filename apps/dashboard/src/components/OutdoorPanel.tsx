@@ -1,5 +1,6 @@
 // 외부환경(3) — 3-1 기상청 실황 + 3-2 미세기후 (01-functional-spec.md 2장). 스타일·크기는
-// docs/06-design-guide.md "외부환경"(디자인 원본 실측: 블록 폭 338, 타일 81×66, 간격 5).
+// docs/06-design-guide.md "외부환경"(디자인 원본 실측: 블록 폭 338, 타일 82×66, 간격 4,
+// 타일 안 아이콘 18×18·아이콘-값 간격 12, 2026-10-10 Figma 재확인).
 // 타일 4칸: 풍향·풍속·습도·강수량. 풍속(양쪽)·기상청 강수량은 아직 API에 없어 '-'
 // (05-open-questions.md #36, 사용자가 온도 측 확인 중).
 import type { ReactElement, ReactNode } from 'react';
@@ -17,12 +18,14 @@ function WeatherIcon({ code, isNight }: { code: WeatherCode | null; isNight: boo
 
 function Tile({ icon, value, unit }: { icon: ReactNode; value: string | null; unit?: string }): ReactElement {
   return (
-    <div className="flex h-[66px] w-[81px] flex-col justify-between rounded-[3px] border border-ondo-border bg-ondo-surface/80 px-3 pb-2.5 pt-3.5">
-      <span className="text-white">{icon}</span>
-      <span className="text-base leading-none text-white">
-        {value ?? '-'}
-        {value !== null && unit && <span className="ml-1 text-sm text-ondo-muted">{unit}</span>}
-      </span>
+    <div className="flex h-[66px] w-[82px] items-center rounded-[4px] border border-ondo-border bg-ondo-surface/80 px-[10px] py-[6px]">
+      <div className="flex w-[54px] flex-col items-start justify-center gap-[12px]">
+        <span className="text-white">{icon}</span>
+        <span className="text-base leading-none text-white">
+          {value ?? '-'}
+          {value !== null && unit && <span className="ml-1 text-sm text-ondo-muted">{unit}</span>}
+        </span>
+      </div>
     </div>
   );
 }
@@ -62,16 +65,16 @@ function WeatherBlock(props: WeatherBlockProps): ReactElement {
           </span>
         </div>
       </div>
-      <div className="flex gap-[5px]">
+      <div className="flex gap-[4px]">
         {/* 풍향: windDeg(바람이 불어오는 방위, docs/03 3장)만큼 북쪽 기준으로 화살표를 돌린다 —
             디자인의 북서풍(↖)·북풍(↑) 예시와 같은 규칙. 글자는 명세대로 16방위. */}
         <Tile
-          icon={<WindDirectionIcon size={16} style={{ transform: `rotate(${windDeg ?? 0}deg)` }} />}
+          icon={<WindDirectionIcon size={18} style={{ transform: `rotate(${windDeg ?? 0}deg)` }} />}
           value={windDir}
         />
-        <Tile icon={<WindSpeedIcon size={16} />} value={num(windSpeed, 1)} unit="m/s" />
-        <Tile icon={<HumidityTileIcon size={16} />} value={num(rh, 0)} unit="%" />
-        <Tile icon={<RainAmountIcon size={16} />} value={num(rain, 1)} unit="mm" />
+        <Tile icon={<WindSpeedIcon size={18} />} value={num(windSpeed, 1)} unit="m/s" />
+        <Tile icon={<HumidityTileIcon size={18} />} value={num(rh, 0)} unit="%" />
+        <Tile icon={<RainAmountIcon size={18} />} value={num(rain, 1)} unit="mm" />
       </div>
     </div>
   );
