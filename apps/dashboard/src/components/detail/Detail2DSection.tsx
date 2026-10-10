@@ -1,9 +1,12 @@
-// 자돈방 2D 수평단면(13·19·26·33) — grid에서 SECTION_Z_M 층을 뽑아 2배 쌍선형 보간 후
-// canvas 히트맵 + 우측 그라데이션 범례(01-functional-spec.md 3장). 현재 모드에서도 보여줄지는
-// SHOW_2D_IN_CURRENT 플래그(config/constants.ts, 05-open-questions.md #15 확정에 따라 기본 true).
-// grid에는 온도·습도만 있고(flowGrid는 별도 288노드, M5) 유동 토글에서는 2D를 그릴 수 없다.
+// 자돈방 2D 수평단면(13·19·26·33) — grid(온도·습도) 또는 flowGrid(유동, 유속 크기)에서
+// SECTION_Z_M에 가장 가까운 층을 뽑아 2배 쌍선형 보간 후 canvas 히트맵 + 우측 그라데이션
+// 범례(01-functional-spec.md 3장). 현재 모드에서도 보여줄지는 SHOW_2D_IN_CURRENT 플래그
+// (config/constants.ts, 05-open-questions.md #15 확정에 따라 기본 true).
+// 유동은 flowGrid가 grid와 해상도가 달라(9×8×4 vs 19×17×8) 별도 분기로 처리한다 — 색은
+// FlowVec의 4번째 값(유속 크기)을 쓴다(2026-10-10 사용자 요청: "유동도 값에 따른 히트맵이
+// 있어야 한다", 명세에 명시적 금지는 없고 그간 구현이 없었을 뿐이라 추가함).
 import { useEffect, useMemo, useRef, type ReactElement } from 'react';
-import type { DetailBase, DetailFrame, Geometry } from '@ondo/shared';
+import type { DetailBase, DetailFrame, Geometry, GridDef } from '@ondo/shared';
 import { bilinearUpsample2x, extractZLayer, nearestZIndex } from '../../detail/sectionGrid.js';
 import { buildHeatmapImage } from '../../detail/heatmapImage.js';
 import { colormapRGB01 } from '../../detail/colormap.js';
@@ -23,15 +26,21 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   const valueField = useDetailStore((s) => s.valueField);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  const upsampled = useMemo(() => {
-    if (valueField === 'flow') return null;
-    const values = valueField === 'temp' ? frame.grid.temp : frame.grid.rh;
-    const k = nearestZIndex(geometry.grid, SECTION_Z_M);
-    const layer = extractZLayer(values, geometry.grid, k);
-    return bilinearUpsample2x(layer);
-  }, [geometry.grid, frame, valueField]);
+  // 필드별로 어느 격자(해상도)·값 배열을 쓸지만 다르고, 그 뒤 보간·히트맵·범례 파이프라인은 같다.
+  const activeGrid: GridDef = valueField === 'flow' ? geometry.flowGrid : geometry.grid;
+  const values = useMemo(() => {
+    if (valueField === 'temp') return frame.grid.temp;
+    if (valueField === 'rh') return frame.grid.rh;
+    return frame.flow.map((v) => v[3]); // 유속 크기
+  }, [frame, valueField]);
 
-  const fieldRange = valueField === 'flow' ? null : getFieldRange(range, valueField);
+  const upsampled = useMemo(() => {
+    const k = nearestZIndex(activeGrid, SECTION_Z_M);
+    const layer = extractZLayer(values, activeGrid, k);
+    return bilinearUpsample2x(layer);
+  }, [activeGrid, values]);
+
+  const fieldRange = getFieldRange(range, valueField);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -45,23 +54,16 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
     ctx.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
   }, [upsampled, fieldRange]);
 
-  if (valueField === 'flow' || !fieldRange) {
-    return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-ondo-border bg-ondo-surface text-xs text-white/40">
-        유동은 2D 단면에 표시되지 않습니다
-      </div>
-    );
-  }
-
   // 칸막이 오버레이 좌표계 — 히트맵 픽셀 i는 2배 보간 격자의 x = origin + i*(spacing/2) 노드를
   // 중심으로 그려지므로, viewBox를 반 픽셀씩 바깥으로 넓혀 canvas와 정확히 겹치게 한다.
   // canvas가 컨테이너에 맞춰 늘어나므로 SVG도 preserveAspectRatio="none"으로 똑같이 늘린다.
-  const stepX = geometry.grid.spacing[0] / 2;
-  const stepY = geometry.grid.spacing[1] / 2;
-  const viewMinX = geometry.grid.origin[0] - stepX / 2;
-  const viewMinY = geometry.grid.origin[1] - stepY / 2;
-  const viewW = (geometry.grid.size[0] * 2 - 1) * stepX;
-  const viewH = (geometry.grid.size[1] * 2 - 1) * stepY;
+  // 칸막이 좌표(SECTION_PARTITION_SEGMENTS) 자체는 실제 room 좌표(m)라 어느 격자를 쓰든 그대로다.
+  const stepX = activeGrid.spacing[0] / 2;
+  const stepY = activeGrid.spacing[1] / 2;
+  const viewMinX = activeGrid.origin[0] - stepX / 2;
+  const viewMinY = activeGrid.origin[1] - stepY / 2;
+  const viewW = (activeGrid.size[0] * 2 - 1) * stepX;
+  const viewH = (activeGrid.size[1] * 2 - 1) * stepY;
 
   const unit = getFieldUnit(valueField);
   const legendStops = Array.from({ length: LEGEND_STEPS }, (_, i) => {
