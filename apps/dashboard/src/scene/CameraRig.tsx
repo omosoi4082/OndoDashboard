@@ -21,7 +21,7 @@ interface CameraRigProps {
 }
 
 export function CameraRig({ box, rotationCenter }: CameraRigProps): ReactElement {
-  const { camera, size } = useThree();
+  const { camera, size, scene, gl } = useThree();
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const setScaleBar = useMainStore((s) => s.setScaleBar);
 
@@ -43,6 +43,33 @@ export function CameraRig({ box, rotationCenter }: CameraRigProps): ReactElement
     // box/rotationCenter는 모델 로드 후 1회 계산되는 고정값 — 처음 프레이밍할 때만 적용한다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, box, rotationCenter]);
+
+  // 2026-10-10 사용자 요청: "중앙 고정 회전은 불편하다, 둘러보고 싶다" — 회전 자체는 유지하되
+  // 고정된 target 대신 "드래그 시작 지점"을 중심으로 돌게 한다(구글어스·스케치업류 UX).
+  // OrbitControls는 자체 pointerdown 리스너(버블 단계)로 회전을 시작하므로, 그보다 먼저
+  // 실행되게 capture 단계에서 레이캐스트해 target을 옮겨둔다. 빈 배경(모델 바깥)을 누르면
+  // 아무것도 안 맞아 target은 그대로 둔다(기존 동작 유지).
+  useEffect(() => {
+    const dom = gl.domElement;
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    function handlePointerDown(e: PointerEvent): void {
+      const controls = controlsRef.current;
+      if (!controls) return;
+      const rect = dom.getBoundingClientRect();
+      pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const hit = raycaster.intersectObject(scene, true)[0];
+      if (!hit) return;
+      controls.target.copy(hit.point);
+      controls.update();
+    }
+
+    dom.addEventListener('pointerdown', handlePointerDown, { capture: true });
+    return () => dom.removeEventListener('pointerdown', handlePointerDown, { capture: true });
+  }, [camera, scene, gl]);
 
   // 축척(8번 영역) — 카메라 줌(거리)에 따라 막대 길이·라벨을 갱신한다
   // (01-functional-spec.md 2장 #8). OrbitControls의 change 이벤트(줌·회전·이동)마다 재계산.
