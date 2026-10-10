@@ -10,12 +10,31 @@ const gridDefSchema = z.object({
   size: z.tuple([z.number(), z.number(), z.number()]),
 });
 
-// 125개 포인트 좌표(05-open-questions.md #3): id·x·y·z. 그 외 필드(room 칸막이·급기구
-// 등 상세 치수)는 relay 응답에 포함되지 않더라도(=geometry.json에 있어도) Geometry 타입에
-// 없는 값이라 zod object()가 그대로 걸러낸다(strict 미적용, 여분 필드 무시).
+// 125개 포인트 좌표(05-open-questions.md #3): id·x·y·z. room.inlets·outlet은 유동 흐름선
+// 추적 시작점으로 쓴다(05-open-questions.md #40, 2026-10-10 추가 — 그전까진 geometry.json에
+// 있어도 Geometry 타입에 없어 zod object()가 걸러냈었다). 그 외 필드(칸막이·센서 등)는
+// 여전히 Geometry 타입에 없는 값이라 그대로 걸러진다(strict 미적용, 여분 필드 무시).
+const inletSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+  z: z.number(),
+  w: z.number(),
+  l: z.number(),
+});
+const outletSchema = z.object({
+  wall: z.string().min(1),
+  x: z.number(),
+  z: z.number(),
+  d: z.number(),
+});
+
 const geometrySchema = z.object({
   geometryId: z.string().min(1),
-  room: z.object({ size: z.tuple([z.number(), z.number(), z.number()]) }),
+  room: z.object({
+    size: z.tuple([z.number(), z.number(), z.number()]),
+    inlets: z.array(inletSchema).min(1),
+    outlet: outletSchema,
+  }),
   points: z
     .array(z.object({ id: z.number(), x: z.number(), y: z.number(), z: z.number() }))
     .min(1),

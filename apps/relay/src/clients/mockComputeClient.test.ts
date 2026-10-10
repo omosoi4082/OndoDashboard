@@ -7,7 +7,7 @@ import type { ComputeRequestInput } from './computeClient.js';
 
 const GEOMETRY: Geometry = {
   geometryId: 'test-geometry',
-  room: { size: [4, 4, 2] },
+  room: { size: [4, 4, 2], inlets: [{ x: 2, y: 1, z: 2, w: 0.3, l: 0.7 }], outlet: { wall: 'y=0', x: 2, z: 1.5, d: 0.4 } },
   points: [{ id: 0, x: 0.5, y: 0.5, z: 0.5 }],
   grid: { origin: [0, 0, 0], spacing: [1, 1, 1], size: [2, 2, 2] },
   flowGrid: { origin: [0.5, 0.5, 0.5], spacing: [2, 2, 1], size: [1, 1, 1] },

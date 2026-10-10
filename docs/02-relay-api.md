@@ -131,9 +131,11 @@ export interface DetailFrame {
   flow: FlowVec[];                                             // flowGrid 노드 수
 }
 export interface MinMax { min: number; max: number }
+export interface RoomInlet { x: number; y: number; z: number; w: number; l: number }  // 급기구(천장)
+export interface RoomOutlet { wall: string; x: number; z: number; d: number }          // 배기구
 export interface Geometry {           // GET /api/detail/geometry, 상세 진입 시 1회
   geometryId: string;                  // 예: 'pig-nh-v1'
-  room: { size: [number, number, number] };   // [4.5, 4.0, 2.8]
+  room: { size: [number, number, number]; inlets: RoomInlet[]; outlet: RoomOutlet };   // size [4.5, 4.0, 2.8]
   points: { id: number; x: number; y: number; z: number }[];  // 125
   grid: GridDef;                       // spacing [0.25,0.25,0.4], size [19,17,8]
   flowGrid: GridDef;                   // origin [0.25,0.25,0.35], spacing [0.5,0.5,0.7], size [9,8,4]
@@ -181,7 +183,7 @@ export interface ControlDetail extends DetailBase { mode: 'control'; target: 'en
 - grid: 수평 0.25 m, 높이 0.4 m로 고정. 자돈방 4.5×4.0×2.8 m(PINN 모델 v17.0 형상) 기준 19×17×8 = 2,584 노드, 모든 응답 동일. 대시보드는 2배 삼선형 보간 후 메쉬 생성.
 - 온도·습도 메쉬: marching cubes 등치면 3~5단계, 반투명. 프레임별 Web Worker에서 미리 계산·캐시.
 - 2D 수평단면: grid에서 `SECTION_Z_M`에 가장 가까운 z층(x·y) → 2배 보간 → 히트맵.
-- 유동: flowGrid 노드마다 실린더(InstancedMesh). 방향 [vx, vy, vz], 길이·색상 value. 수평 0.5 m·높이 0.7 m 칸 중앙, 9×8×4 = 288개 고정.
+- 유동: flowGrid 노드마다 실린더(InstancedMesh). 방향 [vx, vy, vz], 길이·색상 value. 수평 0.5 m·높이 0.7 m 칸 중앙, 9×8×4 = 288개 고정. 표현 방식 자체는 미확정(05-open-questions.md #40) — 급기구(`room.inlets`)에서 시작해 속도장을 따라 실린더를 이어붙이는 흐름선 방식도 같이 구현해뒀다(`FLOW_VISUALIZATION_MODE` 상수로 전환).
 - 응답 크기: 예측 ~100만 개 숫자, ~7 MB JSON → gzip ~2~3 MB. 형상 정보는 응답에 포함하지 않는다.
 
 ## 6. 상세 API

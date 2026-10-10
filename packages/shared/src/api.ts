@@ -131,10 +131,27 @@ export interface MinMax {
   max: number;
 }
 
+// 급기구(천장) — 05-open-questions.md #40 유동 흐름선(스트림라인) 추적 시작점으로 쓴다.
+export interface RoomInlet {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+  l: number;
+}
+
+// 배기구 — 흐름선이 향하는 방향 참고용(끝점을 강제하진 않음, 도메인 이탈 시 자연 종료).
+export interface RoomOutlet {
+  wall: string; // 예: 'y=0'
+  x: number;
+  z: number;
+  d: number;
+}
+
 // GET /api/detail/geometry, 상세 진입 시 1회
 export interface Geometry {
   geometryId: string; // 예: 'pig-nh-v1'
-  room: { size: [number, number, number] }; // [4.5, 4.0, 2.8]
+  room: { size: [number, number, number]; inlets: RoomInlet[]; outlet: RoomOutlet }; // size [4.5, 4.0, 2.8]
   points: { id: number; x: number; y: number; z: number }[]; // 125
   grid: GridDef; // spacing [0.25,0.25,0.4], size [19,17,8]
   flowGrid: GridDef; // origin [0.25,0.25,0.35], spacing [0.5,0.5,0.7], size [9,8,4]
