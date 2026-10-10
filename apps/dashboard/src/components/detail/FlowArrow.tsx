@@ -8,6 +8,7 @@ import { useMemo, type ReactElement } from 'react';
 import * as THREE from 'three';
 import type { FlowVec, MinMax } from '@ondo/shared';
 import { zUpToYUp } from '../../scene/coords.js';
+import { valueToRGB01 } from '../../detail/colormap.js';
 
 interface FlowArrowProps {
   origin: { x: number; y: number; z: number };
@@ -17,7 +18,11 @@ interface FlowArrowProps {
 
 const MIN_LENGTH_M = 0.08;
 const MAX_LENGTH_M = 0.45;
-const ARROW_COLOR = 0xffffff;
+const SHAFT_RADIUS_M = 0.012;
+const CONE_RADIUS_M = 0.03;
+const CONE_HEIGHT_M = 0.08;
+// 2026-10-10 사용자: 포인트와 같은 컬러맵 색으로, 불투명도 0.7로.
+const ARROW_OPACITY = 0.7;
 
 export function FlowArrow({ origin, flow, range }: FlowArrowProps): ReactElement | null {
   const [vx, vy, vz, value] = flow;
@@ -39,16 +44,19 @@ export function FlowArrow({ origin, flow, range }: FlowArrowProps): ReactElement
   if (!transform) return null;
 
   const position = zUpToYUp([origin.x, origin.y, origin.z]);
+  // 포인트(PointsInstanced)와 같은 값→컬러맵이라 호버한 포인트의 색과 화살표 색이 일치한다.
+  const [r, g, b] = valueToRGB01(value, range.min, range.max);
+  const arrowColor = new THREE.Color(r, g, b);
 
   return (
     <group position={position} quaternion={transform.quaternion}>
       <mesh position={[0, transform.length / 2, 0]}>
-        <cylinderGeometry args={[0.012, 0.012, transform.length, 8]} />
-        <meshBasicMaterial color={ARROW_COLOR} />
+        <cylinderGeometry args={[SHAFT_RADIUS_M, SHAFT_RADIUS_M, transform.length, 8]} />
+        <meshBasicMaterial color={arrowColor} transparent opacity={ARROW_OPACITY} />
       </mesh>
       <mesh position={[0, transform.length, 0]}>
-        <coneGeometry args={[0.03, 0.08, 10]} />
-        <meshBasicMaterial color={ARROW_COLOR} />
+        <coneGeometry args={[CONE_RADIUS_M, CONE_HEIGHT_M, 10]} />
+        <meshBasicMaterial color={arrowColor} transparent opacity={ARROW_OPACITY} />
       </mesh>
     </group>
   );

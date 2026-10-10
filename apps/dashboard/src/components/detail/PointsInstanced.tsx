@@ -11,10 +11,12 @@ import { zUpToYUp } from '../../scene/coords.js';
 import type { ValueField } from '../../store/detailStore.js';
 import { getFieldRange, getPointScalar } from '../../detail/pointSelection.js';
 import { valueToRGB01 } from '../../detail/colormap.js';
+import { withNeutralVertexColors } from '../../scene/instancedColorFix.js';
 
 // 크기는 명세에 없음(개발자 결정) — 2026-10-10 사용자 요청으로 기존 0.04에서 절반으로.
 const POINT_RADIUS_M = 0.02;
-const NO_DATA_POINT_COLOR = new THREE.Color(0x8a94a6);
+// 데이터 없을 때(로딩·오류 등) 중립색 — 더 옅은 회색으로(2026-10-10 사용자 요청).
+const NO_DATA_POINT_COLOR = new THREE.Color(0xd4d8de);
 
 interface PointsInstancedProps {
   geometry: Geometry;
@@ -28,6 +30,13 @@ export function PointsInstanced({ geometry, frame, range, valueField, onHoverCha
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const count = geometry.points.length;
   const fieldRange = useMemo(() => (range ? getFieldRange(range, valueField) : null), [range, valueField]);
+  // 구 대신 큐브로(2026-10-10 사용자 요청 — 구와 비교해보고 결정 예정). 한 변 = 반지름*2로
+  // 구와 비슷한 크기감을 맞췄다. withNeutralVertexColors는 instanceColor가 검게 렌더링되는
+  // 환경 문제를 피하기 위한 것(instancedColorFix.ts 참고).
+  const boxGeom = useMemo(
+    () => withNeutralVertexColors(new THREE.BoxGeometry(POINT_RADIUS_M * 2, POINT_RADIUS_M * 2, POINT_RADIUS_M * 2)),
+    [],
+  );
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
@@ -73,8 +82,8 @@ export function PointsInstanced({ geometry, frame, range, valueField, onHoverCha
       onPointerMove={handlePointerMove}
       onPointerOut={handlePointerOut}
     >
-      <sphereGeometry args={[POINT_RADIUS_M, 12, 12]} />
-      <meshStandardMaterial vertexColors roughness={0.5} metalness={0.05} />
+      <primitive object={boxGeom} attach="geometry" />
+      <meshBasicMaterial vertexColors />
     </instancedMesh>
   );
 }

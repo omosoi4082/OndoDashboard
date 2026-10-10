@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import type { DetailFrame, Geometry, MinMax } from '@ondo/shared';
 import { zUpToYUp } from './coords.js';
 import { valueToRGB01 } from '../detail/colormap.js';
+import { withNeutralVertexColors } from './instancedColorFix.js';
 import {
   DEFAULT_STREAMLINE_OPTIONS,
   allInletSeeds,
@@ -17,7 +18,11 @@ import {
   traceStreamline,
   type Vec3,
 } from '../detail/flowStreamline.js';
-import { FLOW_CYLINDER_RADIUS_M } from '../config/constants.js';
+
+// FlowCylinders.tsx의 FLOW_CYLINDER_RADIUS_M(0.0125)과 독립된 값 — 그 두께는 짧고 통통한
+// 노드별 실린더엔 맞지만, 길게 이어진 가는 선에서는 완전 불투명으로 해도 anti-aliasing 때문에
+// 색이 옅게 번져 거의 안 보였다(2026-10-10 디버그 확인). 기존 두께에 가깝게 살짝만 키웠다.
+const STREAMLINE_RADIUS_M = 0.02;
 
 interface FlowStreamlinesProps {
   geometry: Geometry;
@@ -39,6 +44,9 @@ export function FlowStreamlines({ geometry, frame, range }: FlowStreamlinesProps
     [geometry],
   );
   const maxSegments = seeds.length * DEFAULT_STREAMLINE_OPTIONS.maxSteps;
+  // withNeutralVertexColors: instanceColor가 검게 렌더링되는 환경 문제를 피하기 위한 것
+  // (instancedColorFix.ts 참고).
+  const cylGeom = useMemo(() => withNeutralVertexColors(new THREE.CylinderGeometry(STREAMLINE_RADIUS_M, STREAMLINE_RADIUS_M, 1, 8)), []);
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
@@ -97,9 +105,18 @@ export function FlowStreamlines({ geometry, frame, range }: FlowStreamlinesProps
 
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, maxSegments]}>
-      {/* height=1 — 실제 길이는 인스턴스 스케일(scale.y)로만 조절한다(지오메트리는 고정). */}
-      <cylinderGeometry args={[FLOW_CYLINDER_RADIUS_M, FLOW_CYLINDER_RADIUS_M, 1, 8]} />
-      <meshStandardMaterial vertexColors roughness={0.4} metalness={0.1} />
+      {/* height=1 — 실제 길이는 인스턴스 스케일(scale.y)로만 조절한다(지오메트리는 고정).
+          meshStandardMaterial(조명 영향 받음)이었을 때는 실린더가 가늘어서(반지름 1.25cm)
+          각도에 따라 거의 검게 보였다 — FlowArrow.tsx(호버 화살표)와 같은 이유로
+          meshBasicMaterial(조명 무시, 컬러맵 색 그대로)로 바꿨다.
+          2026-10-10 투명도 디버그 결과: 등치면(IsosurfaceVolume)처럼 반투명(0.35)하게 하면
+          이 가는 선(두께 1겹)은 뒤쪽 어두운 배경이 그대로 비쳐서 색이 거의 안 보였다
+          (빨간색을 강제로 박아도 검게 나오는 것으로 확인) — 등치면은 반투명 "덩어리"라
+          여러 겹이 겹쳐 색이 쌓이지만, 여긴 안 맞는 방식이었다. 완전 불투명으로 바꾸니
+          색이 제대로 보여서(두께 키운 채로 확인) 투명도는 빼고 두께만 원래 값(FLOW_CYLINDER_
+          RADIUS_M)으로 되돌렸다 — 사용자 확인: "이전 크기가 괜찮았다". */}
+      <primitive object={cylGeom} attach="geometry" />
+      <meshBasicMaterial vertexColors />
     </instancedMesh>
   );
 }

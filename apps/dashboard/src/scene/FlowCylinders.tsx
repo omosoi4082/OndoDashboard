@@ -3,12 +3,13 @@
 // (CLAUDE.md "포인트/인스턴스는 InstancedMesh로" 규칙 — 여기선 포인트가 아니라 유동
 // 글리프지만 같은 원칙). 프레임(타임라인) 전환 시 instanceMatrix·instanceColor 버퍼만
 // 갱신하고 지오메트리·InstancedMesh 자체는 재생성하지 않는다(docs/04-tasks.md M5 성능 요구).
-import { useLayoutEffect, useRef, type ReactElement } from 'react';
+import { useLayoutEffect, useMemo, useRef, type ReactElement } from 'react';
 import * as THREE from 'three';
 import type { DetailFrame, Geometry, MinMax } from '@ondo/shared';
 import { zUpToYUp } from './coords.js';
 import { valueToRGB01 } from '../detail/colormap.js';
 import { flowNodeCount, flowNodePosition } from '../detail/flowNodes.js';
+import { withNeutralVertexColors } from './instancedColorFix.js';
 import { FLOW_CYLINDER_MAX_LENGTH_M, FLOW_CYLINDER_MIN_LENGTH_M, FLOW_CYLINDER_RADIUS_M } from '../config/constants.js';
 
 interface FlowCylindersProps {
@@ -22,6 +23,9 @@ const UP = new THREE.Vector3(0, 1, 0);
 export function FlowCylinders({ geometry, frame, range }: FlowCylindersProps): ReactElement {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const count = flowNodeCount(geometry.flowGrid);
+  // withNeutralVertexColors: instanceColor가 검게 렌더링되는 환경 문제를 피하기 위한 것
+  // (instancedColorFix.ts 참고).
+  const cylGeom = useMemo(() => withNeutralVertexColors(new THREE.CylinderGeometry(FLOW_CYLINDER_RADIUS_M, FLOW_CYLINDER_RADIUS_M, 1, 8)), []);
 
   useLayoutEffect(() => {
     const mesh = meshRef.current;
@@ -70,7 +74,7 @@ export function FlowCylinders({ geometry, frame, range }: FlowCylindersProps): R
   return (
     <instancedMesh ref={meshRef} args={[undefined, undefined, count]}>
       {/* height=1 — 실제 길이는 인스턴스 스케일(scale.y)로만 조절한다(지오메트리는 고정). */}
-      <cylinderGeometry args={[FLOW_CYLINDER_RADIUS_M, FLOW_CYLINDER_RADIUS_M, 1, 8]} />
+      <primitive object={cylGeom} attach="geometry" />
       <meshStandardMaterial vertexColors roughness={0.4} metalness={0.1} />
     </instancedMesh>
   );
