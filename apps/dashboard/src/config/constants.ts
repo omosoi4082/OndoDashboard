@@ -104,7 +104,9 @@ export const ISOSURFACE_MAX_POLY_COUNT = 30000;
 
 // flowGrid 실린더(scene/FlowCylinders.tsx) 반지름·길이 — flowGrid 칸 크기(수평 0.5 m·
 // 높이 0.7 m, docs/02-relay-api.md 5장)보다 작게 둬서 인접 노드와 겹치지 않게 한다.
-export const FLOW_CYLINDER_RADIUS_M = 0.025;
+// 반지름은 명세에 없음(개발자 결정) — 2026-10-10 사용자 요청: 288개가 한꺼번에 보이니
+// 너무 두껍고 산만해 보여서 기존 0.025에서 절반으로.
+export const FLOW_CYLINDER_RADIUS_M = 0.0125;
 export const FLOW_CYLINDER_MIN_LENGTH_M = 0.12;
 export const FLOW_CYLINDER_MAX_LENGTH_M = 0.42;
 

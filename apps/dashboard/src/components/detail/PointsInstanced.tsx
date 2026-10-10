@@ -12,7 +12,8 @@ import type { ValueField } from '../../store/detailStore.js';
 import { getFieldRange, getPointScalar } from '../../detail/pointSelection.js';
 import { valueToRGB01 } from '../../detail/colormap.js';
 
-const POINT_RADIUS_M = 0.04;
+// 크기는 명세에 없음(개발자 결정) — 2026-10-10 사용자 요청으로 기존 0.04에서 절반으로.
+const POINT_RADIUS_M = 0.02;
 const NO_DATA_POINT_COLOR = new THREE.Color(0x8a94a6);
 
 interface PointsInstancedProps {
