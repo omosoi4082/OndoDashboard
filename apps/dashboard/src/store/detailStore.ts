@@ -55,7 +55,8 @@ export interface DetailState {
   setPointsVisible: (visible: boolean) => void;
   setCurrent: (current: ApiResponse<CurrentDetail>) => void;
   setForecast: (forecast: ApiResponse<ForecastDetail>) => void;
-  setExpert: (expert: ApiResponse<ExpertDetail>) => void;
+  /** null을 주면 "입력 전" 상태로 되돌린다 — 전문가 모드 "초기화" 버튼(ExpertModeView.tsx). */
+  setExpert: (expert: ApiResponse<ExpertDetail> | null) => void;
   setControl: (control: ApiResponse<ControlDetail>) => void;
   setTimelineFrameIndex: (index: number) => void;
   play: () => void;

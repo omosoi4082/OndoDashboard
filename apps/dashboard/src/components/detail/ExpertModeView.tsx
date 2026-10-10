@@ -5,6 +5,7 @@
 // 응답을 받은 뒤에는 ForecastDetailView와 같은 구조(ControlsRow + Detail3DView(포인트+
 // 등치면/실린더 overlay) + Detail2DSection + Timeline)로 145프레임을 재생한다(중복 구현 금지).
 import { useState, type ReactElement } from 'react';
+import { History } from 'lucide-react';
 import { useDetailStore } from '../../store/detailStore.js';
 import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
@@ -44,6 +45,10 @@ export function ExpertModeView(): ReactElement {
   const timelineFrameIndex = useDetailStore((s) => s.timelineFrameIndex);
 
   const [draft, setDraft] = useState<ExpertInputDraft>({ temp: '', rh: '', vent: '' });
+  // 마지막으로 "적용"을 눌렀던 입력값 — 지금 draft와 같을 때만 "적용 완료" 상태로 본다.
+  // 적용 후 값을 다시 바꾸면 draft !== appliedDraft가 되어 버튼이 "적용"으로 돌아간다
+  // (2026-10-10 사용자 요청: "적용완료후 다시 인풋값 입력시 적용으로 버튼 변경되야됨").
+  const [appliedDraft, setAppliedDraft] = useState<ExpertInputDraft | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const validation = validateExpertInput(draft, EXPERT_INPUT_RANGE);
 
@@ -59,8 +64,19 @@ export function ExpertModeView(): ReactElement {
     setIsLoading(true);
     fetchDetailExpert(validation.temp.value, validation.rh.value, validation.vent.value).then((res) => {
       setExpert(res);
+      setAppliedDraft(draft);
       setIsLoading(false);
     });
+  }
+
+  // "초기화"(Figma node 374:25528 "03_전문가모드_디자인_01" 2026-10-10 재확인본) — 입력값과
+  // 결과를 전부 지우고 "입력 전" 상태로 되돌린다. 정확한 동작은 시안에 따로 안 적혀 있어
+  // 가장 단순하게 이렇게 뒀다(05-open-questions.md #41, Figma 호출 제한으로 나머지 6개
+  // 시안을 다 못 봐서 이 버튼의 의도를 완전히 확인하지는 못했다).
+  function handleReset(): void {
+    setDraft({ temp: '', rh: '', vent: '' });
+    setAppliedDraft(null);
+    setExpert(null);
   }
 
   if (!geometry) {
@@ -76,7 +92,15 @@ export function ExpertModeView(): ReactElement {
         draft={draft}
         validation={validation}
         isLoading={isLoading}
-        isApplied={!isLoading && expert !== null && expert.status !== 'error'}
+        isApplied={
+          !isLoading &&
+          expert !== null &&
+          expert.status !== 'error' &&
+          appliedDraft !== null &&
+          appliedDraft.temp === draft.temp &&
+          appliedDraft.rh === draft.rh &&
+          appliedDraft.vent === draft.vent
+        }
         onChange={setDraft}
         onSubmit={handleSubmit}
       />
@@ -95,7 +119,19 @@ export function ExpertModeView(): ReactElement {
         <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
       ) : (
         <>
-          <TimelineSection frames={expert.data.frames} />
+          <TimelineSection
+            frames={expert.data.frames}
+            right={
+              <button
+                type="button"
+                onClick={handleReset}
+                className="flex items-center gap-1 text-sm font-medium text-[#a4abb5] transition-colors hover:text-white"
+              >
+                <History size={20} />
+                초기화
+              </button>
+            }
+          />
           <Detail3DSection>
             <Detail3DView
               geometry={geometry}

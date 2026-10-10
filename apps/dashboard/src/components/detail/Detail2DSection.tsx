@@ -22,6 +22,9 @@ interface Detail2DSectionProps {
 }
 
 const LEGEND_STEPS = 24;
+// 평면도:범례 가로 배분 — 2026-10-10 사용자 요청: "평면도 70% 간격에 중앙 배치, 범례는
+// 30% 간격에 중앙 배치, 이상하면 60/40으로 바꿀 것". 비율 하나만 바꾸면 전체에 반영된다.
+const PLAN_WIDTH_SHARE = 0.6;
 // 레이아웃 고정 여백(px) — 가로세로 비율 맞춤 계산에 쓴다. Tailwind 클래스(w-7=28, h-3=12,
 // gap-1=4)와 값이 어긋나지 않게 같이 바꿔야 한다.
 const Y_AXIS_GUTTER_PX = 28;
@@ -124,7 +127,11 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   return (
     <div className="flex h-full gap-3 rounded-lg border border-ondo-border bg-ondo-surface p-2">
       {/* 실제 치수 비율대로 맞춘 박스를 이 영역 안에서 가운데 정렬한다(남는 공간은 레터박스). */}
-      <div ref={areaRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+      <div
+        ref={areaRef}
+        className="flex min-h-0 min-w-0 shrink-0 items-center justify-center"
+        style={{ width: `${PLAN_WIDTH_SHARE * 100}%` }}
+      >
         <div style={{ width: fittedCanvasW + Y_AXIS_GUTTER_PX + ROW_GAP_PX }}>
           <div className="flex gap-1" style={{ height: fittedCanvasH }}>
             {/* Y축 칫수(m) — 아래 X축 행의 marginLeft와 폭을 맞춰야 눈금이 캔버스와 정렬된다. */}
@@ -183,7 +190,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
           </div>
         </div>
       </div>
-      <div className="flex w-16 shrink-0 items-stretch py-1">
+      <div className="flex shrink-0 items-stretch justify-center py-1" style={{ width: `${(1 - PLAN_WIDTH_SHARE) * 100}%` }}>
         <div className="relative my-1 w-3 rounded" style={{ background: `linear-gradient(to bottom, ${legendStops})` }}>
           {legendTicks.map((v) => (
             <div

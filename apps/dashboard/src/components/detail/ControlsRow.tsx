@@ -9,10 +9,13 @@ import { useDetailStore, type ValueField } from '../../store/detailStore.js';
 
 type AnalysisIcon = (props: { size?: number }) => ReactElement;
 
+// 라벨은 "3D 온도" 등에서 "3D " 접두어를 뺐다(2026-10-10 Figma node 374:25295
+// "03_전문가모드_디자인_01" 재확인 — 전문가 모드 쪽만 새로 받은 시안이라 다른 모드도
+// 같이 바뀌는지는 미확인, 공유 컴포넌트라 일단 전체 반영하고 05-open-questions.md #41에 기록).
 const VALUE_FIELDS: ReadonlyArray<{ id: ValueField; label: string; Icon: AnalysisIcon }> = [
-  { id: 'temp', label: '3D 온도', Icon: TemperatureIcon },
-  { id: 'flow', label: '3D 유동', Icon: WindFlowIcon },
-  { id: 'rh', label: '3D 습도', Icon: WaterDropIcon },
+  { id: 'temp', label: '온도', Icon: TemperatureIcon },
+  { id: 'flow', label: '유동', Icon: WindFlowIcon },
+  { id: 'rh', label: '습도', Icon: WaterDropIcon },
 ];
 
 export function ControlsRow(): ReactElement {
@@ -28,7 +31,7 @@ export function ControlsRow(): ReactElement {
             key={id}
             type="button"
             onClick={() => setValueField(id)}
-            className={`flex h-[42px] w-[116px] items-center justify-center gap-1.5 rounded-md border text-[15px] transition-colors ${
+            className={`flex h-[42px] w-[108px] items-center justify-center gap-1.5 rounded-md border text-[15px] transition-colors ${
               valueField === id
                 ? 'border-white/50 bg-[#3b3c42] text-white'
                 : 'border-ondo-border bg-ondo-surface-2 text-ondo-muted hover:text-white'

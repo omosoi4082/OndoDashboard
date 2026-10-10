@@ -22,8 +22,9 @@ function PointsToggle(): ReactElement {
         onChange={(e) => setPointsVisible(e.target.checked)}
         className="peer sr-only"
       />
-      {/* 트랙 46×24, 손잡이 18×18, 여백 3px — Figma node 374:11805(03_전문가모드) 실측값. */}
-      <span className="relative ml-2 h-6 w-[46px] rounded-full bg-ondo-border transition-colors peer-checked:bg-ondo-accent-on after:absolute after:left-[3px] after:top-[3px] after:h-[18px] after:w-[18px] after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-[22px]" />
+      {/* 트랙 46×24(테두리 rgba(85,85,85,0.3) 포함), 손잡이 16×16, 여백 4px — Figma node
+          374:25487(03_전문가모드_디자인_01, 2026-10-10 재확인본) 실측값. */}
+      <span className="relative ml-2 h-6 w-[46px] rounded-full border border-[rgba(85,85,85,0.3)] bg-ondo-border transition-colors peer-checked:bg-ondo-accent-on after:absolute after:left-[4px] after:top-[4px] after:h-[16px] after:w-[16px] after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-[22px]" />
     </label>
   );
 }
@@ -57,17 +58,20 @@ export function Detail2DBox({ children }: { children: ReactNode }): ReactElement
   );
 }
 
-/** "시간 설정"(17·24·31) 제목 줄 + 타임라인, 아래 구분선. */
-export function TimelineSection({ frames }: { frames: readonly DetailFrame[] }): ReactElement {
+/** "시간 설정"(17·24·31) 제목 줄 + 타임라인, 아래 구분선. right를 주면 기본 "10분 단위"
+ * 배지 대신 그걸 쓴다(전문가 모드 "초기화" 버튼 — ExpertModeView.tsx 참고). */
+export function TimelineSection({ frames, right }: { frames: readonly DetailFrame[]; right?: ReactNode }): ReactElement {
   return (
     <section className="flex shrink-0 flex-col gap-3 border-b border-ondo-border pb-5">
       <SectionTitle
         title="시간 설정"
         right={
-          <span className="flex items-center gap-1 text-xs text-ondo-muted">
-            <Info size={16} />
-            10분 단위
-          </span>
+          right ?? (
+            <span className="flex items-center gap-1 text-xs text-ondo-muted">
+              <Info size={16} />
+              10분 단위
+            </span>
+          )
         }
       />
       <Timeline frames={frames} />
