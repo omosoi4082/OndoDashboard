@@ -72,7 +72,14 @@ export function ExpertModeView(): ReactElement {
 
   return (
     <>
-      <ExpertInputForm draft={draft} validation={validation} isLoading={isLoading} onChange={setDraft} onSubmit={handleSubmit} />
+      <ExpertInputForm
+        draft={draft}
+        validation={validation}
+        isLoading={isLoading}
+        isApplied={!isLoading && expert !== null && expert.status !== 'error'}
+        onChange={setDraft}
+        onSubmit={handleSubmit}
+      />
       <ControlsRow />
 
       {isLoading ? (

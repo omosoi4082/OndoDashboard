@@ -13,6 +13,9 @@ interface ExpertInputFormProps {
   draft: ExpertInputDraft;
   validation: ExpertInputValidation;
   isLoading: boolean;
+  /** 현재 입력값으로 이미 결과를 받아온 상태인지 — 버튼 문구를 "적용 완료"로 바꾼다
+   * (Figma node 374:12650 "03_전문가모드_디자인_05" 실측). */
+  isApplied: boolean;
   onChange: (next: ExpertInputDraft) => void;
   onSubmit: () => void;
 }
@@ -26,7 +29,7 @@ const FIELDS: ReadonlyArray<{ key: keyof ExpertInputDraft; label: string; unit: 
   { key: 'vent', label: '환기량', unit: '%' },
 ];
 
-export function ExpertInputForm({ draft, validation, isLoading, onChange, onSubmit }: ExpertInputFormProps): ReactElement {
+export function ExpertInputForm({ draft, validation, isLoading, isApplied, onChange, onSubmit }: ExpertInputFormProps): ReactElement {
   return (
     <div className="flex shrink-0 flex-col gap-4">
       <span className="text-sm font-semibold text-[#ccc]">필수값 설정</span>
@@ -60,17 +63,17 @@ export function ExpertInputForm({ draft, validation, isLoading, onChange, onSubm
                   </svg>
                 </div>
               </div>
-              <span className="h-3 text-[10px] text-red-300">{fieldValidation.error ?? ''}</span>
+              <span className="h-3 whitespace-nowrap text-[10px] text-red-400">{fieldValidation.error ?? ''}</span>
             </div>
           );
         })}
         <button
           type="button"
           onClick={onSubmit}
-          disabled={!validation.isValid || isLoading}
-          className="mt-[26px] h-[42px] w-[92px] shrink-0 rounded-lg border border-ondo-accent bg-ondo-accent text-sm font-medium text-white transition-colors hover:bg-ondo-accent/80 disabled:cursor-not-allowed disabled:border-[rgba(85,85,85,0.3)] disabled:bg-[rgba(71,73,81,0.3)] disabled:text-[rgba(255,255,255,0.3)]"
+          disabled={!validation.isValid || isLoading || isApplied}
+          className="mt-[26px] h-[42px] w-[92px] shrink-0 rounded-lg border border-[#1088de] bg-[#1088de] text-sm font-medium text-white transition-colors hover:bg-[#1088de]/80 disabled:cursor-not-allowed disabled:border-[rgba(85,85,85,0.3)] disabled:bg-[rgba(71,73,81,0.3)] disabled:text-[rgba(255,255,255,0.3)]"
         >
-          적용
+          {isApplied ? '적용 완료' : '적용'}
         </button>
       </div>
     </div>

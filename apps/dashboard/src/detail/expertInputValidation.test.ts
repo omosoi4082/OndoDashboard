@@ -19,27 +19,27 @@ describe('validateExpertInput', () => {
     expect(result.vent).toEqual({ value: 50, error: null });
   });
 
-  it('빈 값은 범위 안내 문구와 함께 실패한다', () => {
+  it('빈 값은 문구 없이 실패한다(입력 전 상태엔 안내문을 보여주지 않는다)', () => {
     const result = validateExpertInput({ temp: '', rh: '60', vent: '50' }, RANGE);
     expect(result.isValid).toBe(false);
     expect(result.temp.value).toBeNull();
-    expect(result.temp.error).toBe('범위: -30~50');
+    expect(result.temp.error).toBeNull();
   });
 
-  it('숫자가 아니면 "숫자를 입력하세요" 문구를 돌려준다', () => {
+  it('숫자가 아니면 범위 안내 문구를 돌려준다', () => {
     const result = validateExpertInput({ temp: 'abc', rh: '60', vent: '50' }, RANGE);
     expect(result.isValid).toBe(false);
-    expect(result.temp.error).toBe('숫자를 입력하세요');
+    expect(result.temp.error).toBe('-30°C ~ 50°C 외 값을 입력해 주세요.');
   });
 
   it('범위를 벗어나면 실패한다', () => {
     const tooLow = validateExpertInput({ temp: '-31', rh: '60', vent: '50' }, RANGE);
     expect(tooLow.isValid).toBe(false);
-    expect(tooLow.temp.error).toBe('범위: -30~50');
+    expect(tooLow.temp.error).toBe('-30°C ~ 50°C 외 값을 입력해 주세요.');
 
     const tooHigh = validateExpertInput({ temp: '25', rh: '60', vent: '101' }, RANGE);
     expect(tooHigh.isValid).toBe(false);
-    expect(tooHigh.vent.error).toBe('범위: 20~100');
+    expect(tooHigh.vent.error).toBe('20% ~ 100% 외 값을 입력해 주세요.');
   });
 
   it('경계값(최솟값·최댓값)은 통과한다', () => {
