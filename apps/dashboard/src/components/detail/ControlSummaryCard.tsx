@@ -41,13 +41,14 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
 
   return (
     <div
-      className="pointer-events-auto rounded-2xl bg-[#111111]/70 p-5 backdrop-blur-sm"
+      className="pointer-events-auto rounded-2xl bg-[#141414]/70 p-5 backdrop-blur-sm"
       style={{
         width: CARD_WIDTH,
         height: CARD_HEIGHT,
-        // Tailwind shadow-lg은 검정 10% 불투명도라 3D 뷰 위에서 거의 안 보였다(2026-10-11
-        // 사용자: "그림자 있는건 확인 안되?") — 직접 진하게 지정한다.
-        boxShadow: '0 12px 28px rgba(0,0,0,0.55)',
+        // "그래프 백그라운드참고.png"(2026-10-11 전달) Figma Effects 패널 실측 — 3겹 drop
+        // shadow(X0/Y6/blur12/48%, X0/Y12/blur32/32%, X0/Y18/blur56/20%)를 그대로 옮긴다.
+        boxShadow:
+          '0 6px 12px rgba(0,0,0,0.48), 0 12px 32px rgba(0,0,0,0.32), 0 18px 56px rgba(0,0,0,0.2)',
       }}
     >
       {/* 라벨에 단위를 괄호로 붙이고(팬 절감률 (kWh), 최고 온도 (℃)), 값에선 단위를 뺀다
