@@ -3,11 +3,11 @@
 // 타일 4칸: 풍향·풍속·습도·강수량. 풍속(양쪽)·기상청 강수량은 아직 API에 없어 '-'
 // (05-open-questions.md #36, 사용자가 온도 측 확인 중).
 import type { ReactElement, ReactNode } from 'react';
-import { CloudDrizzle, Droplet, Navigation2, Wind } from 'lucide-react';
 import type { WeatherCode } from '@ondo/shared';
 import { okData } from '../api/client.js';
 import { useMainStore } from '../store/mainStore.js';
 import { getWeatherIcon } from '../weather/weatherIcon.js';
+import { HumidityTileIcon, RainAmountIcon, WindDirectionIcon, WindSpeedIcon } from '../icons/designIcons.js';
 
 function WeatherIcon({ code, isNight }: { code: WeatherCode | null; isNight: boolean }): ReactElement {
   const icon = getWeatherIcon(code, isNight);
@@ -66,12 +66,12 @@ function WeatherBlock(props: WeatherBlockProps): ReactElement {
         {/* 풍향: windDeg(바람이 불어오는 방위, docs/03 3장)만큼 북쪽 기준으로 화살표를 돌린다 —
             디자인의 북서풍(↖)·북풍(↑) 예시와 같은 규칙. 글자는 명세대로 16방위. */}
         <Tile
-          icon={<Navigation2 size={16} fill="currentColor" style={{ transform: `rotate(${windDeg ?? 0}deg)` }} />}
+          icon={<WindDirectionIcon size={16} style={{ transform: `rotate(${windDeg ?? 0}deg)` }} />}
           value={windDir}
         />
-        <Tile icon={<Wind size={16} />} value={num(windSpeed, 1)} unit="m/s" />
-        <Tile icon={<Droplet size={16} fill="currentColor" />} value={num(rh, 0)} unit="%" />
-        <Tile icon={<CloudDrizzle size={16} />} value={num(rain, 1)} unit="mm" />
+        <Tile icon={<WindSpeedIcon size={16} />} value={num(windSpeed, 1)} unit="m/s" />
+        <Tile icon={<HumidityTileIcon size={16} />} value={num(rh, 0)} unit="%" />
+        <Tile icon={<RainAmountIcon size={16} />} value={num(rain, 1)} unit="mm" />
       </div>
     </div>
   );

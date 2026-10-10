@@ -175,9 +175,9 @@ export function Detail3DView({
   const roomSizeYUp = useMemo(() => zUpToYUp(geometry.room.size), [geometry.room.size]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-ondo-border bg-ondo-bg">
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-ondo-border bg-ondo-surface">
       <Canvas shadows="soft" gl={{ antialias: true, logarithmicDepthBuffer: true }} camera={{ fov: 45, near: 0.1, far: 100 }}>
-        <color attach="background" args={['#1b1a1f']} />
+        <color attach="background" args={['#232328']} />
 
         <CameraFraming roomSize={geometry.room.size} />
         <DetailRoomEnvironment />

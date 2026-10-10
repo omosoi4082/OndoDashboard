@@ -47,7 +47,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
 
   if (valueField === 'flow' || !fieldRange) {
     return (
-      <div className="flex h-full items-center justify-center rounded-lg border border-ondo-border bg-ondo-bg text-xs text-white/40">
+      <div className="flex h-full items-center justify-center rounded-lg border border-ondo-border bg-ondo-surface text-xs text-white/40">
         유동은 2D 단면에 표시되지 않습니다
       </div>
     );
@@ -72,7 +72,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   }).join(', ');
 
   return (
-    <div className="flex h-full gap-3 rounded-lg border border-ondo-border bg-ondo-bg p-2">
+    <div className="flex h-full gap-3 rounded-lg border border-ondo-border bg-ondo-surface p-2">
       <div className="relative flex-1">
         <canvas
           ref={canvasRef}

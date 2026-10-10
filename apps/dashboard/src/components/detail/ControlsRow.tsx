@@ -4,13 +4,15 @@
 // 제목 줄로 옮겼다(DetailSections.tsx의 PointsToggle).
 // 토글 전환은 받은 데이터로만 다시 그린다(재요청 없음) — 그냥 zustand 값만 바꾼다.
 import type { ReactElement } from 'react';
-import { Droplet, Thermometer, Wind, type LucideIcon } from 'lucide-react';
+import { TemperatureIcon, WaterDropIcon, WindFlowIcon } from '../../icons/designIcons.js';
 import { useDetailStore, type ValueField } from '../../store/detailStore.js';
 
-const VALUE_FIELDS: ReadonlyArray<{ id: ValueField; label: string; Icon: LucideIcon }> = [
-  { id: 'temp', label: '3D 온도', Icon: Thermometer },
-  { id: 'flow', label: '3D 유동', Icon: Wind },
-  { id: 'rh', label: '3D 습도', Icon: Droplet },
+type AnalysisIcon = (props: { size?: number }) => ReactElement;
+
+const VALUE_FIELDS: ReadonlyArray<{ id: ValueField; label: string; Icon: AnalysisIcon }> = [
+  { id: 'temp', label: '3D 온도', Icon: TemperatureIcon },
+  { id: 'flow', label: '3D 유동', Icon: WindFlowIcon },
+  { id: 'rh', label: '3D 습도', Icon: WaterDropIcon },
 ];
 
 export function ControlsRow(): ReactElement {
