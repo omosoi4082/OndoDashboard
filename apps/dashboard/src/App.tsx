@@ -37,15 +37,16 @@ function App(): ReactElement {
         className="relative flex h-full w-full flex-col overflow-hidden bg-[#1b1a1f] text-white"
         style={{ minWidth: MIN_VIEWPORT_WIDTH_PX, minHeight: MIN_VIEWPORT_HEIGHT_PX }}
       >
-        {/* 3D 메인 모델링(4) 배경 레이어 — 헤더(74px) 뒤까지 꽉 채운 전체 높이(2026-10-10
-            사용자 요청: 시안처럼 헤더 영역에도 모델링이 비쳐 보여야 함). 가로 폭은 상세 패널
-            (788px) 몫만 빼고 지금까지와 동일하게 유지한다 — 폭을 1920 전체로 넓히면 카메라
-            종횡비가 바뀌면서 모델 구도 중심이 오른쪽(상세 패널 뒤)으로 밀려 비육돈방 쪽이
-            더 많이 가려지는 회귀가 생긴다(계산 확인됨). pointer-events-none이라 클릭/드래그는
-            아래 OutdoorPanel처럼 안에서 다시 auto로 켠 요소만 받고, 나머지는 이 레이어(캔버스)
-            까지 그대로 통과해 OrbitControls가 받는다 — 그래서 이 레이어 자체는 pointer-events를
-            꺼두면 안 된다(껐더니 OrbitControls가 죽었음, 자식 요소까지 상속되는 속성이라). */}
-        <div className="absolute left-0 top-0 h-full" style={{ width: 'calc(100% - 788px)' }}>
+        {/* 3D 메인 모델링(4) 배경 레이어 — 화면 전체(헤더·상세 패널 뒤까지)를 덮는 배경이고,
+            그 위에 패널들이 얹히는 구조다(2026-10-10 사용자 확정: "모델링 캔버스는 전체 화면이고
+            그 위에 패널들 레이어 되는 방식"). 폭을 전체로 넓히면 카메라 종횡비가 바뀌어 모델
+            구도 중심이 상세 패널 쪽으로 밀리긴 하는데(회전 중심이 이미 자돈방 쪽으로 치우쳐
+            있어서 자돈방 자체는 거의 안 밀림, 비육돈방 끝부분만 패널 뒤로 더 가려짐), 사용자가
+            이 트레이드오프를 감수하고 전체화면을 택함. pointer-events-none이라 클릭/드래그는
+            OutdoorPanel처럼 안에서 다시 auto로 켠 요소만 받고, 나머지는 이 레이어(캔버스)까지
+            그대로 통과해 OrbitControls가 받는다 — 이 레이어 자체는 pointer-events를 꺼두면
+            안 된다(껐더니 OrbitControls가 죽었음, 자식 요소까지 상속되는 속성이라). */}
+        <div className="absolute inset-0">
           <MainScene />
         </div>
 
