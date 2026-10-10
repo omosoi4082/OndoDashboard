@@ -13,7 +13,11 @@ function PointsToggle(): ReactElement {
 
   return (
     <label className="flex cursor-pointer items-center gap-2 text-xs text-white">
-      <span className={`h-1.5 w-1.5 rounded-full ${pointsVisible ? 'bg-ondo-accent-on' : 'bg-ondo-muted'}`} />
+      {/* 점 바깥지름 8px(흰 테두리 1px) + 안쪽 채움 6px — 02_예측모드_디자인_04 실측
+          (2026-10-10, "포인트 표시 앞에 원 테두리 디자인 시안엔 있고"). */}
+      <span
+        className={`h-2 w-2 rounded-full border border-white ${pointsVisible ? 'bg-ondo-accent-on' : 'bg-ondo-muted'}`}
+      />
       포인트 표시
       <input
         type="checkbox"
@@ -22,9 +26,11 @@ function PointsToggle(): ReactElement {
         onChange={(e) => setPointsVisible(e.target.checked)}
         className="peer sr-only"
       />
-      {/* 트랙 46×24(테두리 rgba(85,85,85,0.3) 포함), 손잡이 16×16, 여백 4px — Figma node
-          374:25487(03_전문가모드_디자인_01, 2026-10-10 재확인본) 실측값. */}
-      <span className="relative ml-2 h-6 w-[46px] rounded-full border border-[rgba(85,85,85,0.3)] bg-ondo-border transition-colors peer-checked:bg-ondo-accent-on after:absolute after:left-[4px] after:top-[4px] after:h-[16px] after:w-[16px] after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-[22px]" />
+      {/* 트랙 46×24(테두리 rgba(85,85,85,0.3) 포함), 손잡이 16×16, 바깥 여백 4px — Figma node
+          374:25487(03_전문가모드_디자인_01, 2026-10-10 재확인본) 실측값. absolute 자식의
+          top/left는 테두리를 뺀 안쪽(padding) 기준으로 계산되므로, 테두리 1px만큼 뺀
+          3px를 써야 바깥 기준 4px 여백이 맞는다(사용자 확인: "토글 흰색원 중심 안맞아보여"). */}
+      <span className="relative ml-2 h-6 w-[46px] rounded-full border border-[rgba(85,85,85,0.3)] bg-ondo-border transition-colors peer-checked:bg-ondo-accent-on after:absolute after:left-[3px] after:top-[3px] after:h-[16px] after:w-[16px] after:rounded-full after:bg-white after:transition-transform peer-checked:after:translate-x-[22px]" />
     </label>
   );
 }
