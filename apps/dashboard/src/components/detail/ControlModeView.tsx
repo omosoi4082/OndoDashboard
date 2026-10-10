@@ -5,7 +5,6 @@
 // 구조를 재사용하고, 3D 영역(32) 위에 환기량 비교 그래프 카드(34, C안)를
 // Detail3DView의 htmlOverlay 슬롯으로 얹는다.
 import { useEffect, useState, type ReactElement } from 'react';
-import { Settings, Zap } from 'lucide-react';
 import type { ControlDetail } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
@@ -22,17 +21,18 @@ import { FlowVisualization } from '../../scene/FlowVisualization.js';
 
 type ControlTarget = ControlDetail['target'];
 
-// 아이콘은 아직 받지 않아 lucide-react로 임시 대체(2026-10-11 사용자: "아이콘은 넣어
-// 줄께" — docs/design/icon/에 전달되면 icons/designIcons.tsx 패턴으로 교체).
-const TARGETS: ReadonlyArray<{ id: ControlTarget; label: string; Icon: typeof Zap }> = [
-  { id: 'energy', label: '에너지 최적화', Icon: Zap },
-  { id: 'environment', label: '환경 최적화', Icon: Settings },
+// 아이콘은 docs/design/icon/{에너지최적화,환경최적화}.png → public/assets/icons/control/
+// (weatherIcon.ts와 같은 패턴, 영문 파일명 복사본, 2026-10-11 사용자 전달).
+const TARGETS: ReadonlyArray<{ id: ControlTarget; label: string; icon: string }> = [
+  { id: 'energy', label: '에너지 최적화', icon: '/assets/icons/control/energy.png' },
+  { id: 'environment', label: '환경 최적화', icon: '/assets/icons/control/environment.png' },
 ];
 
 // 버튼 728×56, radius 8, 글씨 16px, 선택 #ffffff·비선택 #a4abb5(2026-10-11 사용자 실측
 // 지시). 컨테이너를 w-full·버튼을 flex-1로 둬 폭을 하드코딩하지 않고 카드 폭(패널 기준
 // 728px)에 맞춘다 — gap-2(8px)까지 합치면 실측값과 같다. 배경색은 04_제어모드_디자인_01
-// 픽셀 실측(선택 rgb(60,88,128), 비선택 rgb(48,50,55)).
+// 픽셀 실측(선택 rgb(60,88,128), 비선택 rgb(48,50,55)). 선택 버튼엔 채움보다 밝은 파란
+// 테두리(실측 rgb(42,100,156))가 있다(2026-10-11 사용자: "선택 버튼에 테두리 있어").
 function ControlTargetToggle({
   target,
   disabled,
@@ -44,17 +44,19 @@ function ControlTargetToggle({
 }): ReactElement {
   return (
     <div className="flex h-14 w-full shrink-0 gap-2">
-      {TARGETS.map(({ id, label, Icon }) => (
+      {TARGETS.map(({ id, label, icon }) => (
         <button
           key={id}
           type="button"
           disabled={disabled}
           onClick={() => onChange(id)}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-            target === id ? 'bg-[#3c5880] text-white' : 'bg-[#303237] text-[#a4abb5] hover:text-white'
+          className={`flex flex-1 items-center justify-center gap-2 rounded-lg border text-base transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+            target === id
+              ? 'border-[#2a649c] bg-[#3c5880] text-white'
+              : 'border-transparent bg-[#303237] text-[#a4abb5] hover:text-white'
           }`}
         >
-          <Icon size={18} />
+          <img src={icon} alt="" width={18} height={18} />
           {label}
         </button>
       ))}
