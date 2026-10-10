@@ -224,7 +224,9 @@ export function Detail3DView({
         )}
       </Canvas>
 
-      {htmlOverlay && <div className="pointer-events-none absolute left-3 top-3">{htmlOverlay}</div>}
+      {/* 제어 모드 요약 카드 위치 — 우측 하단(2026-10-11 04_제어모드_디자인_01_gh 전달,
+          이전엔 좌측 상단이었다). */}
+      {htmlOverlay && <div className="pointer-events-none absolute bottom-3 right-3">{htmlOverlay}</div>}
 
       {message && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
