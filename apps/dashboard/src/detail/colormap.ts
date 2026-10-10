@@ -12,14 +12,17 @@ export interface FieldColorRange {
   low: string;
   /** 최댓값 색(hex) */
   high: string;
+  /** low~high 사이에 순서대로 균등 배치할 중간 색(hex, 선택). 생략하면 2점 그라데이션. */
+  mid?: string[];
 }
 
-// 필드별 색 범위 — 여기 hex 두 개만 바꾸면 된다(채도는 아래 SATURATION_BOOST로 전부에
-// 일괄 적용). rh·flow는 당장 온도와 같은 배색으로 시작하되 독립적으로 바꿀 수 있다.
+// 필드별 색 범위 — low·high(그리고 필요하면 mid)만 hex로 바꾸면 된다(채도는 아래
+// SATURATION_BOOST로 전부에 일괄 적용). 온도만 중간에 초록·노랑을 넣어 4점 그라데이션으로
+// 했다(2026-10-10 사용자 요청: "온도 중간색에 초록노랑 이런것도 넣고싶은데 온도만").
 export const FIELD_COLOR_RANGES: Record<ValueField, FieldColorRange> = {
-  temp: { low: '304DD9', high: 'E63326' },
-  rh: { low: '304DD9', high: 'E63326' },
-  flow: { low: '304DD9', high: 'E63326' },
+  temp: { low: '0045CB', high: 'F63358', mid: ['22A94C', 'F2D11D'] },
+  rh: { low: 'D95F02', high: '000080' },
+  flow: { low: '00A1E9', high: 'FF0000' },
 };
 
 // 1.0 = 원본 채도 그대로, 2.0 = 채도 2배(흰색 섞인 비율을 절반으로). 1보다 작으면 더 연하게.
@@ -70,11 +73,10 @@ function boostSaturation(rgb: RGB01, factor: number): RGB01 {
 }
 
 function stopsForField(field: ValueField): ReadonlyArray<readonly [number, RGB01]> {
-  const { low, high } = FIELD_COLOR_RANGES[field];
-  return [
-    [0, boostSaturation(hexToRgb01(low), SATURATION_BOOST)],
-    [1, boostSaturation(hexToRgb01(high), SATURATION_BOOST)],
-  ];
+  const { low, high, mid = [] } = FIELD_COLOR_RANGES[field];
+  const hexes = [low, ...mid, high];
+  const lastIdx = hexes.length - 1;
+  return hexes.map((hex, i) => [i / lastIdx, boostSaturation(hexToRgb01(hex), SATURATION_BOOST)] as const);
 }
 
 /** 0~1로 정규화된 값을 RGB(0~1)로 변환한다. field 기본값은 온도. */
@@ -89,7 +91,11 @@ export function colormapRGB01(tInput: number, field: ValueField = 'temp'): RGB01
     const [t1, c1] = stop1;
     if (t >= t0 && t <= t1) {
       const f = t1 === t0 ? 0 : (t - t0) / (t1 - t0);
-      return [c0[0] + (c1[0] - c0[0]) * f, c0[1] + (c1[1] - c0[1]) * f, c0[2] + (c1[2] - c0[2]) * f];
+      return [
+        c0[0] + (c1[0] - c0[0]) * f,
+        c0[1] + (c1[1] - c0[1]) * f,
+        c0[2] + (c1[2] - c0[2]) * f,
+      ];
     }
   }
   const last = stops[stops.length - 1];
@@ -106,7 +112,12 @@ export function normalize(value: number, min: number, max: number): number {
   return (value - min) / span;
 }
 
-export function valueToRGB01(value: number, min: number, max: number, field: ValueField = 'temp'): RGB01 {
+export function valueToRGB01(
+  value: number,
+  min: number,
+  max: number,
+  field: ValueField = 'temp',
+): RGB01 {
   return colormapRGB01(normalize(value, min, max), field);
 }
 

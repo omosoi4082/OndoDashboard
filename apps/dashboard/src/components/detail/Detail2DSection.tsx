@@ -102,11 +102,15 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   const fittedCanvasW = fittedCanvasH * (viewW / viewH);
 
   const unit = getFieldUnit(valueField);
+  // CSS linear-gradient의 색상 정지점은 반드시 오름차순 퍼센트로 나열해야 한다 — 내림차순으로
+  // 주면 두 번째 정지점부터 전부 이전 값으로 클램프돼 그라데이션이 단색으로 뭉개진다(2026-10-10
+  // 확인 — "값에따른 색상적용은 안된거 아냐", 범례 막대가 늘 단색 파랑으로만 보였던 원인).
+  // pct는 0%(막대 위, 최댓값)→100%(막대 아래, 최솟값)로 오름차순 유지, t는 그 반대로 간다.
   const legendStops = Array.from({ length: LEGEND_STEPS }, (_, i) => {
-    const t = i / (LEGEND_STEPS - 1);
+    const pct = (i / (LEGEND_STEPS - 1)) * 100;
+    const t = 1 - i / (LEGEND_STEPS - 1);
     const [r, g, b] = colormapRGB01(t, valueField);
-    const pct = ((1 - t) * 100).toFixed(1);
-    return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}) ${pct}%`;
+    return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}) ${pct.toFixed(1)}%`;
   }).join(', ');
   // 범례 칫수(값) — 최솟값·최댓값만이 아니라 중간 눈금도 보여준다(2026-10-10 사용자 요청:
   // "범례에도 값에 대한 색상이 나오고 치수들이 보여야지"). niceAxisTicks는 공간 좌표뿐 아니라
