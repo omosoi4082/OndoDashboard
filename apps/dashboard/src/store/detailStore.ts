@@ -79,7 +79,13 @@ export const useDetailStore = create<DetailState>((set) => ({
   timelinePlaying: false,
 
   setGeometry: (geometry) => set({ geometry }),
-  setMode: (mode) => set({ mode, timelineFrameIndex: 0, timelinePlaying: false }),
+  // 모드를 바꿀 때마다: ① 유동/습도/온도 토글은 기본값(온도)으로(01-functional-spec.md 3장
+  // "기본값 온도") — 안 그러면 이전 모드에서 고른 토글이 새 모드까지 그대로 넘어간다.
+  // ② 전문가 모드 결과(expert)는 비운다 — "확인 클릭 시"만 요청하는 모드라 재진입했을 때
+  // 이전 세션의 결과가 그대로 남아 있으면 "입력 전 안내" 대신 지난 데이터가 보였다
+  // (forecast는 반대로 "탭 선택 시 1회" 캐시가 의도된 동작이라 여기서 건드리지 않는다).
+  // (2026-10-10 사용자 확인 — M6까지의 범위에서 나와야 할 버그).
+  setMode: (mode) => set({ mode, valueField: 'temp', timelineFrameIndex: 0, timelinePlaying: false, expert: null }),
   setValueField: (field) => set({ valueField: field }),
   setPointsVisible: (visible) => set({ pointsVisible: visible }),
   setCurrent: (current) => set({ current }),
