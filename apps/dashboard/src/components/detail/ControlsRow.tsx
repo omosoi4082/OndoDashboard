@@ -21,7 +21,7 @@ export function ControlsRow(): ReactElement {
 
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-ondo-border pb-5">
-      <span className="text-sm font-medium text-white">분석 항목</span>
+      <span className="text-sm font-medium text-ondo-muted">분석 항목</span>
       <div className="flex gap-2">
         {VALUE_FIELDS.map(({ id, label, Icon }) => (
           <button

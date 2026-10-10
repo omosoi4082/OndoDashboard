@@ -15,14 +15,14 @@ export function ModeTabs(): ReactElement {
   const setMode = useDetailStore((s) => s.setMode);
 
   return (
-    <div className="grid shrink-0 grid-cols-4 gap-1 rounded-[32px] bg-ondo-surface p-1.5">
+    <div className="flex shrink-0 items-center justify-between rounded-[32px] bg-ondo-surface p-1.5">
       {TABS.map((tab) => (
         <button
           key={tab.id}
           type="button"
           onClick={() => setMode(tab.id)}
-          className={`h-[52px] rounded-[24px] text-base transition-colors ${
-            mode === tab.id ? 'bg-ondo-accent font-semibold text-white' : 'text-ondo-muted hover:text-white'
+          className={`h-[52px] w-[182px] rounded-[24px] text-base text-white transition-colors ${
+            mode === tab.id ? 'bg-ondo-accent font-semibold' : 'hover:bg-ondo-surface-2'
           }`}
         >
           {tab.label}
