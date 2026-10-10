@@ -87,10 +87,14 @@ export const SHOW_2D_IN_CURRENT = true;
 // (01-functional-spec.md 4.5, 05-open-questions.md #20 "개발자 결정: 상수 분리").
 export const TIMELINE_FRAME_DURATION_MS = 500;
 
-// 온도·습도 등치면(marching cubes) 단계 수·투명도 — 05-open-questions.md #17에서
-// "4단계, 0.35"로 확정(온도 측 2026-10-07 답변 기준, opacity는 0~1).
+// 온도·습도 등치면(marching cubes) 단계 수·투명도 — 05-open-questions.md #17은 아직
+// 미해결(온도 측 2026-10-07 답변에 언급 없음)이라 개발 중 임시값. 0.35는 예측 모드처럼
+// 값 분포가 넓게 퍼지는 프레임에서 방 벽·바닥의 밝은 색과 거의 구분이 안 될 만큼 옅었다
+// (2026-10-10 사용자 확인: "온습도 메쉬 ... 예측모드만 안보여"). 전문가·제어 모드는 같은
+// 컴포넌트·같은 상수를 쓰지만 입력값이 선풍기 주변에 좁게 뭉쳐 대비가 커 보였을 뿐이라,
+// 세 모드 모두에 적용되는 이 상수 자체를 올려 전반적으로 더 또렷하게 보이게 한다.
 export const ISOSURFACE_LEVEL_COUNT = 4;
-export const ISOSURFACE_OPACITY = 0.35;
+export const ISOSURFACE_OPACITY = 0.75;
 
 // three-stdlib MarchingCubes(node_modules/three-stdlib/objects/MarchingCubes.js)는 정육면체
 // 해상도(size=size2=size3)만 지원한다 — 비정육면체 grid(19×17×8 등)는
