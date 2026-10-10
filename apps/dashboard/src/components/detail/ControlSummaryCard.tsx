@@ -41,7 +41,7 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
 
   return (
     <div
-      className="pointer-events-auto rounded-2xl bg-[#141414]/70 p-5 backdrop-blur-sm"
+      className="pointer-events-auto rounded-lg bg-[#141414]/70 p-5 backdrop-blur-sm"
       style={{
         width: CARD_WIDTH,
         height: CARD_HEIGHT,
