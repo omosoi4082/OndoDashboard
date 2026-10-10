@@ -170,9 +170,9 @@ export function Detail3DView({
   const hoveredPoint = hoveredPointId !== null ? geometry.points.find((p) => p.id === hoveredPointId) ?? null : null;
   const hoveredFlow = hoveredPoint && frame ? getPointFlow(frame, hoveredPoint.id) : null;
 
-  // 유동 화살표 반대쪽에 호버 패널을 띄우는 시도는 "반대 방향"의 기준이 화면상 애매해
-  // 되돌렸다(2026-10-11 사용자: "유동시 보여 호버는 화살표 반대 방향이라는게 애매 적용
-  // 하지 말아줘") — 다른 모드와 동일하게 포인트 위치 그대로 쓴다.
+  // 화살표를 피해 패널 위치를 특별 취급해보려던 시도(화살표 끝, 반대 방향, 안전 거리
+  // 위 등) 전부 되돌렸다(2026-10-11 사용자: "지금 하는것도 이상해 그냥 처음에 온습도와
+  // 같은 느낌으로 보여지는 그걸로 해줘") — 온도·습도와 똑같이 포인트 위치 그대로 쓴다.
   const hoveredPointYUp = hoveredPoint ? zUpToYUp([hoveredPoint.x, hoveredPoint.y, hoveredPoint.z]) : null;
   const tooltipPosition = hoveredPointYUp;
 
@@ -218,9 +218,12 @@ export function Detail3DView({
                 아니라 패딩 6·줄 간격 4·글씨 10px의 결과값이다(너비를 85px로 박아두면 줄마다
                 글자 길이가 달라 오른쪽 여백이 들쭉날쭉해진다, 2026-10-11 사용자: "사이즈에
                 마추지말고 패딩과 갭으로 맞춰줘"). 그래프 요약 카드와 같은 효과(배경 #141414
-                80%, 테두리 없음, 3겹 drop shadow, backdrop-blur 없음). 포인트 바로 위에
-                띄운다(유동 화살표 반대쪽 배치는 "반대 방향" 기준이 애매해 되돌림). */}
-            <div className="inline-flex w-fit -translate-y-full flex-col whitespace-nowrap rounded-lg bg-[#141414]/80 text-[10px] leading-none text-white"
+                80%, 테두리 없음, 3겹 drop shadow, backdrop-blur 없음). 온도·습도·유동 모두
+                동일하게 포인트 바로 위에 -translate-y-full로 띄운다(유동 화살표를 피하려던
+                특수 처리는 전부 되돌림, 2026-10-11 사용자: "처음에 온습도와 같은 느낌으로
+                보여지는 그걸로 해줘"). */}
+            <div
+              className="inline-flex w-fit -translate-y-full flex-col whitespace-nowrap rounded-lg bg-[#141414]/80 text-[10px] leading-none text-white"
               style={{
                 padding: 6,
                 gap: 4,
