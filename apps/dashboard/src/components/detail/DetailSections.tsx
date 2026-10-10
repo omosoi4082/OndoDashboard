@@ -18,12 +18,14 @@ import { Timeline } from './Timeline.js';
  * 내부 몇 px 오차만으로도 가로 스크롤바가 떴다(2026-10-11 사용자: "가로 스크롤없어") —
  * overflow-x-hidden으로 막는다.
  *
- * 스크롤바~카드 배경 간격은 5px(Figma 실측), 3D/2D 콘텐츠는 스크롤바에 바로 붙는다
- * (2026-10-11 사용자: "스크롤과 3d영역이 붙어있어 ... 스크롤옆 상세패널과에 패딩이
- * 5야"). 카드 자체는 p-5(20px 균일)를 유지해야 분석 항목 등 고정 버튼 줄이 그대로
- * 정렬되므로, 이 스크롤 영역만 -mr-[15px]로 카드 패딩 안쪽을 파고들어(20-15=5) 스크롤바를
- * 5px 지점까지 옮긴다 — Detail3DSection 너비(728+15=743)도 같이 넓혀야 내용이 다시
- * 스크롤바에 붙는다. */
+ * 스크롤바~카드 배경 간격 5px(Figma 실측, 사용자: "스크롤옆 상세패널과에 패딩이 5야"),
+ * 3D/2D 콘텐츠~스크롤바 간격 10px(사용자 재확인: "3d 영역 728이고 영역 끝에서 스크롤까지
+ * 10거리가 있어" — 3D/2D 영역은 728 고정, 스크롤바에 바로 붙지 않는다). 카드 자체는
+ * p-5(20px 균일)를 유지해야 분석 항목 등 고정 버튼 줄이 그대로 정렬되므로, 이 스크롤
+ * 영역만 -mr-[15px]로 카드 패딩 안쪽을 파고들어 넓힌다 — 늘어난 15px가 스크롤바 자체
+ * 폭(5px, .ondo-scrollbar)과 내용~스크롤바 간격(10px)으로 정확히 나뉘므로 별도 padding은
+ * 필요 없다(내용을 728 고정폭으로 두면 남는 15px 중 스크롤바가 자기 폭만큼(5px) 오른쪽
+ * 끝에서 차지하고, 나머지 10px가 내용과 스크롤바 사이 간격이 된다). */
 export function DetailScrollBody({ children }: { children: ReactNode }): ReactElement {
   return (
     <div className="ondo-scrollbar -mr-[15px] flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overflow-x-hidden">
@@ -70,24 +72,24 @@ function SectionTitle({ title, right }: { title: string; right?: ReactNode }): R
   );
 }
 
-/** "3D 자돈방"(12·18·25·32) 제목 줄(포인트 토글 포함) + 3D 뷰 박스. 기본 728×424에 +15
- * (DetailScrollBody의 -mr-[15px]만큼)를 더해 743×424 — 스크롤바가 5px 지점으로 옮겨간
- * 만큼 내용도 넓혀야 스크롤바에 다시 붙는다(DetailScrollBody 주석 참고). */
+/** "3D 자돈방"(12·18·25·32) 제목 줄(포인트 토글 포함) + 3D 뷰 박스. 728×424(2026-10-11
+ * 사용자 재확인) — 스크롤바와의 10px 간격은 DetailScrollBody 주석 참고. */
 export function Detail3DSection({ children }: { children: ReactNode }): ReactElement {
   return (
     <section className="flex shrink-0 flex-col gap-3">
       <SectionTitle title="3D 자돈방" right={<PointsToggle />} />
-      <div className="h-[424px] w-[743px]">{children}</div>
+      <div className="h-[424px] w-[728px]">{children}</div>
     </section>
   );
 }
 
-/** "2D 수평단면"(13·19·26·33) 제목 줄 + 단면 박스. */
+/** "2D 수평단면"(13·19·26·33) 제목 줄 + 단면 박스. 3D 영역과 같은 너비(728px, 2026-10-11
+ * 사용자: "2d영역도 같게 맞춰줘") — 스크롤바와의 10px 간격도 동일하게 적용된다. */
 export function Detail2DBox({ children }: { children: ReactNode }): ReactElement {
   return (
     <section className="flex shrink-0 flex-col gap-3">
       <SectionTitle title="2D 수평단면" />
-      <div className="h-[240px]">{children}</div>
+      <div className="h-[240px] w-[728px]">{children}</div>
     </section>
   );
 }
