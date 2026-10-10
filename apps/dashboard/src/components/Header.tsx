@@ -3,7 +3,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import { LocationPinIcon } from '../icons/designIcons.js';
 import { CLOCK_TICK_INTERVAL_MS } from '../config/constants.js';
-import { formatHeaderDate, formatHeaderTime } from '../utils/formatDateTime.js';
+import { formatHeaderDate, formatHeaderTime, formatHeaderWeekday } from '../utils/formatDateTime.js';
 import { okData } from '../api/client.js';
 import { useMainStore } from '../store/mainStore.js';
 
@@ -23,9 +23,13 @@ export function Header(): ReactElement {
         <span>{areaName ?? '-'}</span>
       </div>
       <img src="/assets/logo/logo-light.svg" alt="온도" className="absolute left-1/2 h-[42px] -translate-x-1/2" />
-      <div className="flex items-baseline gap-[18px] tabular-nums text-white">
-        <span className="text-[15px] font-medium">{formatHeaderDate(now)}</span>
-        <time className="text-[22px] font-semibold tracking-wide">{formatHeaderTime(now)}</time>
+      {/* 날짜·요일·시각 각각 별도 칸, 간격 12px, 전부 SemiBold(Figma node 307:10016~10019,
+          2026-10-10 재확인 — 기존엔 날짜+요일을 한 덩어리로 합치고 간격 18px·날짜만 medium이라
+          시안과 달랐음). */}
+      <div className="flex items-center gap-[12px] tabular-nums text-white">
+        <span className="text-[16px] font-semibold tracking-[-0.32px]">{formatHeaderDate(now)}</span>
+        <span className="text-[16px] font-semibold tracking-[-0.32px]">{formatHeaderWeekday(now)}</span>
+        <time className="text-[22px] font-semibold tracking-[1.32px]">{formatHeaderTime(now)}</time>
       </div>
     </header>
   );
