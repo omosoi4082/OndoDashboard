@@ -18,12 +18,12 @@ export const CAMERA_MARGIN_FACTOR = 1.5;
 
 // 메인 화면(4) 3D 카메라 초기 프레이밍 여유(배율) — technical-review/pig-farm-cfd-demo의
 // overviewScene.js OVERVIEW_MARGIN_FACTOR 그대로 포팅(docs/07-starter-kit-assets.md).
-export const OVERVIEW_CAMERA_MARGIN_FACTOR = 1.4;
+export const OVERVIEW_CAMERA_MARGIN_FACTOR = 1.6;
 
 // 메인 화면(4) 3D 카메라 각도(center에서 떠는 축별 비율 [x,y,z]) — 상세 패널 3D 뷰
 // (scene/cameraFraming.ts DEFAULT_CAMERA_DIRECTION, 포팅 원본값)와 분리된 메인 화면 전용 값
 // (2026-10-10 사용자가 메인 화면만 직접 조정 — 수작업으로 바꿀 때는 이 배열만 수정할 것).
-export const OVERVIEW_CAMERA_DIRECTION: Vector3Tuple = [0.24, 0.18, 0.18];
+export const OVERVIEW_CAMERA_DIRECTION: Vector3Tuple = [0.2, 0.18, 0.24];
 
 // 방 호버 정보 판넬(5-1~5-3) 콜아웃 앵커 — 방 바운딩박스 중심에서 위로 띄우는 높이(m).
 // overviewScene.js의 labelAnchors(center.y + size.y/2 + 0.4)와 동일.
@@ -114,3 +114,15 @@ export const EXPERT_VENT_MAX = 100;
 // (01-functional-spec.md 4.4). y축은 팬 가동률 % 고정 범위.
 export const CONTROL_CHART_Y_MAX = 100;
 export const CONTROL_CHART_TICK_STEP_MIN = 6 * 60;
+
+// 이 파일을 수정할 때마다 Vite가 "부분 갱신"(HMR)을 시도하는데, 여기 값들은 scene/CameraRig.tsx
+// 등의 useEffect 의존성 목록에 없는 평범한 상수라 부분 갱신으로는 효과가 재실행되지 않고
+// 어중간한 상태(예: 메인 3D 모델링이 찌그러져 보임)가 될 수 있다(2026-10-10). 이 파일을
+// 직접 accept한 뒤 바로 invalidate하면, Vite가 부분 갱신을 포기하고 페이지를 통째로
+// 새로고침해서 깨끗한 상태로 다시 뜬다 — 개발 모드에서만 동작하고(import.meta.hot은 운영
+// 빌드에선 undefined) 배포에는 영향 없다.
+if (import.meta.hot) {
+  import.meta.hot.accept(() => {
+    import.meta.hot?.invalidate();
+  });
+}
