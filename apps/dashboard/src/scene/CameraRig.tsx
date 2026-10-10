@@ -3,8 +3,7 @@
 // bounding box에 맞춘 초기 카메라 프레이밍(frameCameraToBox → computeCameraFrame).
 // 주의: "드래그할 때마다 클릭/드래그 지점으로 pivot을 옮기는" 기능은 데모에서 화면이
 // 튀는("뜅기는") 문제로 최종 폐기된 것이라 가져오지 않는다 — 절대 다시 넣지 말 것
-// (시도했다 되돌린 이력: 9ba9c1b → 402d82f). 아래 "보이는 영역 중앙 피벗"은 그것과
-// 다르다 — 프레이밍(모델 로드) 시점에 딱 한 번만 계산하고 드래그 중에는 건드리지 않는다.
+// (시도했다 되돌린 이력: 9ba9c1b → 402d82f).
 import { useEffect, useRef, type ReactElement } from 'react';
 import { useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -18,13 +17,12 @@ import { useMainStore } from '../store/mainStore.js';
 interface CameraRigProps {
   /** 프레이밍 기준 박스 — 로드된 glb의 sections(자돈·육성·비육) 합집합(scene/barnModel.ts). */
   box: THREE.Box3;
-  /** 회전 중심 fallback — 레이캐스트가 모델에 안 맞을 때만 쓴다(box 중심 대신 자돈방 쪽으로
-   * 치우친 지점, 선택값). */
+  /** 회전 중심 — box 중심 대신 이 지점으로 둔다(자돈방 쪽으로 치우친 지점, 선택값). */
   rotationCenter?: THREE.Vector3;
 }
 
 export function CameraRig({ box, rotationCenter }: CameraRigProps): ReactElement {
-  const { camera, size, scene } = useThree();
+  const { camera, size } = useThree();
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const setScaleBar = useMainStore((s) => s.setScaleBar);
 
@@ -35,34 +33,32 @@ export function CameraRig({ box, rotationCenter }: CameraRigProps): ReactElement
     if (camera instanceof THREE.PerspectiveCamera) {
       camera.near = frame.near;
       camera.far = frame.far;
+
+      // 2026-10-10: OrbitControls는 target으로 잡은 점을 무조건 "캔버스 정중앙"에 투영한다
+      // (target을 뭘로 바꾸든 그 자체가 다시 화면 정중앙으로 끌려감 — 레이캐스트로 피벗
+      // 월드좌표를 구해 target에 넣는 방식으로는 절대 해결 못 함, 실제로 해봤다가 안 됐음).
+      // "캔버스 정중앙"이 아니라 "상세 패널에 안 가려지는 보이는 영역 중앙"을 투영 중심으로
+      // 쓰려면 투영 자체를 비대칭으로 틀어야 한다 — setViewOffset으로, 캔버스보다
+      // DETAIL_PANEL_WIDTH_PX만큼 더 넓은 가상 프레임의 "오른쪽" 구간을 찍는 척한다. 그러면
+      // 가상 프레임의 광학 중심(fullWidth/2)이 실제 캔버스 안에서는
+      // fullWidth/2 - offsetX = (W+P)/2 - P = (W-P)/2 지점, 즉 보이는 영역(W−P)의 정중앙에
+      // 오게 된다. 프레이밍 시 한 번만 설정하고 드래그 중엔 안 건드리므로 과거 "뜅김"
+      // 문제와도 무관하다.
+      const w = size.width;
+      const p = DETAIL_PANEL_WIDTH_PX;
+      camera.setViewOffset(w + p, size.height, p, 0, w, size.height);
       camera.updateProjectionMatrix();
     }
     const controls = controlsRef.current;
     if (controls) {
-      // 2026-10-10 사용자 요청: 회전 피벗을 "방 중심"이 아니라 "상세 패널에 가려지지 않는
-      // 보이는 영역의 화면 중앙"이 가리키는 지점으로. 레이캐스트는 반드시 "박스 전체 중심"을
-      // 보고 있는 상태(자돈방 쪽으로 치우치기 전)에서 해야 한다 — 먼저 자돈방 쪽으로
-      // 겨냥해버리면 모델 반대편이 화면 밖으로 밀려나서, 보이는 영역 중앙(캔버스 중앙보다
-      // 왼쪽) 레이가 모델을 완전히 벗어나 버리고 자돈방 타겟으로 되돌아간다(실제로 이 버그가
-      // 났었음 — 사용자가 "여전히 1920 중앙"이라고 지적해서 발견).
-      const neutralTarget = box.getCenter(new THREE.Vector3());
-      controls.target.copy(neutralTarget);
-      controls.update();
-
-      const visibleWidth = size.width - DETAIL_PANEL_WIDTH_PX;
-      const ndcX = ((visibleWidth / 2) / size.width) * 2 - 1;
-      const raycaster = new THREE.Raycaster();
-      raycaster.setFromCamera(new THREE.Vector2(ndcX, 0), camera);
-      const hit = raycaster.intersectObject(scene, true)[0];
-      // 레이가 모델에 맞았으면 그 지점을, 드물게 못 맞았으면 자돈방 가중치가 적용된
-      // fallback(frame.target)을 최종 피벗으로 쓴다.
-      controls.target.copy(hit ? hit.point : frame.target);
+      controls.target.copy(frame.target);
       controls.update();
     }
     updateScaleBar();
     // box/rotationCenter는 모델 로드 후 1회 계산되는 고정값 — 처음 프레이밍할 때만 적용한다.
     // size는 일부러 deps에서 뺐다 — 넣으면 창 크기 바뀔 때마다 사용자가 돌려둔 각도까지
-    // 초기화돼버린다.
+    // 초기화돼버린다(같은 이유로 setViewOffset도 마운트 시점 크기 기준 — 창 리사이즈 후
+    // 다시 들어와야 반영됨).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [camera, box, rotationCenter]);
 
