@@ -51,7 +51,7 @@ export function Timeline({ frames }: TimelineProps): ReactElement {
   }, [playing, frameCount, advanceTimeline]);
 
   return (
-    <div className="flex shrink-0 flex-col gap-1">
+    <div className="flex shrink-0 flex-col">
       <div className="flex items-center gap-4">
         {/* 재생·일시정지 토글 버튼(지름 38px) */}
         <button
@@ -67,7 +67,7 @@ export function Timeline({ frames }: TimelineProps): ReactElement {
           {/* 드래그 중 말풍선 시간 표시 */}
           {isDragging && currentFrame && (
             <div
-              className="pointer-events-none absolute bottom-full mb-2 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#363f4d] px-2 py-1 text-[11px] text-white shadow-lg"
+              className="pointer-events-none absolute bottom-full mb-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-[#363f4d] px-2 py-1 text-sm text-white shadow-lg"
               style={{ left: `${progressPct}%` }}
             >
               {formatFrameTime(currentFrame.time)}
@@ -118,11 +118,14 @@ export function Timeline({ frames }: TimelineProps): ReactElement {
         </div>
       </div>
 
-      {/* 좌: "00:00" 고정, 우: 현재 시각 / 24:00 — 재생·일시정지 버튼 폭(38+16gap)만큼 들여써서
-          바 양 끝과 맞춘다. */}
-      <div className="flex justify-between pl-[54px] text-xs text-white/60">
-        <span>00:00</span>
-        <span>{currentFrame ? formatFrameTime(currentFrame.time) : '-'} / 24:00</span>
+      {/* 좌: "00:00" 고정(작게, 흐리게), 우: 현재 시각 / 24:00(크게, 밝게) — 재생·일시정지
+          버튼 폭(38+16gap)만큼 들여써서 바 양 끝과 맞춘다. 트랙과의 간격은 -mt-1로 당겨
+          02_예측모드_디자인_04 실측(트랙 바닥~글자 상단 14px)에 맞춘다. */}
+      <div className="-mt-1 flex justify-between pl-[54px]">
+        <span className="text-xs text-white/60">00:00</span>
+        <span className="text-sm text-white">
+          {currentFrame ? formatFrameTime(currentFrame.time) : '-'} / 24:00
+        </span>
       </div>
     </div>
   );
