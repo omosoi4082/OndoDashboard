@@ -1,7 +1,7 @@
 // 상세 패널 카드 안 공통 섹션(docs/06-design-guide.md "상세 패널") — 제목 줄 + 내용 박스.
 // 네 모드(DetailPanel·ForecastDetailView·ExpertModeView·ControlModeView)가 같은 틀을 쓴다.
 import type { ReactElement, ReactNode } from 'react';
-import { History } from 'lucide-react';
+import { History, Info } from 'lucide-react';
 import type { DetailFrame } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { Timeline } from './Timeline.js';
@@ -58,28 +58,28 @@ export function Detail2DBox({ children }: { children: ReactNode }): ReactElement
   );
 }
 
-/** "초기화" — 옛 "정지" 버튼이 이름만 바뀌어 제목 줄로 옮겨왔다(기능은 그대로 stop():
- * 첫 프레임으로 되돌리고 재생을 멈춘다). 예측·전문가·제어 세 모드 전부 같은 디자인
- * (2026-10-10 Figma node 374:25528 "03_전문가모드_디자인_01" 재확인본, 사용자 확인). */
-function TimelineResetButton(): ReactElement {
+/** "시간 설정"(17·24·31) 제목 줄 + 타임라인, 아래 구분선. 제목 줄 구성(왼쪽부터): 제목 +
+ * 안내 아이콘 + "10분 단위" 배지 + (오른쪽 끝) "초기화" — 02_예측모드_디자인_04 실측
+ * (2026-10-10, docs/design/UI). "초기화"는 옛 "정지" 버튼이 이름만 바뀐 것(기능은 그대로
+ * stop(): 첫 프레임으로 되돌리고 멈춤). 예측·전문가·제어 세 모드 전부 같은 디자인
+ * (사용자 확인). */
+export function TimelineSection({ frames }: { frames: readonly DetailFrame[] }): ReactElement {
   const stop = useDetailStore((s) => s.stop);
   return (
-    <button
-      type="button"
-      onClick={stop}
-      className="flex items-center gap-1 text-sm font-medium text-[#a4abb5] transition-colors hover:text-white"
-    >
-      <History size={20} />
-      초기화
-    </button>
-  );
-}
-
-/** "시간 설정"(17·24·31) 제목 줄 + 타임라인, 아래 구분선. */
-export function TimelineSection({ frames }: { frames: readonly DetailFrame[] }): ReactElement {
-  return (
     <section className="flex shrink-0 flex-col gap-3 border-b border-ondo-border pb-5">
-      <SectionTitle title="시간 설정" right={<TimelineResetButton />} />
+      <div className="flex h-6 shrink-0 items-center gap-2">
+        <span className="text-[16px] font-semibold text-[#ccc]">시간 설정</span>
+        <Info size={16} className="text-ondo-muted" />
+        <span className="rounded bg-[#474748] px-2 py-0.5 text-xs text-white/80">10분 단위</span>
+        <button
+          type="button"
+          onClick={stop}
+          className="ml-auto flex items-center gap-1 text-sm font-medium text-[#a4abb5] transition-colors hover:text-white"
+        >
+          <History size={20} />
+          초기화
+        </button>
+      </div>
       <Timeline frames={frames} />
     </section>
   );
