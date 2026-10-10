@@ -41,21 +41,19 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
 
   return (
     <div
-      className="pointer-events-auto rounded-lg bg-[#141414]/70"
+      className="pointer-events-auto rounded-lg bg-[#141414]/80"
       style={{
         width: CARD_WIDTH,
         height: CARD_HEIGHT,
-        // 패딩 15/14/12는 CSS 3-값 shorthand(top | left&right | bottom) — 지금까지 p-5(20
-        // 균일)로 돼 있던 걸 시안 실측대로 고친다(사용자: "디자인 시안에 15,14,12 이렇게
-        // 나오는데 20으로 통일되게 되어있어").
+        // 패딩 15/14/12는 CSS 3-값 shorthand(top | left&right | bottom), 아래 패딩 12는
+        // 2026-10-11 재확인됨(사용자: "그래프 바탕에서 내용에 아래 패딩이 12야").
         padding: '15px 14px 12px',
         // "그래프 백그라운드참고.png"(2026-10-11 전달) Figma Effects 패널 실측 — 3겹 drop
         // shadow(X0/Y6/blur12/48%, X0/Y12/blur32/32%, X0/Y18/blur56/20%)를 그대로 옮긴다.
         boxShadow:
           '0 6px 12px rgba(0,0,0,0.48), 0 12px 32px rgba(0,0,0,0.32), 0 18px 56px rgba(0,0,0,0.2)',
-        // backdrop-blur-sm은 시안에 없는 효과였다(2026-10-11 사용자: "뒤에 3d비치는게 부연데
-        // 이유가 뭐야?? 부연 효과는 안줬는데") — 원래 코드에 있던 걸 그대로 들고 온 실수라
-        // 제거한다. 불투명도(70%)만으로 뒤 3D가 비친다.
+        // backdrop-blur-sm은 시안에 없는 효과였다 — 원래 코드에 있던 걸 그대로 들고 온
+        // 실수라 제거했다. 불투명도는 80%(2026-10-11 재확인 — "배경 투명도 80으로 해줘").
       }}
     >
       {/* 라벨에 단위를 괄호로 붙이고(팬 절감률 (kWh), 최고 온도 (℃)), 값에선 단위를 뺀다
@@ -91,7 +89,9 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
       <svg
         width={CHART_WIDTH + CHART_PADDING_LEFT}
         height={CHART_HEIGHT + CHART_PADDING_BOTTOM}
-        className="mt-4 overflow-visible"
+        // 값 숫자 줄 바로 아래부터 그래프 상단 기준선까지 간격 실측 31px(2026-10-11
+        // 사용자: "그래프와 바로 위 수자 갭 확인해줘" — 기존 mt-4(16px)는 시안보다 좁았다).
+        className="mt-[31px] overflow-visible"
         role="img"
         aria-label="기준·최적화 환기량 비교 그래프"
       >
