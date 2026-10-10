@@ -26,6 +26,19 @@ export function clampTimelineFrameIndex(index: number, frameCount: number): numb
 }
 
 /**
+ * 타임라인 바 위 1시간 단위 점 표시용 인덱스(0, framesPerHour, 2*framesPerHour, ...)
+ * (2026-10-10 Figma node 374:23156 실측 — 10분 간격 프레임이라 1시간 = 6프레임마다 하나).
+ */
+export function hourTickIndices(frameCount: number, framesPerHour = 6): number[] {
+  if (frameCount <= 0 || framesPerHour <= 0) return [];
+  const ticks: number[] = [];
+  for (let i = 0; i < frameCount; i += framesPerHour) {
+    ticks.push(i);
+  }
+  return ticks;
+}
+
+/**
  * DetailFrame.time(Iso8601, 항상 "+09:00" 부착— docs/02-relay-api.md 1장)에서 HH:mm만
  * 뽑는다. Date 객체를 거치지 않고 문자열에서 바로 잘라내 로컬 타임존 영향을 없앤다.
  */

@@ -58,3 +58,9 @@ body {
   background-color: rgba(204, 204, 204, 0.3);
   border-radius: 9999px;
 }
+/* 시안엔 위/아래 화살표 버튼이 없다(2026-10-10 사용자 확인) — 크롬 기본 스크롤바 버튼 숨김. */
+.ondo-scrollbar::-webkit-scrollbar-button {
+  display: none;
+  height: 0;
+  width: 0;
+}
