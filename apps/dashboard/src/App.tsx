@@ -37,15 +37,26 @@ function App(): ReactElement {
         className="relative flex h-full w-full flex-col overflow-hidden bg-[#1b1a1f] text-white"
         style={{ minWidth: MIN_VIEWPORT_WIDTH_PX, minHeight: MIN_VIEWPORT_HEIGHT_PX }}
       >
+        {/* 3D 메인 모델링(4) 배경 레이어 — 헤더(74px) 뒤까지 꽉 채운 전체 높이(2026-10-10
+            사용자 요청: 시안처럼 헤더 영역에도 모델링이 비쳐 보여야 함). 가로 폭은 상세 패널
+            (788px) 몫만 빼고 지금까지와 동일하게 유지한다 — 폭을 1920 전체로 넓히면 카메라
+            종횡비가 바뀌면서 모델 구도 중심이 오른쪽(상세 패널 뒤)으로 밀려 비육돈방 쪽이
+            더 많이 가려지는 회귀가 생긴다(계산 확인됨). pointer-events-none이라 클릭/드래그는
+            아래 OutdoorPanel처럼 안에서 다시 auto로 켠 요소만 받고, 나머지는 이 레이어(캔버스)
+            까지 그대로 통과해 OrbitControls가 받는다 — 그래서 이 레이어 자체는 pointer-events를
+            꺼두면 안 된다(껐더니 OrbitControls가 죽었음, 자식 요소까지 상속되는 속성이라). */}
+        <div className="absolute left-0 top-0 h-full" style={{ width: 'calc(100% - 788px)' }}>
+          <MainScene />
+        </div>
+
         <Header />
 
-        <div className="flex min-h-0 flex-1">
-          {/* 좌측: 외부환경(3) + 3D 메인 모델링(4) + 정보 판넬(5) + 축척(8) — 화면설계(on-01)대로
-              외부환경은 모델링 영역 위에 떠 있는 카드 묶음이다(별도 세로 사이드바가 아님). 가로로
-              배치해 모델링이 보이는 공간을 최대한 넓게 둔다(2026-10-09 사용자 요청). */}
+        <div className="relative flex min-h-0 flex-1">
+          {/* 좌측: 외부환경(3) + 정보 판넬(5) + 축척(8) — 모델링은 위로 뺀 배경 레이어가 맡고,
+              여긴 그 위에 얹는 오버레이만 남는다(화면설계 on-01대로 가로 배치,
+              2026-10-09 사용자 요청). */}
           <div className="relative flex flex-1 flex-col">
-            <div className="relative flex-1">
-              <MainScene />
+            <div className="pointer-events-none relative flex-1">
               <div className="pointer-events-none absolute left-0 top-0 pl-[42px] pt-[18px]">
                 <div className="pointer-events-auto">
                   <OutdoorPanel />

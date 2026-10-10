@@ -17,7 +17,7 @@ export function Header(): ReactElement {
   }, []);
 
   return (
-    <header className="relative flex h-[74px] shrink-0 items-center justify-between px-[42px]">
+    <header className="pointer-events-none relative flex h-[74px] shrink-0 items-center justify-between px-[42px]">
       <div className="flex items-center gap-2.5 text-[15px] text-white">
         <LocationPinIcon size={18} />
         <span>{areaName ?? '-'}</span>
