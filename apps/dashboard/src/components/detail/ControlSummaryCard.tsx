@@ -41,8 +41,14 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
 
   return (
     <div
-      className="pointer-events-auto rounded-2xl bg-[#111111]/70 p-5 shadow-lg backdrop-blur-sm"
-      style={{ width: CARD_WIDTH, height: CARD_HEIGHT }}
+      className="pointer-events-auto rounded-2xl bg-[#111111]/70 p-5 backdrop-blur-sm"
+      style={{
+        width: CARD_WIDTH,
+        height: CARD_HEIGHT,
+        // Tailwind shadow-lg은 검정 10% 불투명도라 3D 뷰 위에서 거의 안 보였다(2026-10-11
+        // 사용자: "그림자 있는건 확인 안되?") — 직접 진하게 지정한다.
+        boxShadow: '0 12px 28px rgba(0,0,0,0.55)',
+      }}
     >
       {/* 라벨에 단위를 괄호로 붙이고(팬 절감률 (kWh), 최고 온도 (℃)), 값에선 단위를 뺀다
           — 그래프.png 실측(2026-10-11 전달). */}

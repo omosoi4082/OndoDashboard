@@ -56,7 +56,23 @@ function ControlTargetToggle({
               : 'border-transparent bg-[#303237] text-[#a4abb5] hover:text-white'
           }`}
         >
-          <img src={icon} alt="" width={18} height={18} />
+          {/* 흰색 고정 PNG라 <img>로는 선택/비선택 글씨 색을 따라가지 않는다 — CSS mask로
+              바꿔 bg-current가 버튼 글씨 색(흰색/#a4abb5)을 그대로 따르게 한다(2026-10-11
+              사용자: "아이콘도 선택 비선택 색상이 글씨와 같아야지"). */}
+          <span
+            aria-hidden="true"
+            className="h-[18px] w-[18px] shrink-0 bg-current"
+            style={{
+              WebkitMaskImage: `url(${icon})`,
+              maskImage: `url(${icon})`,
+              WebkitMaskSize: 'contain',
+              maskSize: 'contain',
+              WebkitMaskRepeat: 'no-repeat',
+              maskRepeat: 'no-repeat',
+              WebkitMaskPosition: 'center',
+              maskPosition: 'center',
+            }}
+          />
           {label}
         </button>
       ))}
