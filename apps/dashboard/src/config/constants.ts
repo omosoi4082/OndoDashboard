@@ -34,8 +34,9 @@ export const SCALE_BAR_TARGET_PX = 120;
 
 // 1920x1080(16:9) 설계 기준이지만 실제로는 창 크기에 맞춰 유동적으로 채운다(App.tsx,
 // 2026-10-09). 이 두 값 아래로 작은 창에서만 스크롤 없이 잘리는 걸 허용하는 최소 크기
-// (설계 기준의 절반, 개발자 결정).
-export const MIN_VIEWPORT_WIDTH_PX = 960;
+// (너비는 2026-10-10 사용자 확정 1280 — 상세 패널 788px 고정폭이 있어서 960이면 외부환경
+// 쪽 공간이 너무 좁아짐. 높이는 기존 540 유지, 개발자 결정).
+export const MIN_VIEWPORT_WIDTH_PX = 1280;
 export const MIN_VIEWPORT_HEIGHT_PX = 540;
 
 // 메인 3D 모델링 배경 레이어(App.tsx) 고정 크기 — 패널들(헤더·외부환경·상세패널)은 창 크기에
