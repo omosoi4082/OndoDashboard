@@ -35,9 +35,10 @@ export function WindSpeedIcon(props: IconProps): ReactElement {
   );
 }
 
-// node 307:9953(시안 레이어명 "carbon:rain-drop", 실제 모양은 빗줄기) — 외부환경 습도 타일
-// (06-design-guide.md: 타일 4칸 = 풍향·풍속·습도·강수량, 2026-10-09 확정)
-export function HumidityTileIcon(props: IconProps): ReactElement {
+// node 307:9953(시안 레이어명 "carbon:rain-drop", 실제 모양은 빗줄기) — 외부환경 강수량 타일
+// (06-design-guide.md: 타일 4칸 = 풍향·풍속·강수량·습도, 2026-10-10 재확정 — 빗줄기 모양이라
+// 강수량 쪽에 쓴다, 2026-10-10 사용자 정정)
+export function RainLinesIcon(props: IconProps): ReactElement {
   return (
     <svg {...svgProps(props)}>
       <path
@@ -48,8 +49,9 @@ export function HumidityTileIcon(props: IconProps): ReactElement {
   );
 }
 
-// node 307:9962(시안 레이어명 "air", 실제 모양은 carbon:rain-drop) — 외부환경 강수량 타일
-export function RainAmountIcon(props: IconProps): ReactElement {
+// node 307:9962(시안 레이어명 "air", 실제 모양은 carbon:rain-drop) — 외부환경 습도 타일
+// (물방울 모양이라 습도 쪽에 쓴다, 2026-10-10 사용자 정정)
+export function HumidityDropIcon(props: IconProps): ReactElement {
   return (
     <svg {...svgProps(props)}>
       <path

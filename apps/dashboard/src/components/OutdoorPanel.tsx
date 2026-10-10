@@ -9,7 +9,7 @@ import type { WeatherCode } from '@ondo/shared';
 import { okData } from '../api/client.js';
 import { useMainStore } from '../store/mainStore.js';
 import { getWeatherIcon } from '../weather/weatherIcon.js';
-import { HumidityTileIcon, RainAmountIcon, WindDirectionIcon, WindSpeedIcon } from '../icons/designIcons.js';
+import { HumidityDropIcon, RainLinesIcon, WindDirectionIcon, WindSpeedIcon } from '../icons/designIcons.js';
 
 function WeatherIcon({ code, isNight }: { code: WeatherCode | null; isNight: boolean }): ReactElement {
   const icon = getWeatherIcon(code, isNight);
@@ -74,8 +74,8 @@ function WeatherBlock(props: WeatherBlockProps): ReactElement {
           value={windDir}
         />
         <Tile icon={<WindSpeedIcon size={18} />} value={num(windSpeed, 1)} unit="m/s" />
-        <Tile icon={<RainAmountIcon size={18} />} value={num(rain, 1)} unit="mm" />
-        <Tile icon={<HumidityTileIcon size={18} />} value={num(rh, 0)} unit="%" />
+        <Tile icon={<RainLinesIcon size={18} />} value={num(rain, 1)} unit="mm" />
+        <Tile icon={<HumidityDropIcon size={18} />} value={num(rh, 0)} unit="%" />
       </div>
     </div>
   );
