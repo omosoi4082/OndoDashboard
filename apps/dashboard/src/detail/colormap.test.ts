@@ -3,14 +3,14 @@ import { colormapRGB01, normalize, valueToRGB01, valueToRGB255 } from './colorma
 
 describe('colormapRGB01', () => {
   it('t=0이면 첫 색상 스탑', () => {
-    expect(colormapRGB01(0)).toEqual([0.19, 0.3, 0.85]);
+    expect(colormapRGB01(0)).toEqual([0.08, 0.2, 0.9]);
   });
 
   it('t=1이면 마지막 색상 스탑', () => {
     const [r, g, b] = colormapRGB01(1);
-    expect(r).toBeCloseTo(0.9, 10);
-    expect(g).toBeCloseTo(0.2, 10);
-    expect(b).toBeCloseTo(0.15, 10);
+    expect(r).toBeCloseTo(0.95, 10);
+    expect(g).toBeCloseTo(0.1, 10);
+    expect(b).toBeCloseTo(0.1, 10);
   });
 
   it('범위를 벗어난 값은 0~1로 클램프된다', () => {
@@ -20,7 +20,7 @@ describe('colormapRGB01', () => {
 
   it('스탑 사이 값은 선형 보간된다', () => {
     const [r] = colormapRGB01(0.15); // 0.0~0.3 구간의 중간
-    expect(r).toBeCloseTo((0.19 + 0.1) / 2, 5);
+    expect(r).toBeCloseTo((0.08 + 0.0) / 2, 5);
   });
 });
 
