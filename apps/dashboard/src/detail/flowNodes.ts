@@ -18,6 +18,12 @@ export function flowNodeIjk(grid: GridDef, index: number): [number, number, numb
   return [i, j, k];
 }
 
+/** (i,j,k) → flat 인덱스 — flowNodeIjk의 역산(detail/flowStreamline.ts 삼선형 보간에서 재사용). */
+export function flowNodeIndex(grid: GridDef, i: number, j: number, k: number): number {
+  const [nx, ny] = grid.size;
+  return i + nx * (j + ny * k);
+}
+
 /** flowGrid 노드의 데이터 좌표(z-up, zUpToYUp 적용 전) — origin + spacing * (i,j,k). */
 export function flowNodePosition(grid: GridDef, index: number): [number, number, number] {
   const [i, j, k] = flowNodeIjk(grid, index);

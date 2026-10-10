@@ -17,7 +17,7 @@ import { Detail2DBox, Detail3DSection, TimelineSection } from './DetailSections.
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ControlSummaryCard } from './ControlSummaryCard.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
-import { FlowCylinders } from '../../scene/FlowCylinders.js';
+import { FlowVisualization } from '../../scene/FlowVisualization.js';
 
 type ControlTarget = ControlDetail['target'];
 
@@ -122,7 +122,7 @@ export function ControlModeView(): ReactElement {
               range={control.data.range}
               overlay={
                 valueField === 'flow' ? (
-                  <FlowCylinders geometry={geometry} frame={frame} range={control.data.range.flow} />
+                  <FlowVisualization geometry={geometry} frame={frame} range={control.data.range.flow} />
                 ) : (
                   <IsosurfaceVolume
                     geometry={geometry}

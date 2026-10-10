@@ -13,7 +13,7 @@ import { Detail2DSection } from './Detail2DSection.js';
 import { Detail2DBox, Detail3DSection, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
-import { FlowCylinders } from '../../scene/FlowCylinders.js';
+import { FlowVisualization } from '../../scene/FlowVisualization.js';
 
 export function ForecastDetailView(): ReactElement {
   const geometry = useDetailStore((s) => s.geometry);
@@ -63,7 +63,7 @@ export function ForecastDetailView(): ReactElement {
 
   const overlay =
     valueField === 'flow' ? (
-      <FlowCylinders geometry={geometry} frame={frame} range={range.flow} />
+      <FlowVisualization geometry={geometry} frame={frame} range={range.flow} />
     ) : (
       <IsosurfaceVolume
         geometry={geometry}

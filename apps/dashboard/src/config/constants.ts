@@ -110,6 +110,12 @@ export const FLOW_CYLINDER_RADIUS_M = 0.0125;
 export const FLOW_CYLINDER_MIN_LENGTH_M = 0.12;
 export const FLOW_CYLINDER_MAX_LENGTH_M = 0.42;
 
+// 유동 표현 방식 — 05-open-questions.md #40, 온도 측 확인 전까지 미확정. 'streamlines'(급기구에서
+// 추적한 연결된 흐름선, scene/FlowStreamlines.tsx)가 기본값이고, 'grid-cylinders'로 바꾸면
+// 기존 flowGrid 노드별 독립 실린더(scene/FlowCylinders.tsx)로 되돌아간다. 두 구현 다 코드에
+// 남겨뒀으니 이 값만 바꾸면 전환된다.
+export const FLOW_VISUALIZATION_MODE: 'streamlines' | 'grid-cylinders' = 'streamlines';
+
 // 전문가 모드 입력 필드(21) 유효 범위 — apps/relay/src/config/env.ts의 EXPERT_TEMP_MIN 등
 // 기본값과 반드시 같은 값을 유지한다(detail/expertInputValidation.ts가 이 값으로 검사해
 // 통과한 값만 GET /api/detail/expert로 보내므로, 중계 서버 400과 어긋나면 안 된다).

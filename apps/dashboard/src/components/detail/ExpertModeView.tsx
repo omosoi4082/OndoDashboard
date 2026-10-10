@@ -25,7 +25,7 @@ import { Detail2DBox, Detail3DSection, TimelineSection } from './DetailSections.
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ExpertInputForm } from './ExpertInputForm.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
-import { FlowCylinders } from '../../scene/FlowCylinders.js';
+import { FlowVisualization } from '../../scene/FlowVisualization.js';
 
 const EXPERT_INPUT_RANGE: ExpertInputFieldRange = {
   tempMin: EXPERT_TEMP_MIN,
@@ -93,7 +93,7 @@ export function ExpertModeView(): ReactElement {
               range={expert.data.range}
               overlay={
                 valueField === 'flow' ? (
-                  <FlowCylinders geometry={geometry} frame={frame} range={expert.data.range.flow} />
+                  <FlowVisualization geometry={geometry} frame={frame} range={expert.data.range.flow} />
                 ) : (
                   <IsosurfaceVolume
                     geometry={geometry}
