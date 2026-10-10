@@ -94,11 +94,13 @@ export function Timeline({ frames }: TimelineProps): ReactElement {
               />
             );
           })}
-          {/* 흰 동그라미(손잡이)는 드래그 중에만 표시한다(기본·재생 상태엔 없음 — 02_예측모드_
-              디자인_02 실측 확인, 사용자 확인). */}
+          {/* 손잡이는 드래그 중에만 표시한다(기본·재생 상태엔 없음 — 02_예측모드_디자인_02
+              실측 확인, 사용자 확인). 흰 원 하나가 아니라 흰 중심(10px) + 채움색(#5088d4)
+              테두리(4px, 바깥지름 18px) — 02_예측모드_디자인_04 확대 실측("드래그시에 원
+              모양 잘봐 흰색에 테두리있어", 사용자 확인). */}
           {isDragging && (
             <div
-              className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 rounded-full bg-white shadow"
+              className="pointer-events-none absolute h-[18px] w-[18px] -translate-x-1/2 rounded-full border-[4px] border-[#5088d4] bg-white shadow"
               style={{ left: `${progressPct}%` }}
             />
           )}
