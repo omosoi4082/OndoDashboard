@@ -39,23 +39,25 @@ export function CameraRig({ box, rotationCenter }: CameraRigProps): ReactElement
     }
     const controls = controlsRef.current;
     if (controls) {
-      controls.target.copy(frame.target);
+      // 2026-10-10 사용자 요청: 회전 피벗을 "방 중심"이 아니라 "상세 패널에 가려지지 않는
+      // 보이는 영역의 화면 중앙"이 가리키는 지점으로. 레이캐스트는 반드시 "박스 전체 중심"을
+      // 보고 있는 상태(자돈방 쪽으로 치우치기 전)에서 해야 한다 — 먼저 자돈방 쪽으로
+      // 겨냥해버리면 모델 반대편이 화면 밖으로 밀려나서, 보이는 영역 중앙(캔버스 중앙보다
+      // 왼쪽) 레이가 모델을 완전히 벗어나 버리고 자돈방 타겟으로 되돌아간다(실제로 이 버그가
+      // 났었음 — 사용자가 "여전히 1920 중앙"이라고 지적해서 발견).
+      const neutralTarget = box.getCenter(new THREE.Vector3());
+      controls.target.copy(neutralTarget);
       controls.update();
 
-      // 2026-10-10 사용자 요청: 회전 피벗을 "방 중심"이 아니라 "상세 패널에 가려지지 않는
-      // 보이는 영역의 화면 중앙"이 가리키는 지점으로. 캔버스가 화면 전체 폭이라 타겟은
-      // 항상 캔버스 전체 중앙으로 투영되는데, 실제 보이는 영역 중앙은 그보다 왼쪽이라
-      // 위에서 구한 fallback 타겟으로 일단 카메라를 겨냥시킨 다음, 그 상태에서 보이는
-      // 영역 중앙 화면 좌표를 레이캐스트해 모델과 만나는 지점으로 타겟을 다시 옮긴다.
       const visibleWidth = size.width - DETAIL_PANEL_WIDTH_PX;
       const ndcX = ((visibleWidth / 2) / size.width) * 2 - 1;
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(new THREE.Vector2(ndcX, 0), camera);
       const hit = raycaster.intersectObject(scene, true)[0];
-      if (hit) {
-        controls.target.copy(hit.point);
-        controls.update();
-      }
+      // 레이가 모델에 맞았으면 그 지점을, 드물게 못 맞았으면 자돈방 가중치가 적용된
+      // fallback(frame.target)을 최종 피벗으로 쓴다.
+      controls.target.copy(hit ? hit.point : frame.target);
+      controls.update();
     }
     updateScaleBar();
     // box/rotationCenter는 모델 로드 후 1회 계산되는 고정값 — 처음 프레이밍할 때만 적용한다.
