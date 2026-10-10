@@ -223,7 +223,7 @@ export function Detail3DView({
                 특수 처리는 전부 되돌림, 2026-10-11 사용자: "처음에 온습도와 같은 느낌으로
                 보여지는 그걸로 해줘"). */}
             <div
-              className="inline-flex w-fit -translate-y-full flex-col whitespace-nowrap rounded-lg bg-[#141414]/80 text-[10px] leading-none text-white"
+              className="inline-flex w-fit -translate-y-full flex-col whitespace-nowrap rounded bg-[#141414]/80 text-[10px] leading-none text-white"
               style={{
                 padding: 6,
                 gap: 4,
