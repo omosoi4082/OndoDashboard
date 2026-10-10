@@ -76,26 +76,32 @@ export function Timeline({ frames }: TimelineProps): ReactElement {
           )}
           {/* 트랙(#434f62, 높이 7px) */}
           <div className="pointer-events-none absolute inset-x-0 h-[7px] rounded-full bg-[#434f62]" />
-          {/* 1시간 단위 점(3×3px, #7b8391) — 채움 바 아래에 둬서 지난 구간은 채움색에 덮인다. */}
-          {hourTicks.map((idx) => {
-            const pct = frameCount > 1 ? (idx / (frameCount - 1)) * 100 : 0;
-            return (
-              <div
-                key={idx}
-                className="pointer-events-none absolute h-[3px] w-[3px] -translate-x-1/2 rounded-full bg-[#7b8391]"
-                style={{ left: `${pct}%` }}
-              />
-            );
-          })}
           {/* 채움(진행된 구간, #5088d4) */}
           <div
             className="pointer-events-none absolute left-0 h-[7px] rounded-full bg-[#5088d4]"
             style={{ width: `${progressPct}%` }}
           />
-          <div
-            className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 rounded-full bg-white shadow"
-            style={{ left: `${progressPct}%` }}
-          />
+          {/* 1시간 단위 점 — 흰색 30% 불투명도, 채움 위에 그려서 지난 구간에서도 옅게
+              비친다(트랙 위 rgb(123,131,145), 채움 위 rgb(132,171,225) 실측 둘 다 흰색
+              30% 블렌드와 일치). */}
+          {hourTicks.map((idx) => {
+            const pct = frameCount > 1 ? (idx / (frameCount - 1)) * 100 : 0;
+            return (
+              <div
+                key={idx}
+                className="pointer-events-none absolute h-[3px] w-[3px] -translate-x-1/2 rounded-full bg-white/30"
+                style={{ left: `${pct}%` }}
+              />
+            );
+          })}
+          {/* 흰 동그라미(손잡이)는 드래그 중에만 표시한다(기본·재생 상태엔 없음 — 02_예측모드_
+              디자인_02 실측 확인, 사용자 확인). */}
+          {isDragging && (
+            <div
+              className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 rounded-full bg-white shadow"
+              style={{ left: `${progressPct}%` }}
+            />
+          )}
           <input
             type="range"
             min={0}
