@@ -51,27 +51,31 @@ function App(): ReactElement {
 
         <Header />
 
-        <div className="relative flex min-h-0 flex-1">
+        {/* pointer-events-none을 row에 직접 줘야 한다 — leftcol에만 줬더니 투명한 row 자신이
+            히트테스트에 걸려서 캔버스까지 이벤트가 안 내려갔다(2026-10-10, 사용자가 본문 3D
+            영역 드래그가 안 된다고 확인해줌). 오른쪽 상세 패널은 캔버스와 안 겹치니 다시
+            pointer-events-auto로 켠다. */}
+        <div className="pointer-events-none relative flex min-h-0 flex-1">
           {/* 좌측: 외부환경(3) + 정보 판넬(5) + 축척(8) — 모델링은 위로 뺀 배경 레이어가 맡고,
               여긴 그 위에 얹는 오버레이만 남는다(화면설계 on-01대로 가로 배치,
               2026-10-09 사용자 요청). */}
           <div className="relative flex flex-1 flex-col">
-            <div className="pointer-events-none relative flex-1">
-              <div className="pointer-events-none absolute left-0 top-0 pl-[42px] pt-[18px]">
+            <div className="relative flex-1">
+              <div className="absolute left-0 top-0 pl-[42px] pt-[18px]">
                 <div className="pointer-events-auto">
                   <OutdoorPanel />
                 </div>
               </div>
               {/* 축척(8) — 메인 3D 왼쪽 아래(docs/06-design-guide.md) */}
-              <div className="pointer-events-none absolute bottom-6 left-10">
+              <div className="absolute bottom-6 left-10">
                 <ScaleBar />
               </div>
               {isFirstLoading && <LoadingOverlay />}
             </div>
           </div>
 
-          {/* 우측: 상세보기 패널(6) — 항상 노출, 가로 768px */}
-          <div className="w-[788px] shrink-0 pb-5 pr-5">
+          {/* 우측: 상세보기 패널(6) — 항상 노출, 가로 768px. 캔버스와 안 겹치니 클릭 정상 작동하게 auto로 복구 */}
+          <div className="pointer-events-auto w-[788px] shrink-0 pb-5 pr-5">
             <DetailPanel />
           </div>
         </div>
