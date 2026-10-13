@@ -17,6 +17,82 @@
 - [ ] **WIND/날씨 변환**: `WIND` 0~360 숫자 → 16방위 변환은 구현됨(`windDirection.ts`). 미세기후 weatherCode의 "RAIN > 0이면 시간 무관 RAIN" 규칙도 구현됨(`weatherCode.ts`). **다만 풍속 `CURWIND`/`MAXWIND` 별도 필드는 아직 `StationWeather` 타입·3-2 화면에 반영 안 됨**(`mainWeatherStation.ts`가 `WIND`만 읽음, 풍속 표시 없음) — 남은 작업.
 - [x] **EXPERT_INPUT_RANGE**: `EXPERT_TEMP_MIN/MAX`(−30~50)·`EXPERT_RH_MIN/MAX`(0~100)·`EXPERT_VENT_MIN/MAX`(20~100)로 `.env`/`env.ts`/대시보드 상수에 반영 완료.
 
+## 2026-10-13 디자인 시안 검토 답변 반영 — 할 일
+
+`디자인시안_검토_답변및수정요청_20261013.docx`(A 답변 3건 / B 수정 요청 10건 / C 진행 현황 / D 연산 서버 인터페이스 확정안)와
+`연산서버_예시데이터_v3_20261013.zip` 검토 결과. 회신 내용은 `docs/replies/20261013-디자인시안검토-회신.md`.
+아래 순서(P0 → P4)대로 진행한다. P0 항목은 서로 독립이라 묶어서 처리해도 된다.
+
+### P0. 즉시 반영 (독립 항목, 상위 서버 변경 없음)
+
+- [x] **A-1 센서 조회 시각 14자리** — `apps/relay/src/utils/time.ts`의 `formatKstWallClockCompact`가 `YYYYMMDDHHmm`(12자리)를 만든다. 센서 서버는 14자리로 읽어 분·초가 밀린다(09:50 → 09:05). `YYYYMMDDHHmmss`로 고치고 테스트 갱신. **이후 `.env`의 `SENSOR_HISTORY_MODE`를 비워 live로 되돌리고 3시간 이력 조회를 확인한다**(05-open-questions #34 종결).
+- [x] **A-2·B-5 환기팬 가동률 클램프** — `transforms/aggregate5min.ts`의 `clampRange`는 범위 밖 값을 `null`(결측)로 만든다. 온도 측 요청은 "결측으로 보지 말고 값만 자르기"(172.5 → 100, 0 미만 → 0)다. 지금 동작은 이상치가 잦으면 센서 오류로 판정돼 연산 서버를 호출하지 않는 문제가 있다. `AggregateThresholds`에 범위 밖 처리 방식(`'null' | 'clamp'`)을 추가해 팬만 `clamp`로 쓴다. 온·습도는 기존 `null` 유지(B-3 적용 후 센서 입력에서 빠지므로 영향 없음).
+- [x] **v3 목업 파일 교체** — `mock/`의 `sample_response_current.json`·`sample_response_forecast.json`·`mock_expert.json`·`mock_control.json`을 v3로 교체. `sample_request_*.json`도 갱신본으로 교체. `geometry.json`은 v2와 동일해 교체 불필요. `mock/README.md`도 v3 기준으로 갱신.
+- [x] **v3 `range`·`geometryId` 통과** — `clients/computeClient.ts`의 `computeOkSchema`가 `range`·`geometryId`·`forecast_issued_at`을 정의하지 않아 조용히 버린다. 스키마에 추가하고, `transforms/detailTransform.ts`가 전 프레임을 훑어 직접 계산하던 `range`를 **응답 값 그대로 쓰도록 변경**(응답에 없을 때만 기존 계산을 폴백으로). `range.flow.max`는 급기구 극값을 뺀 95퍼센타일이라 우리 계산값을 쓰면 유동 색이 단색으로 뭉개진다. `geometryId`가 `pig-nh-v1`과 다르면 `UPSTREAM_ERROR`.
+- [x] **A-3 유동 표현 되돌림** — `config/constants.ts`의 `FLOW_VISUALIZATION_MODE`를 `'grid-cylinders'`로. 온도 측이 "스트림튜브 추적 불필요, 288점 화살표"로 확정(05-open-questions #40 종결). `scene/FlowCylinders.tsx`는 머리 없는 실린더라 **화살촉(cone)을 붙여 화살표로** 만든다(방향 = `vx,vy,vz`, 길이·색 = `value`). 288점 해상도는 그대로 — 그 데이터로 그린 그림을 온도 측이 확인했다.
+- [x] **B-1 포인트 토글 기본값** — `store/detailStore.ts`의 `pointsVisible`이 전 모드 `true`다. 예측·전문가·제어는 **기본 꺼짐**, 현재 모드는 그대로. `setMode()`에서 모드별 기본값을 세팅한다.
+- [x] **B-7 타임라인 실제 시각** — `components/detail/Timeline.tsx` 하단 라벨이 `"00:00"`·`"… / 24:00"` 하드코딩이다. `frames[0].time` ~ `frames[frames.length-1].time`의 실제 시각(날짜 포함)으로 바꾸고 프레임 0에 '현재' 표시. 05-open-questions #37·#38 종결.
+- [x] **B-9 2D x축 끝값** — `Detail2DSection.tsx`의 `niceAxisTicks(0, 4.5)`가 0·1·2·3·4로 끝난다. 방 폭 끝 **4.5 m**가 보이게 한다(`detail/axisTicks.ts`에 끝값 포함 옵션 추가 + 테스트).
+- [x] **B-9 2D y축 방향 — 검증 결과 변경 불필요(뒤집지 않음)**. 기본 카메라 방향(`scene/cameraFraming.ts` `DEFAULT_CAMERA_DIRECTION = [0.433, 0.379, 0.462]`)으로 화면 up 벡터를 계산하면 `(−0.339, +0.828, −0.362)`이고 z 성분이 **음수**다. 데이터 y는 Three.js z로 가므로(`scene/coords.ts`) 3D에서도 **y가 커질수록 화면 아래**로 간다 — 2D(`heatmapImage.ts` row=j가 위에서 아래로)와 이미 같은 방향이다. x축도 같은 방식으로 확인했다(둘 다 오른쪽으로 증가). 온도 측이 말한 "그림 1 평면도는 y = 0이 아래"는 그쪽 도면 기준이고 "어느 쪽이든 3D와 같으면 됩니다"라고 했으므로 그대로 둔다. 근거는 `Detail2DSection.tsx` 주석에 남겼다.
+- [x] **B-10 제어 카드 라벨** — `components/detail/ControlSummaryCard.tsx`의 `'팬 절감률 (kWh)'` → `'팬 전력량 (kWh)'`. 카드 값은 이미 `control` 블록에서 읽으므로 시안의 75 %가 아니라 파일 값(38.2)이 맞다 — 변경 없음.
+- [x] **토글·포인트 색 `#00bd55`** — `apps/dashboard/src/index.css`의 `--color-ondo-accent-on`이 `#22c55e`인데, 이 값은 저희가 디자인 이미지에서 눈대중으로 뽑은 근사값이다(06-design-guide.md 1장 제목에 명시). Figma 시안의 `#00bd55`가 정본이므로 교체하고 `docs/06-design-guide.md`도 갱신. 05-open-questions #41 ② 종결.
+
+### P0-추가. 현재·예측 모드가 응답 파일을 읽게 하기 (C)
+
+작업 중 발견한 누락. 온도 측 C: "연산 서버가 열리기 전까지는 **응답 파일을 연산 서버 대신 읽어**(명세의 `COMPUTE_MODE=mock`) 두 화면을 구현해 주시면 감사하겠습니다."
+
+- [ ] **`COMPUTE_MODE`에 파일 읽기 모드 추가** — 지금 `COMPUTE_MODE=mock`은 `clients/mockComputeClient.ts`가 `transforms/mockComputeGen.ts`로 프레임을 **합성**한다(파일을 읽지 않는다). 그래서 `mock/sample_response_current.json`·`sample_response_forecast.json`은 아무 데서도 쓰이지 않고, **v3의 `range`도 현재·예측 모드에는 적용되지 않는다**(전문가·제어는 목업 파일을 읽으므로 이미 적용됨).
+  - `COMPUTE_MODE=file`(가칭)을 추가해 두 응답 파일을 읽어 그대로 돌려주게 한다. 기존 `mock`(합성)은 그대로 남긴다 — 합성 생성기는 입력 시각에 맞춰 프레임을 만들어 주는 장점이 있고 단위 테스트도 붙어 있다.
+  - **트레이드오프(결정 필요)**: 파일을 읽으면 화면 시각이 파일 기준(`2026-10-05`)으로 고정된다. 전문가·제어 모드가 이미 그렇게 동작하므로 일관성은 있지만, 현재·예측 모드는 "지금"을 보여주는 화면이라 어색할 수 있다. 어느 쪽을 기본값으로 둘지 확인 후 진행.
+
+### P1. 중계 서버 입력 전환 (B-3·B-4)
+
+- [ ] **B-4 fan_pct 계단표** — `transforms/forecastInterpolate.ts`의 `fanPctFromTemp`가 선형 램프(`clamp(20 + 80×(T−22)/8)`)다. **5단 계단표**로 교체: 22 ℃ 미만 20 % / 22~24 40 % / 24~26 60 % / 26~28 80 % / 28 ℃ 이상 100 %(경계값은 아래쪽 포함). `.env`·`.env.example`의 `FAN_T_LOW`·`FAN_T_HIGH`·`FAN_MIN`·`FAN_MAX`를 계단표 설정으로 교체하고 `config/env.ts` 반영. 경계값 단위 테스트 필수.
+- [ ] **B-3 과거 3시간 외기 온·습도를 기상청으로** — 지금은 센서 `JE/OU/WS/WS1/TEMP`·`RH`를 쓴다(`routes/detailCurrent.ts`·`detailForecast.ts`). 기상청 초단기실황(`getUltraSrtNcst`, nx 53 / ny 37, `T1H`·`REH`)으로 전환한다.
+  - `clients/kmaClient.ts`에 **과거 정시 실황 조회**를 추가한다. 매시간 적재 방식이 아니라 `base_date`/`base_time`에 과거 정시를 넣어 최근 정시 4회를 그때그때 조회한다(회신문 2장 — 재시작 직후에도 과거 3시간 복구 가능). 단기예보와 같은 서비스·같은 인증키라 추가 발급 불필요.
+  - 정시 4개 → 5분 간격 선형 보간 + **마지막 관측 이후는 마지막 값 유지**를 순수 함수로 분리하고 단위 테스트(자정 넘김 포함).
+  - 결측 1개는 보간, **2개 이상 연속이면 '기상청 실황 조회 실패'** 로 연산 서버를 호출하지 않는다. 이때 예측 모드도 함께 중단된다(실측 구간 입력을 만들 수 없어 D-2의 "실측 2.5시간 미만"에 걸림) — 두 모드에 같은 문구를 띄운다.
+  - `.env`·`.env.example`의 `INPUT_T_OUT_PATH`·`INPUT_RH_OUT_PATH` 폐기. 센서 입력은 `INPUT_FAN_PATH`(`JE/EX/NH/FN1/FAN1`)만 남는다.
+  - 미래 24시간은 기존 단기예보 유지, 화면의 미세기후 패널은 기상대 값 유지(변경 없음).
+- [ ] **단기예보 발표분 재시도 단계 늘리기** — `clients/kmaClient.ts`가 `NO_DATA`면 직전 발표분으로 **1회만** 재요청한다. **2026-10-13 23:30 실측에서 23:00·20:00 발표분이 연속으로 `NO_DATA`였고 유효한 최신 발표분은 17:00(TMP 83건)이었다** — 발표 시각(02·05·08·11·14·17·20·23시)은 맞지만 실제 제공이 늦어 두 단계가 비는 경우가 있다. `detailForecast.ts`가 `startStepsBack=1`로 한 번 더 시도해도 20:00이라 역시 비어서, 지금 그대로면 예측 모드가 "기상청 예보 조회 실패"로 막힌다. 재시도를 2~3단계까지 내려가게 고치고(최대 단계는 `.env`로), 그 단계 수로 24시간을 채울 수 있는지 함께 확인한다. 발표분이 오래될수록 예보 시작 시각이 과거라 24시간 구간을 못 채울 수 있다. 참고: 키·실황은 정상 확인됨(초단기실황 `resultCode=00`, 과거 정시 조회도 정상).
+- [ ] **외부환경 풍속·강수량 채우기** (05-open-questions #36) — 타일 4칸 중 풍속·강수량이 `-`로 비어 있다. **출처는 추가 조회 없이 이미 있는 응답에서 꺼내면 된다.** 온도 측 회신이 필요한 사항이 아니므로 바로 구현한다.
+  - 기상청: `routes/mainWeatherKma.ts`가 초단기실황에서 `T1H`·`REH`·`VEC`·`PTY`만 읽는다 → 같은 응답의 **`WSD`(풍속 m/s)·`RN1`(1시간 강수량 mm)** 추가.
+  - 기상대: `routes/mainWeatherStation.ts`가 `WIND`만 읽는다 → **`CURWIND`(현재 풍속)** 추가. 센서에 `MAXWIND`(최대 풍속)도 있으나 타일에는 현재값을 쓴다. 강수량 `RAIN`은 이미 읽고 있다.
+  - `packages/shared`의 `KmaWeather`·`StationWeather`에 필드 추가 → 대시보드 타일 연결. `docs/02-relay-api.md` 4.2·4.3, `docs/03-upstream-apis.md` 기상청 항목표도 같이 갱신.
+
+### P2. 전문가 모드 입력 24×3 표 (B-2)
+
+- [ ] **API 형식 변경** — `GET /api/detail/expert?temp=&rh=&vent=`(값 3개)를 **`POST /api/detail/expert`** + 본문 `rows[24]{temp, rh, vent}`로 바꾼다. `packages/shared`의 `ExpertDetail.input` 타입 변경(양쪽에서 import, 앱 안에 복제 금지). `routes/detailExpert.ts`의 검증을 24행·빈칸 불허·범위(−30~50 / 0~100 / 20~100)로 교체.
+- [ ] **입력 표 UI** — `components/detail/ExpertInputForm.tsx`를 24행 × 3열 표로 교체. 행 = 1시간 간격 24개, **첫 행 = 현재 시각 다음 정시**. 예시 값은 `mock_expert.json`의 `input` 정시 값 24개(2026-10-05 16:00 ~ 10-06 15:00, 실제로 24개 확인)를 순서대로 채운다 — "예시 값"이므로 행 라벨 시각과 값의 원래 시각이 어긋나는 것은 무시한다. 환기량 단위는 **가동률 %**(시안의 'cmm' 폐기, 05-open-questions #41 ① 종결).
+- [ ] **검증·연동** — `detail/expertInputValidation.ts`를 24행 검증으로 교체(+테스트), `api/endpoints.ts`·`components/detail/ExpertModeView.tsx` 연동. '적용' 시 입력값과 무관하게 목업 결과가 나오는 동작은 그대로 유지한다.
+
+### P3. 3D 범례·오류 처리·헬스체크
+
+- [ ] **B-8 3D 색 막대** — 3D·2D는 이미 같은 색상표(`detail/colormap.ts`)와 같은 `range`를 쓴다. **3D에 색 범례가 없는 것만** 추가한다. `Detail2DSection.tsx`의 범례(그라데이션 막대 + `niceAxisTicks` 눈금)를 공용 컴포넌트로 뽑아 `Detail3DView`에도 얹는다.
+- [ ] **D-4 오류 코드별 처리** — `clients/computeClient.ts`의 `computeErrSchema`가 `message`만 읽고 `code`가 없다. 재시도 로직도 전혀 없다. `code`(`BAD_REQUEST`/`SERVER`/`BUSY`)·`field`를 파싱하고 회신대로 처리: `BAD_REQUEST`는 표시만, `SERVER`는 1분 뒤 1회 재시도 후 '예측 서버 오류', `BUSY`는 1분 뒤 재시도, 타임아웃은 '예측 서버 연결 안 됨' + 마지막 정상 결과 유지.
+- [ ] **D-5 `/v1/health` 핑** — `routes/health.ts`가 `compute: 'disconnected'` 고정값이다(2026-10-07 섹션의 미완 항목). `GET /v1/health` 결과를 `GET /api/health`의 compute 상태에 반영.
+
+### P4. 3D 모델링 (일부 자료 대기)
+
+- [ ] **B-6 급기구를 천장면 2D 사각형으로** — 천장에 매달린 직육면체가 아니라 천장면의 2D 사각형(0.32 × 0.687 m). `geometry.json`의 `room.inlets`에 좌표·크기(`z = 2.8`, `w`·`l`)가 이미 있는데 렌더링 코드가 없다(p1.glb 내장분에 의존). **참고 사진과 무관하게 먼저 진행 가능.**
+- [ ] **B-6·C 돈방 내부 디테일** — 실제 돈방 사진 기준으로 내부를 돈방처럼 수정. **참고 사진 수신 대기**(온도 측이 "별도로 보내드리겠다"고 했으므로 따로 요청하지 않음).
+- [ ] **C 돼지 크기 차등** — 자돈 < 육성돈 < 비육돈. **대략적인 비율 회신 대기**, 회신이 없으면 적절히 키워 반영한다(회신문 3장 (3)에 그렇게 적어 보냈음).
+- [ ] **C 돈방별 돼지 수** — **회신 대기**(추후 알려준다고 했으나 아직 미수신). 육성·비육 방 자체는 전달받은 도면 참고로 모델링되어 있다.
+
+### 문서 동기화
+
+- [ ] **`docs/01-functional-spec.md`** — 포인트 토글 모드별 기본값, 3D 색 범례, 전문가 입력 24행.
+- [ ] **`docs/02-relay-api.md`** — expert API를 POST + `rows[24]`로, `range` 출처(연산 서버 응답 값), 4.2·4.3에 풍속·강수량 필드.
+- [ ] **`docs/03-upstream-apis.md`** — fan_pct 계단표(2장의 선형식 교체), 과거 3시간 외기 출처를 기상청 초단기실황으로, 기상청 항목표에 `WSD`·`RN1` 추가, 1장 기상대 항목에 `CURWIND` 추가(현재 "무시" 목록에서 제외).
+- [ ] **`docs/05-open-questions.md`** — 종결 처리: #34(센서 이력, A-1 해결) · #36(풍속·강수량 출처 확정, 구현만 남음) · #37·#38(타임라인 라벨, B-7) · #40(유동 표현, A-3) · #41 ①②(환기량 단위·색). 신규: 없음.
+- [ ] **`docs/06-design-guide.md`** — `accent-on`을 `#00bd55`로.
+- [ ] **`.env.example`** — `FAN_T_*` → 계단표 설정, `INPUT_T_OUT_PATH`·`INPUT_RH_OUT_PATH` 제거.
+- [ ] **`CLAUDE.md`** — "환기량은 FAN1 가동률(%) 하나만" 항목에 계단표 규칙, 외기 온·습도 출처가 기상청으로 바뀐 점 반영.
+
+### 보류 — 사용자 확인 필요
+
+- [ ] **`scene/FlowStreamlines.tsx`·`detail/flowStreamline.ts` 삭제 여부** — A-3으로 불필요해졌지만 지우기 전에 확인받는다. 남겨두면 `FLOW_VISUALIZATION_MODE` 분기도 함께 유지된다.
+
 ## M0. 저장소 기본 구성
 
 - npm workspaces 모노레포: `apps/dashboard`, `apps/relay`, `packages/shared`, `mock/`.

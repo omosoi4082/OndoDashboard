@@ -92,7 +92,9 @@ export interface KmaWeather {
   weatherCode: WeatherCode | null;
   isNight: boolean;
   windDir: string | null; windDeg: number | null;
+  windSpeed: number | null;    // WSD(m/s) — 초단기실황
   temp: number | null; rh: number | null;
+  rain: number | null;         // RN1(1시간 강수량 mm) — 초단기실황
 }
 ```
 
@@ -106,10 +108,15 @@ export interface StationWeather {
   weatherCode: WeatherCode | null;
   isNight: boolean;
   windDir: string | null; windDeg: number | null;
+  windSpeed: number | null;    // CURWIND(현재 풍속) — MAXWIND는 쓰지 않는다
   temp: number | null; rh: number | null;
   rain: number | null; solar: number | null;
 }
 ```
+
+> 외부환경 타일 4칸(풍향·풍속·강수량·습도)의 출처: 기상청은 `VEC`·**`WSD`**·**`RN1`**·`REH`,
+> 기상대는 `WIND`·**`CURWIND`**·`RAIN`·`RH`. 추가 조회 없이 지금 호출하는 응답에서 꺼내
+> 쓰면 된다(05-open-questions.md #36).
 
 ## 5. 상세 데이터 구조 (current / forecast / expert / control 공통)
 
@@ -191,15 +198,41 @@ export interface ControlDetail extends DetailBase { mode: 'control'; target: 'en
 | API | 파라미터 | 처리 |
 |---|---|---|
 | `GET /api/detail/geometry` | 없음 | 형상 파일 반환(상세 진입 시 1회) |
-| `GET /api/detail/current` | 없음 | 180분 이력을 5분 간격으로 집계한 37건 → `POST /v1/current`. 끝 시각 단위 캐시 |
-| `GET /api/detail/forecast` | 없음 | 실측 37건(current와 같은 구간, 5분 간격) + 단기예보 1시간 TMP·REH를 5분 간격으로 보간한 288건(fan_pct는 외기 기온 규칙으로 계산) = 325건 → `POST /v1/forecast` |
+| `GET /api/detail/current` | 없음 | 과거 3시간 입력 37건(5분 간격) → `POST /v1/current`. 끝 시각 단위 캐시. 외기 온·습도는 기상청 초단기실황, 환기팬 가동률은 센서 181건의 5분 집계 |
+| `GET /api/detail/forecast` | 없음 | 실측 37건(current와 같은 구간, 5분 간격) + 단기예보 1시간 TMP·REH를 5분 간격으로 보간한 288건(fan_pct는 외기 기온 5단 구간 표로 계산) = 325건 → `POST /v1/forecast` |
 | `GET /api/detail/expert` | `temp`, `rh`, `vent` (필수) | 목업 반환, input 회신. 유효성 검사(숫자·범위·빈 값)는 대시보드 입력 필드에서 하고 통과한 값만 전송, 중계 서버도 같은 범위로 재확인(직접 호출 대비, 위반 시 400) |
 | `GET /api/detail/control` | `target` = `energy`(기본) \| `environment` | 목업 반환 |
 
+- **current·forecast 실측 구간의 입력 출처(2026-10-13 온도 측 B-3 확정)**
+  - 외기 온도·습도(`T_out`·`RH_out`): **기상청 초단기실황**(`getUltraSrtNcst`, `T1H`·`REH`). 정시 값 4개를 5분 간격으로 선형 보간하고 마지막 관측 이후는 마지막 값을 유지한다. 1개 결측은 보간, **2개 이상 연속 결측이면 "기상청 실황 조회 실패"** 로 연산 서버를 호출하지 않는다(현재·예측 양쪽 중단 — 실측 구간을 못 채워 연산 서버의 "실측 2.5시간 미만" 규칙에 걸린다).
+  - 환기팬 가동률(`fan_pct`): **센서 서버**(`INPUT_FAN_PATH`, 기본 `JE/EX/NH/FN1/FAN1`) 1분 이력 181건 → 5분 집계 37건. 범위 밖 값은 결측이 아니라 0~100으로 자른다(docs/03 1.2).
+  - 그 전까지 쓰던 기상대 센서(`JE/OU/WS/WS1/TEMP`·`RH`)는 **이력 조회가 빈 배열로 와서** 폐기했다(docs/03 1장). 화면의 미세기후 패널은 그대로 기상대 최신값을 쓴다.
 - current 입력 구간: 이미 완료된 분 중 가장 최근의 10분 단위 정각(00·10·20·30·40·50분)이 끝, 180분 전이 시작. 15:26 → 12:20~15:20, 15:20:30 → 12:10~15:10(15:20분 값이 아직 완료 전). 10분 폴링마다 새 입력으로 연산하고, 같은 10분 구간 안의 재요청만 캐시 응답.
   - 이유: 센서 서버는 1분 안의 측정값을 평균 내 분 단위 값을 만들기 때문에, 현재 분까지 받으면 마지막 값이 비거나 불완전한 평균이 된다. 완료된 10분 정각으로 끊으면 이를 피하고 입력 구간·결과 시각이 폴링 주기와 같은 10분 간격으로 맞는다.
-- forecast 입력은 회의 결정 형식(series)만 쓴다. 연동명세서 v1.0 요약 형식은 폐기(2026-10-07 확정, 05-open-questions.md #4) — `FORECAST_INPUT_FORMAT` 분기는 제거해도 된다. 실측 37건 + 기상청 단기예보 1시간 기온·습도를 5분 간격으로 보간한 288건(fan_pct는 외기 기온 기준 계산식) = 325건(docs/03 4.1). 예보가 24시간을 못 채우면 직전 발표분 재요청, 그래도 부족하면 502. 연속 3시간 이상 결측이거나 조회 자체가 실패하면 "기상청 예보 조회 실패"로 표시하고 연산 서버를 호출하지 않는다(`ApiError`, `source: 'kma'`).
+- forecast 입력은 회의 결정 형식(series)만 쓴다. 연동명세서 v1.0 요약 형식은 폐기(2026-10-07 확정, 05-open-questions.md #4) — `FORECAST_INPUT_FORMAT` 분기는 제거해도 된다. 실측 37건 + 기상청 단기예보 1시간 기온·습도를 5분 간격으로 보간한 288건(fan_pct는 외기 기온 5단 구간 표 — docs/03 2장) = 325건(docs/03 4.1). 예보가 24시간을 못 채우면 직전 발표분 재요청, 그래도 부족하면 502. 연속 3시간 이상 결측이거나 조회 자체가 실패하면 "기상청 예보 조회 실패"로 표시하고 연산 서버를 호출하지 않는다(`ApiError`, `source: 'kma'`).
 - 연산 대기 중 대시보드는 3D·2D 영역 로딩 표시. `COMPUTE_TIMEOUT_MS` 초과 시 504.
+
+### 6.1 기상청 조회 실패의 영향 범위
+
+기상청 API가 **두 개**이고 담당 구간이 달라서, 어느 쪽이 끊기느냐에 따라 멈추는 모드가 다르다.
+
+| 기상청 API | 담당 구간 | 현재 모드 | 예측 모드 |
+|---|---|---|---|
+| 초단기실황 `getUltraSrtNcst` (`T1H`·`REH`) | 과거 3시간 외기 온·습도 | 사용 | 사용 |
+| 단기예보 `getVilageFcst` (`TMP`·`REH`) | 미래 24시간 외기 온·습도 | 사용하지 않음 | 사용 |
+
+| 실패 | 문구 | 현재 모드 | 예측 모드 |
+|---|---|---|---|
+| 초단기실황 2개 이상 연속 결측·조회 실패 | "기상청 실황 조회 실패" | **중단** | **중단** |
+| 단기예보 결측(연속 `FORECAST_GAP_MAX_HOURS` 이상)·조회 실패·24시간 미달 | "기상청 예보 조회 실패" | **정상** | **중단** |
+| 센서 환기팬(`FN1/FAN1`) 오류 | "센서 오류…" | **중단** | **중단** |
+
+- **현재 모드가 예보 실패에 걸리지 않는 이유**: 현재 모드 입력은 과거 3시간 37건뿐이라 미래 값을 쓰지 않는다. 그래서 `detailCurrent.ts`는 `KmaClient`를 주입받지도 않는다.
+- **실황 실패가 양쪽을 멈추는 이유**: 과거 3시간 외기 온·습도가 실황에서 오므로(B-3) 실측 구간 입력 자체를 만들 수 없고, 연산 서버의 `BAD_REQUEST` 규칙("실측 2.5시간 미만")에 걸린다. 두 모드에 같은 문구를 띄운다.
+- 실황이 메인 화면 외부환경 패널(4.2)에만 쓰일 때는 실패해도 그 타일만 `disconnected`였다. B-3으로 상세 패널 입력원이 되면서 파급이 커진 것이므로, 이 동작이 맞는지 온도 측에 확인 중이다(`docs/replies/20261013-디자인시안검토-회신.md` 3장 1번).
+
+> **단기예보 발표분 재시도는 1회로 부족하다(2026-10-13 실측).** 23:30 기준으로 23:00·20:00 발표분이 둘 다 `NO_DATA`였고, 유효한 최신 발표분은 17:00(TMP 83건)이었다. 발표 시각은 맞지만 실제 제공이 늦어 **두 단계 연속 NO_DATA**가 나는 경우가 있으므로, 재시도 단계를 2~3회로 늘려야 한다(docs/04-tasks.md P1).
+
 
 ## 7. `GET /api/health`
 

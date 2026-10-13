@@ -24,7 +24,7 @@ UI 디자인 자료는 `docs/design/`에 모은다. 디자인은 **시각 참고
 | text | `#ffffff` | 기본 글자 |
 | text-muted | `#a3a4ab` | 보조 글자, 비선택 탭 |
 | accent | `#1f6e45` | 선택된 모드 탭 |
-| accent-on | `#22c55e` | 토글 on, 포인트 표시 점 |
+| accent-on | `#00bd55` | 토글 on, 포인트 표시 점 (Figma 시안 실측값 — 2026-10-13 확정, 이전 근사값 `#22c55e` 교체) |
 | accent-bar | `#2ee59d` | 외부환경 제목 앞 세로줄 |
 
 ## 2. 영역별 사양
