@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { advanceTimelineFrame, clampTimelineFrameIndex, formatFrameTime, hourTickIndices } from './timeline.js';
+import {
+  advanceTimelineFrame,
+  clampTimelineFrameIndex,
+  formatFrameDateTime,
+  formatFrameTime,
+  hourTickIndices,
+} from './timeline.js';
 
 describe('advanceTimelineFrame', () => {
   it('재생 중이면 프레임을 1개 전진하고 playing을 유지한다', () => {
@@ -56,5 +62,20 @@ describe('hourTickIndices', () => {
 
   it('framesPerHour를 바꾸면 그 간격으로 고른다', () => {
     expect(hourTickIndices(10, 3)).toEqual([0, 3, 6, 9]);
+  });
+});
+
+describe('formatFrameDateTime', () => {
+  // 2026-10-13 온도 측 B-7: 타임라인 양 끝을 날짜 포함 실제 시각으로 표시한다.
+  it('날짜까지 포함해 "MM/DD HH:mm"으로 만든다', () => {
+    expect(formatFrameDateTime('2026-10-05T15:20:00+09:00')).toBe('10/05 15:20');
+  });
+
+  it('다음 날로 넘어간 마지막 프레임도 날짜가 드러난다', () => {
+    expect(formatFrameDateTime('2026-10-06T15:20:00+09:00')).toBe('10/06 15:20');
+  });
+
+  it('형식이 아니면 "-"', () => {
+    expect(formatFrameDateTime('bad')).toBe('-');
   });
 });

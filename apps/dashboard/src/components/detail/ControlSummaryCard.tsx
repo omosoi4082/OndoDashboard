@@ -67,9 +67,11 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
           <div className="mt-1 text-base font-bold text-white">{control.savingPct.toFixed(0)}%</div>
         </div>
         <div>
+          {/* 2026-10-13 온도 측 B-10: "라벨 '팬 절감률 (kWh)'은 '팬 전력량 (kWh)'가
+              맞습니다" — 값이 절감률이 아니라 기준→최적화 전력량이라 라벨을 고쳤다. */}
           <div className="flex items-center gap-1.5 whitespace-nowrap text-[13px] text-white/60">
             <SummaryTick />
-            팬 절감률 (kWh)
+            팬 전력량 (kWh)
           </div>
           <div className="mt-1 whitespace-nowrap text-base font-bold text-white">
             {control.energyKwh.baseline.toFixed(2)} → {control.energyKwh.optimized.toFixed(2)}

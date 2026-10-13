@@ -10,7 +10,7 @@ import type { DetailBase, DetailFrame, Geometry, GridDef } from '@ondo/shared';
 import { bilinearUpsample2x, extractZLayer, nearestZIndex } from '../../detail/sectionGrid.js';
 import { buildHeatmapImage } from '../../detail/heatmapImage.js';
 import { colormapRGB01 } from '../../detail/colormap.js';
-import { niceAxisTicks } from '../../detail/axisTicks.js';
+import { axisTicksWithEnd, niceAxisTicks } from '../../detail/axisTicks.js';
 import { getFieldRange, getFieldUnit } from '../../detail/pointSelection.js';
 import { useDetailStore } from '../../store/detailStore.js';
 import { SECTION_PARTITION_SEGMENTS, SECTION_Z_M } from '../../config/constants.js';
@@ -22,6 +22,11 @@ interface Detail2DSectionProps {
 }
 
 const LEGEND_STEPS = 24;
+
+/** 축 눈금 라벨 — 부동소수 꼬리(4.500000000000001)를 없애고 정수는 소수점 없이 보여준다. */
+function formatTick(v: number): string {
+  return String(Number(v.toFixed(2)));
+}
 // 평면도:범례 가로 배분 — 2026-10-10 사용자 요청: "평면도 70% 간격에 중앙 배치, 범례는
 // 30% 간격에 중앙 배치, 이상하면 60/40으로 바꿀 것". 비율 하나만 바꾸면 전체에 반영된다.
 const PLAN_WIDTH_SHARE = 0.6;
@@ -77,9 +82,28 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   const viewH = (activeGrid.size[1] * 2 - 1) * stepY;
 
   // X·Y축 칫수(m) — 참고 자료(Plotly 2D 히트맵)처럼 축에 실측 길이를 표기한다
-  // (2026-10-10 사용자 요청). 보여주는 좌표 범위는 SVG 오버레이와 같은 viewBox 기준.
-  const xTicks = useMemo(() => niceAxisTicks(viewMinX, viewMinX + viewW), [viewMinX, viewW]);
-  const yTicks = useMemo(() => niceAxisTicks(viewMinY, viewMinY + viewH), [viewMinY, viewH]);
+  // (2026-10-10 사용자 요청).
+  //
+  // 눈금 범위는 viewBox(픽셀 중심 기준으로 반 칸 바깥까지 넓힌 범위)가 아니라 **격자 노드가
+  // 실제로 덮는 범위**(origin ~ origin+(size−1)×spacing)로 잡는다. 온도·습도 grid는 그게
+  // 곧 방 크기(x 0~4.5 m, y 0~4.0 m)다. 눈금 위치는 그대로 viewBox 기준으로 환산해
+  // 캔버스와 정렬한다.
+  //
+  // axisTicksWithEnd로 끝 값을 반드시 포함시킨다 — 2026-10-13 온도 측 B-9:
+  // "x축 눈금이 4 m에서 끝나는데 방 폭은 4.5 m입니다". 나이스 넘버만 쓰면 0·1·2·3·4로
+  // 끝나 방이 4 m인 것처럼 보였다.
+  //
+  // y축 방향(y=0이 위)은 **그대로 둔다**. B-9의 "3D 시점과 일치시켜 달라"는 요청에 대해
+  // 기본 카메라 방향(scene/cameraFraming.ts DEFAULT_CAMERA_DIRECTION = [0.433, 0.379, 0.462])
+  // 으로 화면 up 벡터를 계산하면 (−0.339, +0.828, −0.362)이고 z 성분이 음수다. 데이터 y는
+  // Three.js z로 가므로(scene/coords.ts) y가 커질수록 화면 아래로 간다 — 지금 2D(row=j가
+  // 위에서 아래로)와 같은 방향이다. x축도 같은 방식으로 확인했다(둘 다 오른쪽으로 증가).
+  // 온도 측이 말한 "그림 1 평면도는 y=0이 아래"는 그쪽 도면 기준이고, "어느 쪽이든 3D와
+  // 같으면 됩니다"라고 했으므로 뒤집지 않는다.
+  const axisMaxX = activeGrid.origin[0] + (activeGrid.size[0] - 1) * activeGrid.spacing[0];
+  const axisMaxY = activeGrid.origin[1] + (activeGrid.size[1] - 1) * activeGrid.spacing[1];
+  const xTicks = useMemo(() => axisTicksWithEnd(activeGrid.origin[0], axisMaxX), [activeGrid, axisMaxX]);
+  const yTicks = useMemo(() => axisTicksWithEnd(activeGrid.origin[1], axisMaxY), [activeGrid, axisMaxY]);
 
   // 실제 방 가로세로 비율(m)을 그대로 유지한 채 영역 안에 맞춘다(2026-10-10 사용자 확인 —
   // "가로가 너무 길다, 비율이 안 받는다". 이전엔 SVG preserveAspectRatio="none"으로 캔버스를
@@ -142,7 +166,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
                   className="absolute right-1 -translate-y-1/2 whitespace-nowrap text-[9px] text-white/50"
                   style={{ top: `${((v - viewMinY) / viewH) * 100}%` }}
                 >
-                  {v}m
+                  {formatTick(v)}m
                 </span>
               ))}
             </div>
@@ -184,7 +208,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
                 className="absolute -translate-x-1/2 whitespace-nowrap text-[9px] text-white/50"
                 style={{ left: `${((v - viewMinX) / viewW) * 100}%` }}
               >
-                {v}m
+                {formatTick(v)}m
               </span>
             ))}
           </div>

@@ -8,15 +8,17 @@
 // 그대로 stop() — 첫 프레임으로 되돌리고 멈춤).
 // 색상·점 크기·말풍선·시간 표시 위치는 docs/design/UI/02_예측모드_디자인_04.png(2026-10-10
 // 전달분) 픽셀 실측값 그대로다 — 트랙 #434f62, 채움 #5088d4, 1시간 점 3×3px #7b8391,
-// 말풍선 배경 #363f4d, 좌우 "00:00"/"현재시각 / 24:00" 표기. "현재시각"이 실제 시각인지
-// 시작 기준 경과 시간인지는 05-open-questions.md #38 미정이라 기존처럼 프레임의 실제 시각
-// (formatFrameTime)을 그대로 쓴다.
+// 말풍선 배경 #363f4d.
+// 양 끝 라벨은 시안의 "00:00"/"24:00"(경과 시간)이 아니라 frames의 실제 시각(날짜 포함)을
+// 쓴다 — 2026-10-13 온도 측 B-7 확정("슬라이더 양 끝을 ... frames[i].time의 실제 시각
+// (날짜 포함)으로 표시하고, 프레임 0에 '현재' 표시를 부탁드립니다"). 05-open-questions.md
+// #37·#38 종결.
 import { useEffect, useState, type ReactElement } from 'react';
 import { Pause, Play } from 'lucide-react';
 import type { DetailFrame } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { TIMELINE_FRAME_DURATION_MS } from '../../config/constants.js';
-import { formatFrameTime, hourTickIndices } from '../../detail/timeline.js';
+import { formatFrameDateTime, formatFrameTime, hourTickIndices } from '../../detail/timeline.js';
 
 interface TimelineProps {
   frames: readonly DetailFrame[];
@@ -34,6 +36,8 @@ export function Timeline({ frames }: TimelineProps): ReactElement {
   const frameCount = frames.length;
   const clampedIndex = Math.min(frameIndex, Math.max(frameCount - 1, 0));
   const currentFrame = frames[clampedIndex] ?? null;
+  const firstFrame = frames[0] ?? null;
+  const lastFrame = frames[frameCount - 1] ?? null;
   const progressPct = frameCount > 1 ? (clampedIndex / (frameCount - 1)) * 100 : 0;
   // 맨 처음·맨 끝엔 점을 안 찍는다(2026-10-10 사용자 확인 — "시간 점이 22개만 표시,
   // 처음과 끝은 시안에 없음").
@@ -118,13 +122,18 @@ export function Timeline({ frames }: TimelineProps): ReactElement {
         </div>
       </div>
 
-      {/* 좌: "00:00" 고정(작게, 흐리게), 우: 현재 시각 / 24:00(크게, 밝게) — 재생·일시정지
-          버튼 폭(38+16gap)만큼 들여써서 바 양 끝과 맞춘다. 트랙과의 간격은 -mt-1로 당겨
-          02_예측모드_디자인_04 실측(트랙 바닥~글자 상단 14px)에 맞춘다. */}
+      {/* 양 끝 라벨 — 2026-10-13 온도 측 B-7에 따라 경과 시간("00:00"~"24:00") 대신
+          frames의 실제 시각(날짜 포함)을 쓴다. 왼쪽은 프레임 0(= 마지막 실측 시각)이라
+          '현재' 표시를 같이 붙이고, 오른쪽은 마지막 프레임 시각과 재생 위치를 보여준다.
+          재생·일시정지 버튼 폭(38+16gap)만큼 들여써서 바 양 끝과 맞춘다. 트랙과의 간격은
+          -mt-1로 당겨 02_예측모드_디자인_04 실측(트랙 바닥~글자 상단 14px)에 맞춘다. */}
       <div className="-mt-1 flex justify-between pl-[54px]">
-        <span className="text-xs text-white/60">00:00</span>
+        <span className="text-xs text-white/60">
+          {firstFrame ? `현재 ${formatFrameDateTime(firstFrame.time)}` : '-'}
+        </span>
         <span className="text-sm text-white">
-          {currentFrame ? formatFrameTime(currentFrame.time) : '-'} / 24:00
+          {currentFrame ? formatFrameDateTime(currentFrame.time) : '-'}
+          {lastFrame ? ` / ${formatFrameDateTime(lastFrame.time)}` : ''}
         </span>
       </div>
     </div>

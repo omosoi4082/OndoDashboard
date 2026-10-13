@@ -114,11 +114,18 @@ export const FLOW_CYLINDER_RADIUS_M = 0.0125;
 export const FLOW_CYLINDER_MIN_LENGTH_M = 0.12;
 export const FLOW_CYLINDER_MAX_LENGTH_M = 0.42;
 
-// 유동 표현 방식 — 05-open-questions.md #40, 온도 측 확인 전까지 미확정. 'streamlines'(급기구에서
-// 추적한 연결된 흐름선, scene/FlowStreamlines.tsx)가 기본값이고, 'grid-cylinders'로 바꾸면
-// 기존 flowGrid 노드별 독립 실린더(scene/FlowCylinders.tsx)로 되돌아간다. 두 구현 다 코드에
-// 남겨뒀으니 이 값만 바꾸면 전환된다.
-export const FLOW_VISUALIZATION_MODE: 'streamlines' | 'grid-cylinders' = 'streamlines';
+// 화살촉(원뿔) 크기 — 몸통 길이와 무관하게 고정이다. 길이에 비례해 키우면 값이 큰 화살표의
+// 머리만 과장돼 보여서, 방향만 알아볼 수 있게 일정 크기로 둔다(2026-10-13 A-3 "방향은
+// (vx,vy,vz), 길이와 색은 value"). 반지름은 몸통의 3배, 길이는 최소 몸통 길이의 절반.
+export const FLOW_ARROW_HEAD_RADIUS_M = FLOW_CYLINDER_RADIUS_M * 3;
+export const FLOW_ARROW_HEAD_LENGTH_M = FLOW_CYLINDER_MIN_LENGTH_M / 2;
+
+// 유동 표현 방식 — 05-open-questions.md #40. ✅ 2026-10-13 온도 측 A-3 확정:
+// "288개 점의 화살표로 표현해 주시면 됩니다. 참고 HTML 같은 흐름선(스트림튜브) 추적은
+// 필요하지 않습니다." → 'grid-cylinders'(flowGrid 노드마다 화살표 1개)가 확정값이다.
+// 'streamlines'(scene/FlowStreamlines.tsx) 구현은 쓰이지 않으며, 삭제 여부는 확인 후 정한다
+// (docs/04-tasks.md "보류" 항목).
+export const FLOW_VISUALIZATION_MODE: 'streamlines' | 'grid-cylinders' = 'grid-cylinders';
 
 // 전문가 모드 입력 필드(21) 유효 범위 — apps/relay/src/config/env.ts의 EXPERT_TEMP_MIN 등
 // 기본값과 반드시 같은 값을 유지한다(detail/expertInputValidation.ts가 이 값으로 검사해

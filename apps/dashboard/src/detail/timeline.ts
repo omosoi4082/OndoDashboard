@@ -46,3 +46,14 @@ export function formatFrameTime(iso: string): string {
   const match = /T(\d{2}):(\d{2})/.exec(iso);
   return match ? `${match[1]}:${match[2]}` : '-';
 }
+
+/**
+ * 타임라인 양 끝 라벨용 — 날짜까지 포함한 "MM/DD HH:mm"(2026-10-13 온도 측 B-7:
+ * "슬라이더 양 끝을 00:00~24:00(경과 시간)이 아니라 frames[i].time의 실제 시각(날짜 포함)
+ * 으로 표시"). 예측 구간은 24시간이라 끝 시각이 다음 날로 넘어가므로 날짜가 필요하다.
+ * formatFrameTime과 같은 이유로 문자열에서 바로 잘라낸다(로컬 타임존 영향 없음).
+ */
+export function formatFrameDateTime(iso: string): string {
+  const match = /^\d{4}-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
+  return match ? `${match[1]}/${match[2]} ${match[3]}:${match[4]}` : '-';
+}

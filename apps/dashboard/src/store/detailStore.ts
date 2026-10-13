@@ -67,11 +67,20 @@ export interface DetailState {
   advanceTimeline: (frameCount: number) => void;
 }
 
+/**
+ * 모드별 "포인트 표시" 기본값(2026-10-13 온도 측 B-1). 현재 모드는 125개 포인트가 유일한
+ * 표현이라 켜 두고, 예측·전문가·제어는 등온면·등습면·화살표가 주 표현이라 꺼 둔다
+ * (사용자가 켜면 마우스로 값 확인용으로 쓸 수 있다).
+ */
+export function defaultPointsVisible(mode: DetailMode): boolean {
+  return mode === 'current';
+}
+
 export const useDetailStore = create<DetailState>((set) => ({
   geometry: null,
   mode: 'current',
   valueField: 'temp',
-  pointsVisible: true,
+  pointsVisible: defaultPointsVisible('current'),
   current: null,
   forecast: null,
   expert: null,
@@ -86,7 +95,19 @@ export const useDetailStore = create<DetailState>((set) => ({
   // 이전 세션의 결과가 그대로 남아 있으면 "입력 전 안내" 대신 지난 데이터가 보였다
   // (forecast는 반대로 "탭 선택 시 1회" 캐시가 의도된 동작이라 여기서 건드리지 않는다).
   // (2026-10-10 사용자 확인 — M6까지의 범위에서 나와야 할 버그).
-  setMode: (mode) => set({ mode, valueField: 'temp', timelineFrameIndex: 0, timelinePlaying: false, expert: null }),
+  // ③ 포인트 표시 기본값은 모드마다 다르다(2026-10-13 온도 측 B-1): 예측·전문가·제어는
+  // 등온면·등습면·화살표가 주 표현이라 포인트를 켜 두면 가려서 기본 꺼짐이고("'포인트
+  // 표시' 토글은 세 모드에도 남겨 두시면 마우스로 값을 확인할 수 있어 좋겠습니다(기본
+  // 꺼짐)"), 현재 모드는 포인트가 유일한 표현이라 켜진 상태로 둔다.
+  setMode: (mode) =>
+    set({
+      mode,
+      valueField: 'temp',
+      pointsVisible: defaultPointsVisible(mode),
+      timelineFrameIndex: 0,
+      timelinePlaying: false,
+      expert: null,
+    }),
   setValueField: (field) => set({ valueField: field }),
   setPointsVisible: (visible) => set({ pointsVisible: visible }),
   setCurrent: (current) => set({ current }),
