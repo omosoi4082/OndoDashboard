@@ -147,3 +147,86 @@ describe('buildForecastDetail', () => {
     if (!result.ok) expect(result.message).toContain('grid');
   });
 });
+
+// v3(2026-10-13)부터 연산 서버 응답에 range·geometryId가 들어온다.
+describe('responseRange / responseGeometryId (v3)', () => {
+  const RESPONSE_RANGE = {
+    temp: { min: 10, max: 40 },
+    rh: { min: 30, max: 90 },
+    // flow.max는 급기구 극값을 뺀 95퍼센타일이라, 실제 최댓값(0.2)보다 작을 수 있다.
+    flow: { min: 0, max: 0.15 },
+  };
+
+  it('current: 응답 range를 그대로 쓰고 직접 계산하지 않는다', () => {
+    const result = buildCurrentDetail({
+      computeFrames: [validFrame()],
+      modelVersion: 'mock-v1',
+      geometry: GEOMETRY,
+      responseRange: RESPONSE_RANGE,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.range).toEqual(RESPONSE_RANGE);
+    // 프레임에서 계산했다면 temp는 20~25, flow max는 0.2가 됐을 것이다.
+    expect(result.data.range.temp).not.toEqual({ min: 20, max: 25 });
+    expect(result.data.range.flow.max).toBe(0.15);
+  });
+
+  it('current: 응답 range가 없으면 기존처럼 프레임에서 계산한다(폴백)', () => {
+    const result = buildCurrentDetail({ computeFrames: [validFrame()], modelVersion: 'mock-v1', geometry: GEOMETRY });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.range.temp).toEqual({ min: 20, max: 25 });
+  });
+
+  it('forecast: 응답 range를 그대로 쓴다', () => {
+    const result = buildForecastDetail({
+      computeFrames: forecastFrames(145),
+      modelVersion: 'mock-v1',
+      geometry: GEOMETRY,
+      responseRange: RESPONSE_RANGE,
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.range).toEqual(RESPONSE_RANGE);
+  });
+
+  it('geometryId가 일치하면 통과한다', () => {
+    const result = buildCurrentDetail({
+      computeFrames: [validFrame()],
+      modelVersion: 'mock-v1',
+      geometry: GEOMETRY,
+      responseGeometryId: 'test-geometry',
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  it('geometryId가 다르면 에러(배열 순서를 신뢰할 수 없다)', () => {
+    const result = buildCurrentDetail({
+      computeFrames: [validFrame()],
+      modelVersion: 'mock-v1',
+      geometry: GEOMETRY,
+      responseGeometryId: 'pig-nh-v2',
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.message).toContain('geometryId');
+      expect(result.message).toContain('pig-nh-v2');
+    }
+  });
+
+  it('forecast도 geometryId 불일치를 막는다', () => {
+    const result = buildForecastDetail({
+      computeFrames: forecastFrames(145),
+      modelVersion: 'mock-v1',
+      geometry: GEOMETRY,
+      responseGeometryId: 'pig-nh-v2',
+    });
+    expect(result.ok).toBe(false);
+  });
+
+  it('geometryId가 없으면 검사하지 않는다(구버전 목업·합성 생성기)', () => {
+    const result = buildCurrentDetail({ computeFrames: [validFrame()], modelVersion: 'mock-v1', geometry: GEOMETRY });
+    expect(result.ok).toBe(true);
+  });
+});

@@ -3,7 +3,7 @@
 // requestForecast 등을 추가해도 그대로 재사용할 수 있게 설계한다.
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { DetailFrameOutdoor, DetailFrameQuality, DetailFrameSummary, FlowVec } from '@ondo/shared';
+import type { DetailFrameOutdoor, DetailFrameQuality, DetailFrameSummary, FlowVec, MinMax } from '@ondo/shared';
 
 export interface ComputeRequestInput {
   time: string; // 타임존 없는 KST 문자열(docs/03 4.1)
@@ -24,11 +24,31 @@ export interface ComputeFrame {
 
 export type ComputeErrorCode = 'UPSTREAM_TIMEOUT' | 'UPSTREAM_UNREACHABLE' | 'UPSTREAM_ERROR';
 
+/**
+ * 연산 서버가 돌려주는 색 범위(v3, 2026-10-13부터). 응답 형식은 `[min, max]` 배열이라
+ * 우리 MinMax(`{min, max}`)로 바꿔 담는다.
+ *
+ * 이 값을 **그대로** 써야 한다(relay가 프레임을 훑어 계산하지 않는다). 특히 flow의 max는
+ * 급기구 바로 아래 극값을 뺀 95퍼센타일이라, 우리가 실제 최댓값으로 계산하면 극값 하나
+ * 때문에 나머지 288점이 색 범위 하단에 몰려 화면이 거의 단색이 된다(mock/README.md).
+ */
+export interface ComputeRange {
+  temp: MinMax;
+  rh: MinMax;
+  flow: MinMax;
+}
+
 export interface ComputeOkResult {
   ok: true;
   requestId: string;
   modelVersion: string;
   frames: ComputeFrame[];
+  /** v3부터. 없으면(구버전 목업·합성 생성기) relay가 프레임에서 계산한다. */
+  range?: ComputeRange;
+  /** v3부터. 있으면 보관한 Geometry의 geometryId와 일치해야 한다. */
+  geometryId?: string;
+  /** forecast·control만. 요청 값을 그대로 돌려준다. */
+  forecastIssuedAt?: string;
 }
 
 export interface ComputeErrResult {
@@ -96,11 +116,32 @@ export const frameSchema = z.object({
   quality: qualitySchema,
 });
 
+/** v3 `range`: `{temp: [min, max], rh: [...], flow: [0, max]}`(배열 형식). */
+const minMaxTupleSchema = z.tuple([z.number(), z.number()]);
+export const computeRangeSchema = z.object({
+  temp: minMaxTupleSchema,
+  rh: minMaxTupleSchema,
+  flow: minMaxTupleSchema,
+});
+
+/** `[min, max]` 배열 3쌍 → 우리 MinMax 3쌍. */
+export function toComputeRange(raw: z.infer<typeof computeRangeSchema>): ComputeRange {
+  return {
+    temp: { min: raw.temp[0], max: raw.temp[1] },
+    rh: { min: raw.rh[0], max: raw.rh[1] },
+    flow: { min: raw.flow[0], max: raw.flow[1] },
+  };
+}
+
 const computeOkSchema = z.object({
   request_id: z.string(),
   status: z.literal('ok'),
   model_version: z.string(),
   frames: z.array(frameSchema),
+  // v3 추가분. 구버전 목업·합성 생성기에는 없으므로 optional로 둔다.
+  range: computeRangeSchema.optional(),
+  geometryId: z.string().optional(),
+  forecast_issued_at: z.string().optional(),
 });
 
 const computeErrSchema = z.object({
@@ -119,11 +160,15 @@ export function parseComputeResponse(json: unknown): ComputeResult {
   if (parsed.data.status === 'error') {
     return { ok: false, code: 'UPSTREAM_ERROR', message: parsed.data.message };
   }
+  const { range, geometryId, forecast_issued_at: forecastIssuedAt } = parsed.data;
   return {
     ok: true,
     requestId: parsed.data.request_id,
     modelVersion: parsed.data.model_version,
     frames: parsed.data.frames,
+    ...(range ? { range: toComputeRange(range) } : {}),
+    ...(geometryId ? { geometryId } : {}),
+    ...(forecastIssuedAt ? { forecastIssuedAt } : {}),
   };
 }
 

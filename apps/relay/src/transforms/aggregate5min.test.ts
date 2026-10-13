@@ -4,6 +4,7 @@ import {
   aggregateToFiveMinute,
   analyzeGaps,
   clampRange,
+  clampToRange,
   interpolateShortGaps,
   isSensorError,
   type AggregateThresholds,
@@ -15,6 +16,17 @@ const THRESHOLDS: AggregateThresholds = {
   errorMaxRatio: 0.2,
   rangeMin: -30,
   rangeMax: 50,
+  outOfRange: 'null',
+};
+
+// 환기팬 가동률용 — 범위 밖을 결측이 아니라 경계값으로 자른다(온도 측 A-2·B-5).
+const FAN_THRESHOLDS: AggregateThresholds = {
+  interpMaxGap: 3,
+  errorMinGap: 4,
+  errorMaxRatio: 0.2,
+  rangeMin: 0,
+  rangeMax: 100,
+  outOfRange: 'clamp',
 };
 
 function repeat(value: number | null, n: number): (number | null)[] {
@@ -134,6 +146,17 @@ describe('clampRange', () => {
   });
 });
 
+describe('clampToRange', () => {
+  it('범위 밖 값을 경계값으로 자르고 null은 그대로 둔다', () => {
+    const values = [172.5, -10, 0, 59.5, 100, null];
+    expect(clampToRange(values, 0, 100)).toEqual([100, 0, 0, 59.5, 100, null]);
+  });
+
+  it('경계값 자체는 그대로 둔다', () => {
+    expect(clampToRange([0, 100], 0, 100)).toEqual([0, 100]);
+  });
+});
+
 describe('aggregateAndValidate (전체 파이프라인)', () => {
   it('정상 케이스: 결측 없음 → 오류 없음, 값 그대로', () => {
     const oneMin = repeat(20, 181);
@@ -188,5 +211,40 @@ describe('aggregateAndValidate (전체 파이프라인)', () => {
     const result = aggregateAndValidate(oneMin, THRESHOLDS);
     expect(result.error).toBeNull();
     expect(result.values[36]).toBe(20);
+  });
+});
+
+describe('aggregateAndValidate (outOfRange: clamp — 환기팬 가동률)', () => {
+  it('이상치가 섞여도 결측을 만들지 않고 경계값으로 잘린다', () => {
+    const oneMin = repeat(60, 181);
+    // 튀는 값을 여러 군데 흩어 놓는다 — 'null' 방식이라면 결측 비율 규칙에 걸릴 분량.
+    for (let i = 0; i < 181; i += 7) oneMin[i] = 172.5;
+    const result = aggregateAndValidate(oneMin, FAN_THRESHOLDS);
+    expect(result.error).toBeNull();
+    expect(result.values).toHaveLength(37);
+    expect(result.values.every((v) => v !== null && v >= 0 && v <= 100)).toBe(true);
+  });
+
+  it('자르기는 집계 전 원자료에 적용된다 — null 방식은 이상치가 평균에 섞여 값이 부풀려진다', () => {
+    // 5분 마크 1(1분 인덱스 1~5)만 [60, 60, 172.5, 60, 60]이 되게 둔다.
+    const oneMin = repeat(60, 181);
+    oneMin[3] = 172.5;
+
+    // clamp: 원자료를 먼저 자르므로 [60,60,100,60,60] → 평균 68.
+    const clamped = aggregateAndValidate(oneMin, FAN_THRESHOLDS);
+    expect(clamped.values[1]).toBeCloseTo(68, 10);
+
+    // null: 집계 후에 범위를 보는데 평균 82.5가 0~100 안이라 걸러지지도 않는다.
+    // 결측이 아니라 "부풀려진 값"이 그대로 남는다 — 이게 clamp가 필요한 이유다.
+    const asNull = aggregateAndValidate(oneMin, { ...FAN_THRESHOLDS, outOfRange: 'null' });
+    expect(asNull.error).toBeNull();
+    expect(asNull.values[1]).toBeCloseTo(82.5, 10);
+  });
+
+  it('0 미만은 0으로 자른다', () => {
+    const oneMin = repeat(-10, 181);
+    const result = aggregateAndValidate(oneMin, FAN_THRESHOLDS);
+    expect(result.error).toBeNull();
+    expect(result.values.every((v) => v === 0)).toBe(true);
   });
 });

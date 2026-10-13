@@ -60,16 +60,19 @@ const computeClient = createComputeClient({
 });
 
 // 센서 5분 집계·결측 처리 임계값(docs/03-upstream-apis.md 1.2) — 세 항목 모두 같은
-// 보간/오류 임계값을 쓰지만 범위(온도·습도·팬)만 다르다.
+// 보간/오류 임계값을 쓰지만 범위(온도·습도·팬)와 범위 밖 처리 방식만 다르다.
+// 범위 밖 처리(2026-10-13 온도 측 A-2·B-5): 환기팬 가동률은 센서 특성상 172.5처럼 튀는
+// 값이 섞여 들어오므로 결측으로 보지 않고 경계값으로 자른다('clamp'). 온도·습도는 범위를
+// 벗어나면 센서 고장에 가까우므로 기존처럼 결측으로 둔다('null').
 const aggCommon = {
   interpMaxGap: env.AGG_INTERP_MAX_GAP,
   errorMinGap: env.AGG_ERROR_MIN_GAP,
   errorMaxRatio: env.AGG_ERROR_MAX_RATIO,
 };
 const aggThresholds: { temp: AggregateThresholds; rh: AggregateThresholds; fan: AggregateThresholds } = {
-  temp: { ...aggCommon, rangeMin: env.SENSOR_TEMP_MIN, rangeMax: env.SENSOR_TEMP_MAX },
-  rh: { ...aggCommon, rangeMin: env.SENSOR_RH_MIN, rangeMax: env.SENSOR_RH_MAX },
-  fan: { ...aggCommon, rangeMin: env.SENSOR_FAN_MIN, rangeMax: env.SENSOR_FAN_MAX },
+  temp: { ...aggCommon, rangeMin: env.SENSOR_TEMP_MIN, rangeMax: env.SENSOR_TEMP_MAX, outOfRange: 'null' },
+  rh: { ...aggCommon, rangeMin: env.SENSOR_RH_MIN, rangeMax: env.SENSOR_RH_MAX, outOfRange: 'null' },
+  fan: { ...aggCommon, rangeMin: env.SENSOR_FAN_MIN, rangeMax: env.SENSOR_FAN_MAX, outOfRange: 'clamp' },
 };
 
 registerHealthRoute(app, { sensorClient, kmaClient });

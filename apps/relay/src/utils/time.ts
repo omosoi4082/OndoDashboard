@@ -40,8 +40,13 @@ function pad2(n: number): string {
 }
 
 /**
- * kstWallClock()이 반환한 Date(getUTC*가 KST 벽시계 값)를 "YYYYMMDDHHmm"으로 포맷한다.
- * 센서 서버 이력 조회(`?start=...&end=...`, docs/03-upstream-apis.md 1.2)에 쓴다.
+ * kstWallClock()이 반환한 Date(getUTC*가 KST 벽시계 값)를 "YYYYMMDDHHmmss"(14자리)로
+ * 포맷한다. 센서 서버 이력 조회(`?start=...&end=...`, docs/03-upstream-apis.md 1.2)에 쓴다.
+ *
+ * 초까지 붙이는 이유(2026-10-13 온도 측 A-1 답변): 센서 서버가 시각 문자열을 14자리로
+ * 읽기 때문에, 12자리("202610090950")로 보내면 뒤를 0으로 채우지 않고 분·초 자리가 밀려
+ * 09:05:00으로 해석된다. 그래서 09:50부터 받아야 할 이력이 엉뚱한 구간으로 나왔다.
+ * 항상 초를 명시해(정각이면 "00") 보낸다.
  */
 export function formatKstWallClockCompact(d: Date): string {
   const y = d.getUTCFullYear();
@@ -49,7 +54,8 @@ export function formatKstWallClockCompact(d: Date): string {
   const day = pad2(d.getUTCDate());
   const hh = pad2(d.getUTCHours());
   const mm = pad2(d.getUTCMinutes());
-  return `${y}${m}${day}${hh}${mm}`;
+  const ss = pad2(d.getUTCSeconds());
+  return `${y}${m}${day}${hh}${mm}${ss}`;
 }
 
 /**

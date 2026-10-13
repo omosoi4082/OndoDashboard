@@ -40,6 +40,8 @@ export function registerDetailControlRoute(app: FastifyInstance, deps: { geometr
       geometry: deps.geometry,
       target: targetRaw,
       control: file.data.control,
+      range: file.data.range,
+      geometryId: file.data.geometryId,
     });
     if (!wrapped.ok) {
       return sendError(reply, requestedAt, 'UPSTREAM_ERROR', 'compute', wrapped.message);

@@ -56,6 +56,12 @@ const envSchema = z.object({
   MOCK_EXPERT_FILE: z.string().min(1).default('./mock/mock_expert.json'),
   MOCK_CONTROL_FILE: z.string().min(1).default('./mock/mock_control.json'),
 
+  // 현재·예측 모드 목업 응답 파일(온도 측 2026-10-13 v3 제공). COMPUTE_MODE=mock일 때
+  // 연산 서버 대신 이 파일을 읽는다(온도 측 C 요청). 파일이 없거나 형식이 안 맞으면
+  // transforms/mockComputeGen.ts의 합성 생성기로 폴백한다(clients/mockComputeClient.ts).
+  MOCK_RESPONSE_CURRENT_FILE: z.string().min(1).default('./mock/sample_response_current.json'),
+  MOCK_RESPONSE_FORECAST_FILE: z.string().min(1).default('./mock/sample_response_forecast.json'),
+
   // 센서 5분 집계·결측 처리 (docs/03-upstream-apis.md 1.2, M4). .env.example과 기본값을 맞춘다.
   AGG_INTERP_MAX_GAP: z.coerce.number().int().nonnegative().default(3),
   AGG_ERROR_MIN_GAP: z.coerce.number().int().positive().default(4),

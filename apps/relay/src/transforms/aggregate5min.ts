@@ -2,12 +2,21 @@
 // null, 반올림 금지) → 37개(5분). 4단계를 각각 순수 함수로 분리하고 단위 테스트한다.
 // T_out·RH_out·fan_pct 세 항목 모두 같은 함수를 쓴다.
 
+/**
+ * 범위(rangeMin~rangeMax) 밖 값 처리 방식.
+ * - `'null'`: 결측으로 본다(센서 고장에 가까운 값이라 쓰지 않는다). 온도·습도용.
+ * - `'clamp'`: 경계값으로 자른다(172.5 → 100, −10 → 0). 환기팬 가동률용 —
+ *   2026-10-13 온도 측 A-2 답변 "이런 이상치는 결측으로 보지 않고 값만 잘라 주시면 됩니다".
+ */
+export type OutOfRangeMode = 'null' | 'clamp';
+
 export interface AggregateThresholds {
   interpMaxGap: number; // AGG_INTERP_MAX_GAP: 연속 결측이 이 값 이하면 보간
   errorMinGap: number; // AGG_ERROR_MIN_GAP: 연속 결측이 이 값 이상이면 센서 오류
   errorMaxRatio: number; // AGG_ERROR_MAX_RATIO: 37건 중 결측 비율이 이 값 초과면 센서 오류
   rangeMin: number;
   rangeMax: number;
+  outOfRange: OutOfRangeMode;
 }
 
 const FIVE_MIN_MARK_COUNT = 37;
@@ -103,9 +112,23 @@ export function isSensorError(
   return info.maxConsecutiveGap >= thresholds.errorMinGap || info.ratio > thresholds.errorMaxRatio;
 }
 
-/** 4단계: 범위 밖 값은 null로 본다(보간·오류 판정은 호출부에서 재적용). */
+/** 4단계(`outOfRange: 'null'`): 범위 밖 값은 null로 본다(보간·오류 판정은 호출부에서 재적용). */
 export function clampRange(values: readonly (number | null)[], min: number, max: number): (number | null)[] {
   return values.map((v) => (v === null ? null : v < min || v > max ? null : v));
+}
+
+/**
+ * 4단계(`outOfRange: 'clamp'`): 범위 밖 값을 경계값으로 자른다. null(결측)은 그대로 null.
+ *
+ * 집계 *전* 1분 원자료에 적용한다(aggregateAndValidate 참고). 평균을 낸 뒤 자르면
+ * 튄 값이 평균에 섞여 들어간 채로 남는다 — 예를 들어 [50, 50, 172.5, 50, 50]은
+ * 평균이 74.5라서 범위 안이고, 자르기가 아무 일도 하지 않는다. 원자료에서 먼저 자르면
+ * [50, 50, 100, 50, 50] → 60이 되어 이상치의 영향이 경계값까지로 제한된다.
+ * 또 원자료가 범위 안이면 평균도 반드시 범위 안이므로, 연산 서버가 요구하는
+ * fan_pct 0~100(docs/03 D-2)이 집계 후에도 자동으로 보장된다.
+ */
+export function clampToRange(values: readonly (number | null)[], min: number, max: number): (number | null)[] {
+  return values.map((v) => (v === null ? null : Math.min(max, Math.max(min, v))));
 }
 
 export interface AggregateResult {
@@ -117,8 +140,14 @@ export interface AggregateResult {
 
 /**
  * 181개(1분) 원자료 → 37개(5분) 집계·결측 처리 전체 파이프라인.
- * docs/03 1.2의 4단계를 다음 순서로 적용한다: 1)집계 → 4)범위 검사(밖은 null, 결측과
- * 동등하게 취급) → 3)오류 판정(보간 전 결측 패턴 기준) → 2)짧은 결측 보간(최종 사용 값).
+ *
+ * `outOfRange: 'null'`(온도·습도): 1)집계 → 4)범위 검사(밖은 null, 결측과 동등하게 취급)
+ * → 3)오류 판정(보간 전 결측 패턴 기준) → 2)짧은 결측 보간(최종 사용 값).
+ *
+ * `outOfRange: 'clamp'`(환기팬 가동률): 4)범위 자르기를 **집계 전 1분 원자료에** 먼저
+ * 적용하고(clampToRange 주석 참고) 그 뒤 1)집계 → 3)판정 → 2)보간으로 간다. 자르기는
+ * 결측을 만들지 않으므로 이상치가 잦아도 '센서 오류'로 예측이 멈추지 않는다
+ * (2026-10-13 온도 측 A-2·B-5).
  *
  * 오류 판정(3단계, 연속 길이·비율)을 보간(2단계) *이전* 상태로 계산하는 이유: 보간은
  * maxGap 이하인 결측을 모두 메우므로, 보간 *후* 상태로 비율을 따지면 "짧지만 여러 군데
@@ -131,8 +160,15 @@ export function aggregateAndValidate(
   oneMinRaw: readonly (number | null)[],
   thresholds: AggregateThresholds,
 ): AggregateResult {
-  let agg = aggregateToFiveMinute(oneMinRaw); // 1단계
-  agg = clampRange(agg, thresholds.rangeMin, thresholds.rangeMax); // 4단계
+  const clampFirst = thresholds.outOfRange === 'clamp';
+
+  // 'clamp'는 집계 전 원자료에, 'null'은 집계 후 5분 값에 적용한다(위 주석).
+  const raw = clampFirst ? clampToRange(oneMinRaw, thresholds.rangeMin, thresholds.rangeMax) : oneMinRaw;
+
+  let agg = aggregateToFiveMinute(raw); // 1단계
+  if (!clampFirst) {
+    agg = clampRange(agg, thresholds.rangeMin, thresholds.rangeMax); // 4단계
+  }
 
   const gapInfo = analyzeGaps(agg); // 3단계 판정 기준(보간 전)
   const hasError = isSensorError(gapInfo, thresholds);

@@ -7,13 +7,22 @@
 // ControlBlock(camelCase, fan_rated_kw·power_model 없음)으로 매핑한다.
 import { z } from 'zod';
 import type { ControlBlock } from '@ondo/shared';
-import { frameSchema, type ComputeFrame } from '../clients/computeClient.js';
+import {
+  computeRangeSchema,
+  frameSchema,
+  toComputeRange,
+  type ComputeFrame,
+  type ComputeRange,
+} from '../clients/computeClient.js';
 
 // z.object()는 기본적으로 정의하지 않은 여분 필드를 조용히 무시한다(geometryValidate.ts와
 // 같은 원칙) — request_id·status·mock·scenario·guide 등은 그냥 걸러진다.
+// range·geometryId는 v3(2026-10-13)부터 목업 파일에도 들어 있어 읽어서 그대로 쓴다.
 const rawExpertFileSchema = z.object({
   model_version: z.string().min(1),
   frames: z.array(frameSchema),
+  range: computeRangeSchema.optional(),
+  geometryId: z.string().optional(),
 });
 
 const rawControlBlockSchema = z.object({
@@ -32,17 +41,23 @@ const rawControlFileSchema = z.object({
   model_version: z.string().min(1),
   control: rawControlBlockSchema,
   frames: z.array(frameSchema),
+  range: computeRangeSchema.optional(),
+  geometryId: z.string().optional(),
 });
 
 export interface ParsedExpertFile {
   modelVersion: string;
   frames: ComputeFrame[];
+  range?: ComputeRange;
+  geometryId?: string;
 }
 
 export interface ParsedControlFile {
   modelVersion: string;
   control: ControlBlock;
   frames: ComputeFrame[];
+  range?: ComputeRange;
+  geometryId?: string;
 }
 
 export type ExpertFileParseResult = { ok: true; data: ParsedExpertFile } | { ok: false; message: string };
@@ -53,7 +68,16 @@ export function parseExpertMockFile(json: unknown): ExpertFileParseResult {
   if (!parsed.success) {
     return { ok: false, message: `mock_expert.json 형식이 올바르지 않습니다: ${parsed.error.message}` };
   }
-  return { ok: true, data: { modelVersion: parsed.data.model_version, frames: parsed.data.frames } };
+  const { range, geometryId } = parsed.data;
+  return {
+    ok: true,
+    data: {
+      modelVersion: parsed.data.model_version,
+      frames: parsed.data.frames,
+      ...(range ? { range: toComputeRange(range) } : {}),
+      ...(geometryId ? { geometryId } : {}),
+    },
+  };
 }
 
 export function parseControlMockFile(json: unknown): ControlFileParseResult {
@@ -72,5 +96,15 @@ export function parseControlMockFile(json: unknown): ControlFileParseResult {
     tMax: c.T_max,
     constraint: { tMeanMax: c.constraint.T_mean_max },
   };
-  return { ok: true, data: { modelVersion: parsed.data.model_version, control, frames: parsed.data.frames } };
+  const { range, geometryId } = parsed.data;
+  return {
+    ok: true,
+    data: {
+      modelVersion: parsed.data.model_version,
+      control,
+      frames: parsed.data.frames,
+      ...(range ? { range: toComputeRange(range) } : {}),
+      ...(geometryId ? { geometryId } : {}),
+    },
+  };
 }

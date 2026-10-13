@@ -184,6 +184,8 @@ export function registerDetailForecastRoute(
       computeFrames: computeResult.frames,
       modelVersion: computeResult.modelVersion,
       geometry: deps.geometry,
+      responseRange: computeResult.range,
+      responseGeometryId: computeResult.geometryId,
     });
     if (!transformed.ok) {
       return sendError(reply, requestedAt, 'UPSTREAM_ERROR', 'compute', transformed.message);

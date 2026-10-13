@@ -69,6 +69,8 @@ export function registerDetailExpertRoute(
       modelVersion: file.data.modelVersion,
       geometry: deps.geometry,
       input: { temp, rh, vent },
+      range: file.data.range,
+      geometryId: file.data.geometryId,
     });
     if (!wrapped.ok) {
       return sendError(reply, requestedAt, 'UPSTREAM_ERROR', 'compute', wrapped.message);

@@ -3,11 +3,22 @@
 // 하드코딩하지 않고 config/geometry.ts에서 로드한 Geometry 기준). current는 프레임 1개,
 // forecast는 10분 간격 145개(docs/02-relay-api.md 5장).
 import type { CurrentDetail, DetailFrame, FlowVec, ForecastDetail, Geometry, MinMax } from '@ondo/shared';
-import type { ComputeFrame } from '../clients/computeClient.js';
+import type { ComputeFrame, ComputeRange } from '../clients/computeClient.js';
 import { toKstIso } from '../utils/time.js';
 
 export type DetailTransformResult = { ok: true; data: CurrentDetail } | { ok: false; message: string };
 export type ForecastTransformResult = { ok: true; data: ForecastDetail } | { ok: false; message: string };
+
+/**
+ * 연산 서버 응답의 `geometryId`가 우리가 보관한 Geometry와 같은지 확인한다(v3부터 응답에
+ * 포함). 배열 순서가 이 형상 파일을 따르므로, 다르면 포인트·격자 순서를 신뢰할 수 없다.
+ * 응답에 없으면(구버전·합성 생성기) 검사하지 않는다.
+ */
+function validateGeometryId(responseGeometryId: string | undefined, geometry: Geometry): string | null {
+  if (responseGeometryId === undefined) return null;
+  if (responseGeometryId === geometry.geometryId) return null;
+  return `연산 서버 응답의 geometryId가 보관한 형상과 다릅니다(기대 ${geometry.geometryId}, 받은 값 ${responseGeometryId}).`;
+}
 
 function minMaxOf(values: readonly number[]): MinMax {
   if (values.length === 0) return { min: 0, max: 0 };
@@ -52,8 +63,16 @@ export function buildCurrentDetail(args: {
   computeFrames: ComputeFrame[];
   modelVersion: string;
   geometry: Geometry;
+  /** 연산 서버 응답의 range(v3부터). 있으면 그대로 쓰고, 없으면 프레임에서 계산한다. */
+  responseRange?: ComputeRange | undefined;
+  /** 연산 서버 응답의 geometryId(v3부터). 있으면 보관한 형상과 일치해야 한다. */
+  responseGeometryId?: string | undefined;
 }): DetailTransformResult {
-  const { computeFrames, modelVersion, geometry } = args;
+  const { computeFrames, modelVersion, geometry, responseRange, responseGeometryId } = args;
+
+  const geometryIdError = validateGeometryId(responseGeometryId, geometry);
+  if (geometryIdError) return { ok: false, message: geometryIdError };
+
   if (computeFrames.length !== 1) {
     return {
       ok: false,
@@ -79,11 +98,15 @@ export function buildCurrentDetail(args: {
     quality: raw.quality,
   };
 
-  const range = {
-    temp: minMaxOf([...frame.points.temp, ...frame.grid.temp]),
-    rh: minMaxOf([...frame.points.rh, ...frame.grid.rh]),
-    flow: minMaxOf([...flowValues(frame.points.flow), ...flowValues(frame.flow)]),
-  };
+  // 응답의 range를 그대로 쓴다(v3부터). 없을 때만 프레임에서 계산한다 — ComputeRange
+  // 주석 참고(특히 flow는 95퍼센타일이라 우리가 계산하면 색이 뭉개진다).
+  const range =
+    responseRange ??
+    {
+      temp: minMaxOf([...frame.points.temp, ...frame.grid.temp]),
+      rh: minMaxOf([...frame.points.rh, ...frame.grid.rh]),
+      flow: minMaxOf([...flowValues(frame.points.flow), ...flowValues(frame.flow)]),
+    };
 
   const data: CurrentDetail = {
     mode: 'current',
@@ -102,6 +125,19 @@ export function buildCurrentDetail(args: {
 const FORECAST_FRAME_COUNT = 145;
 const FORECAST_INTERVAL_MIN = 10;
 
+/** 응답에 range가 없을 때(구버전 목업·합성 생성기) 쓰는 폴백 — 전체 프레임 기준 min/max. */
+function computeRangeFromFrames(frames: readonly DetailFrame[]): ComputeRange {
+  const allTemp: number[] = [];
+  const allRh: number[] = [];
+  const allFlow: number[] = [];
+  for (const f of frames) {
+    allTemp.push(...f.points.temp, ...f.grid.temp);
+    allRh.push(...f.points.rh, ...f.grid.rh);
+    allFlow.push(...flowValues(f.points.flow), ...flowValues(f.flow));
+  }
+  return { temp: minMaxOf(allTemp), rh: minMaxOf(allRh), flow: minMaxOf(allFlow) };
+}
+
 /**
  * 연산 서버 응답(forecast, 프레임 145개) → ForecastDetail. computeFrames는 ComputeClient가
  * 돌려준 원형(마지막 실측 시각부터 10분 간격, 시각에 타임존 없음)이며, 값 자체는 바꾸지 않고
@@ -111,8 +147,16 @@ export function buildForecastDetail(args: {
   computeFrames: ComputeFrame[];
   modelVersion: string;
   geometry: Geometry;
+  /** 연산 서버 응답의 range(v3부터). 있으면 그대로 쓰고, 없으면 145프레임 전체에서 계산한다. */
+  responseRange?: ComputeRange | undefined;
+  /** 연산 서버 응답의 geometryId(v3부터). 있으면 보관한 형상과 일치해야 한다. */
+  responseGeometryId?: string | undefined;
 }): ForecastTransformResult {
-  const { computeFrames, modelVersion, geometry } = args;
+  const { computeFrames, modelVersion, geometry, responseRange, responseGeometryId } = args;
+
+  const geometryIdError = validateGeometryId(responseGeometryId, geometry);
+  if (geometryIdError) return { ok: false, message: geometryIdError };
+
   if (computeFrames.length !== FORECAST_FRAME_COUNT) {
     return {
       ok: false,
@@ -146,22 +190,10 @@ export function buildForecastDetail(args: {
     return { ok: false, message: '연산 서버 응답에 프레임이 없습니다.' };
   }
 
-  // range: 전체 프레임 기준(docs/02-relay-api.md 5장) — 재생 중 색 기준이 바뀌지 않게
-  // (docs/01-functional-spec.md 3장) 145개 프레임 전체의 min/max를 쓴다.
-  const allTemp: number[] = [];
-  const allRh: number[] = [];
-  const allFlow: number[] = [];
-  for (const f of frames) {
-    allTemp.push(...f.points.temp, ...f.grid.temp);
-    allRh.push(...f.points.rh, ...f.grid.rh);
-    allFlow.push(...flowValues(f.points.flow), ...flowValues(f.flow));
-  }
-
-  const range = {
-    temp: minMaxOf(allTemp),
-    rh: minMaxOf(allRh),
-    flow: minMaxOf(allFlow),
-  };
+  // range: 응답 값을 그대로 쓴다(v3부터, 이미 전 프레임을 아우르는 범위다). 없을 때만
+  // 145개 프레임 전체의 min/max를 계산한다 — 재생 중 색 기준이 바뀌지 않아야 하므로
+  // (docs/01-functional-spec.md 3장) 프레임별로 계산하지 않는다.
+  const range = responseRange ?? computeRangeFromFrames(frames);
 
   const data: ForecastDetail = {
     mode: 'forecast',

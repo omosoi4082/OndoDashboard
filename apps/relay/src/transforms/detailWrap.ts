@@ -4,7 +4,7 @@
 // target·control(control)만 덧붙인다. 실제 mock 파일 로더(mockFileParse.ts)와 합성 생성기
 // (mockExpertControlGen.ts) 양쪽에서 함께 쓴다 — frames 출처가 달라도 포장 로직은 하나다.
 import type { ControlBlock, ControlDetail, ExpertDetail, Geometry } from '@ondo/shared';
-import type { ComputeFrame } from '../clients/computeClient.js';
+import type { ComputeFrame, ComputeRange } from '../clients/computeClient.js';
 import { buildForecastDetail } from './detailTransform.js';
 
 export type ExpertWrapResult = { ok: true; data: ExpertDetail } | { ok: false; message: string };
@@ -15,8 +15,16 @@ export function wrapExpertDetail(args: {
   modelVersion: string;
   geometry: Geometry;
   input: { temp: number; rh: number; vent: number };
+  range?: ComputeRange | undefined;
+  geometryId?: string | undefined;
 }): ExpertWrapResult {
-  const transformed = buildForecastDetail({ computeFrames: args.frames, modelVersion: args.modelVersion, geometry: args.geometry });
+  const transformed = buildForecastDetail({
+    computeFrames: args.frames,
+    modelVersion: args.modelVersion,
+    geometry: args.geometry,
+    responseRange: args.range,
+    responseGeometryId: args.geometryId,
+  });
   if (!transformed.ok) return { ok: false, message: transformed.message };
   const base = transformed.data;
   return {
@@ -40,8 +48,16 @@ export function wrapControlDetail(args: {
   geometry: Geometry;
   target: 'energy' | 'environment';
   control: ControlBlock;
+  range?: ComputeRange | undefined;
+  geometryId?: string | undefined;
 }): ControlWrapResult {
-  const transformed = buildForecastDetail({ computeFrames: args.frames, modelVersion: args.modelVersion, geometry: args.geometry });
+  const transformed = buildForecastDetail({
+    computeFrames: args.frames,
+    modelVersion: args.modelVersion,
+    geometry: args.geometry,
+    responseRange: args.range,
+    responseGeometryId: args.geometryId,
+  });
   if (!transformed.ok) return { ok: false, message: transformed.message };
   const base = transformed.data;
   return {
