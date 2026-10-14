@@ -41,9 +41,9 @@
 
 작업 중 발견한 누락. 온도 측 C: "연산 서버가 열리기 전까지는 **응답 파일을 연산 서버 대신 읽어**(명세의 `COMPUTE_MODE=mock`) 두 화면을 구현해 주시면 감사하겠습니다."
 
-- [ ] **`COMPUTE_MODE`에 파일 읽기 모드 추가** — 지금 `COMPUTE_MODE=mock`은 `clients/mockComputeClient.ts`가 `transforms/mockComputeGen.ts`로 프레임을 **합성**한다(파일을 읽지 않는다). 그래서 `mock/sample_response_current.json`·`sample_response_forecast.json`은 아무 데서도 쓰이지 않고, **v3의 `range`도 현재·예측 모드에는 적용되지 않는다**(전문가·제어는 목업 파일을 읽으므로 이미 적용됨).
+- [x] **`COMPUTE_MODE`에 파일 읽기 모드 추가** (2026-10-13 완료, 커밋 `9cafa52` — **사용자 결정: 데이터는 온도 측 응답 파일 값 그대로, 시각만 현재 기준으로 다시 깐다**(`transforms/mockRebaseTime.ts`). 별도 `file` 모드를 만들지 않고 `COMPUTE_MODE=mock`이 파일을 1순위로 읽고 없으면 합성 생성기로 폴백. 연산 서버 연결(`COMPUTE_MODE=http`) 시 같은 v3 응답 형식을 오류 없이 받는지 `clients/computeClient.test.ts`에서 두 응답 파일로 검증(2026-10-14)) — 지금 `COMPUTE_MODE=mock`은 `clients/mockComputeClient.ts`가 `transforms/mockComputeGen.ts`로 프레임을 **합성**한다(파일을 읽지 않는다). 그래서 `mock/sample_response_current.json`·`sample_response_forecast.json`은 아무 데서도 쓰이지 않고, **v3의 `range`도 현재·예측 모드에는 적용되지 않는다**(전문가·제어는 목업 파일을 읽으므로 이미 적용됨).
   - `COMPUTE_MODE=file`(가칭)을 추가해 두 응답 파일을 읽어 그대로 돌려주게 한다. 기존 `mock`(합성)은 그대로 남긴다 — 합성 생성기는 입력 시각에 맞춰 프레임을 만들어 주는 장점이 있고 단위 테스트도 붙어 있다.
-  - **트레이드오프(결정 필요)**: 파일을 읽으면 화면 시각이 파일 기준(`2026-10-05`)으로 고정된다. 전문가·제어 모드가 이미 그렇게 동작하므로 일관성은 있지만, 현재·예측 모드는 "지금"을 보여주는 화면이라 어색할 수 있다. 어느 쪽을 기본값으로 둘지 확인 후 진행.
+  - **트레이드오프(✅ 위 사용자 결정으로 해소)**: 파일을 읽으면 화면 시각이 파일 기준(`2026-10-05`)으로 고정된다. 전문가·제어 모드가 이미 그렇게 동작하므로 일관성은 있지만, 현재·예측 모드는 "지금"을 보여주는 화면이라 어색할 수 있다. 어느 쪽을 기본값으로 둘지 확인 후 진행.
 
 ### P1. 중계 서버 입력 전환 (B-3·B-4)
 
