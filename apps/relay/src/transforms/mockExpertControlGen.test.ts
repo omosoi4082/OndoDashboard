@@ -89,7 +89,7 @@ describe('fanPowerKw', () => {
 });
 
 const EXPERT_OPTS = { dayCycle: DAY_CYCLE, fan: FAN_BASELINE };
-const PLACEHOLDER_INPUT = { temp: 28, rh: 65, vent: 60 };
+const PLACEHOLDER_INPUT = { rows: Array.from({ length: 24 }, () => ({ temp: 28, rh: 65, vent: 60 })) };
 
 describe('buildExpertDetailMock', () => {
   it('145프레임, geometry 배열 개수와 일치, input은 넘긴 값 그대로', () => {

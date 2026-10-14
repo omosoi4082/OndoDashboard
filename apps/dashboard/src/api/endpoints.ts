@@ -4,6 +4,8 @@ import type {
   ControlDetail,
   CurrentDetail,
   ExpertDetail,
+  ExpertInputRow,
+  ExpertRequest,
   ForecastDetail,
   Geometry,
   KmaWeather,
@@ -44,13 +46,17 @@ export function fetchDetailForecast(): Promise<ApiResponse<ForecastDetail>> {
   return fetchApi<ForecastDetail>('/api/detail/forecast');
 }
 
-// 상세 패널(6) "전문가" 탭 — docs/02-relay-api.md 6장 "GET /api/detail/expert?temp=&rh=&vent=".
-// 입력 필드 확인 버튼 클릭 시에만 호출한다(ExpertModeView.tsx). temp·rh·vent 모두 필수이며
-// 중계 서버도 같은 범위를 재검증해 위반 시 400을 돌려준다(대시보드 쪽은 확인 버튼을
-// 유효성 검사 통과 값만 전송하도록 막아 평소엔 400을 받을 일이 없다).
-export function fetchDetailExpert(temp: number, rh: number, vent: number): Promise<ApiResponse<ExpertDetail>> {
-  const query = new URLSearchParams({ temp: String(temp), rh: String(rh), vent: String(vent) });
-  return fetchApi<ExpertDetail>(`/api/detail/expert?${query.toString()}`);
+// 상세 패널(6) "전문가" 탭 — docs/02-relay-api.md 6장 "POST /api/detail/expert", 본문
+// rows[24]{temp, rh, vent}(B-2). 입력 표의 적용 버튼 클릭 시에만 호출한다(ExpertModeView.tsx).
+// 중계 서버도 같은 범위를 재검증해 위반 시 400을 돌려준다(대시보드 쪽은 적용 버튼을 유효성
+// 검사 통과 값만 전송하도록 막아 평소엔 400을 받을 일이 없다).
+export function fetchDetailExpert(rows: ExpertInputRow[]): Promise<ApiResponse<ExpertDetail>> {
+  const body: ExpertRequest = { rows };
+  return fetchApi<ExpertDetail>('/api/detail/expert', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
 }
 
 // 상세 패널(6) "제어" 탭 — docs/02-relay-api.md 6장 "GET /api/detail/control?target=".

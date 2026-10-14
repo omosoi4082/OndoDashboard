@@ -3,7 +3,7 @@
 // 계산(전체 프레임 기준)·geometryId 부착·배열 개수 검증)을 재사용하고, mode·input(expert) 또는
 // target·control(control)만 덧붙인다. 실제 mock 파일 로더(mockFileParse.ts)와 합성 생성기
 // (mockExpertControlGen.ts) 양쪽에서 함께 쓴다 — frames 출처가 달라도 포장 로직은 하나다.
-import type { ControlBlock, ControlDetail, ExpertDetail, Geometry } from '@ondo/shared';
+import type { ControlBlock, ControlDetail, ExpertDetail, ExpertRequest, Geometry } from '@ondo/shared';
 import type { ComputeFrame, ComputeRange } from '../clients/computeClient.js';
 import { buildForecastDetail } from './detailTransform.js';
 
@@ -14,7 +14,7 @@ export function wrapExpertDetail(args: {
   frames: ComputeFrame[];
   modelVersion: string;
   geometry: Geometry;
-  input: { temp: number; rh: number; vent: number };
+  input: ExpertRequest;
   range?: ComputeRange | undefined;
   geometryId?: string | undefined;
 }): ExpertWrapResult {

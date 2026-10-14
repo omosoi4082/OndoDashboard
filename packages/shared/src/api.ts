@@ -180,9 +180,22 @@ export interface ForecastDetail extends DetailBase {
   mode: 'forecast';
 }
 
+/** 전문가 모드 입력 1행 = 1시간(B-2). vent는 환기팬 가동률 %. */
+export interface ExpertInputRow {
+  temp: number;
+  rh: number;
+  vent: number;
+}
+
+/** 6장 POST /api/detail/expert 본문 — rows는 24행, 첫 행 = 현재 시각 다음 정시부터 1시간 간격. */
+export interface ExpertRequest {
+  rows: ExpertInputRow[];
+}
+
 export interface ExpertDetail extends DetailBase {
   mode: 'expert';
-  input: { temp: number; rh: number; vent: number };
+  /** 요청 rows를 그대로 돌려준다(echo). */
+  input: ExpertRequest;
 }
 
 export interface ControlBlock {

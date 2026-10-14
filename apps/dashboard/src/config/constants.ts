@@ -129,7 +129,7 @@ export const FLOW_VISUALIZATION_MODE: 'streamlines' | 'grid-cylinders' = 'grid-c
 
 // 전문가 모드 입력 필드(21) 유효 범위 — apps/relay/src/config/env.ts의 EXPERT_TEMP_MIN 등
 // 기본값과 반드시 같은 값을 유지한다(detail/expertInputValidation.ts가 이 값으로 검사해
-// 통과한 값만 GET /api/detail/expert로 보내므로, 중계 서버 400과 어긋나면 안 된다).
+// 통과한 값만 POST /api/detail/expert로 보내므로, 중계 서버 400과 어긋나면 안 된다).
 // 입력값 범위·단위는 온도 제공 예정(01-functional-spec.md 4.3) — 받기 전까지 relay 기본값.
 export const EXPERT_TEMP_MIN = -30;
 export const EXPERT_TEMP_MAX = 50;
@@ -137,6 +137,9 @@ export const EXPERT_RH_MIN = 0;
 export const EXPERT_RH_MAX = 100;
 export const EXPERT_VENT_MIN = 20;
 export const EXPERT_VENT_MAX = 100;
+
+// 전문가 모드 입력 표 행 수 = 1시간 간격 24시간(B-2). apps/relay의 EXPERT_INPUT_ROW_COUNT와 같은 값.
+export const EXPERT_INPUT_ROW_COUNT = 24;
 
 // 제어 모드(27~34) 환기량 비교 그래프(C안) — x축 24시간을 6시간 간격 눈금으로 표시
 // (01-functional-spec.md 4.4). y축은 팬 가동률 % 고정 범위.

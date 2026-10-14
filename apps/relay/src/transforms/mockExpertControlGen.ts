@@ -10,7 +10,7 @@
 // - energy/environment 두 target은 fanPct 감쇠(dip) 폭과 tMeanMax 제약을 다르게 둬 energy가
 //   더 큰 절감률, environment가 더 낮은 절감률+더 쾌적(그럴듯하게만, 정교함 불필요).
 import type { ComputeFrame, ComputeRequestInput } from '../clients/computeClient.js';
-import type { ControlBlock, ControlDetail, ExpertDetail, Geometry } from '@ondo/shared';
+import type { ControlBlock, ControlDetail, ExpertDetail, ExpertRequest, Geometry } from '@ondo/shared';
 import { generateMockFrame } from './mockComputeGen.js';
 import { wrapControlDetail, wrapExpertDetail } from './detailWrap.js';
 import { formatKstWallClockNaive } from '../utils/time.js';
@@ -184,7 +184,7 @@ export function buildExpertDetailMock(
   geometry: Geometry,
   baseTime: Date,
   opts: ExpertGenOptions,
-  placeholderInput: { temp: number; rh: number; vent: number },
+  placeholderInput: ExpertRequest,
 ): ExpertDetail {
   const frames = buildExpertSeries(geometry, baseTime, opts);
   const wrapped = wrapExpertDetail({ frames, modelVersion: MOCK_EXPERT_CONTROL_MODEL_VERSION, geometry, input: placeholderInput });

@@ -18,7 +18,7 @@
 | `GET /api/main/weather/station` | 외부환경 3-2 미세기후 | 접속 시 1회, 이후 10분마다 |
 | `GET /api/detail/current` | 현재 모드(9~13) | 상세 진입 시, 현재 모드 유지 중 10분마다 |
 | `GET /api/detail/forecast` | 예측 모드(14~19) | 예측 탭 선택 시 1회 |
-| `GET /api/detail/expert` | 전문가 모드(20~26) | 입력 후 확인 클릭 시 |
+| `POST /api/detail/expert` | 전문가 모드(20~26) | 입력 표 적용 클릭 시 |
 | `GET /api/detail/control` | 제어 모드(27~33) | 탭 선택 시, 최적화 버튼 전환 시 |
 | `GET /api/health` | 진단용, 화면 표시 없음 | 설치·이관 시 브라우저로 직접 확인 |
 
@@ -156,7 +156,9 @@ export interface DetailBase {
 }
 export interface CurrentDetail extends DetailBase { mode: 'current' }
 export interface ForecastDetail extends DetailBase { mode: 'forecast' }
-export interface ExpertDetail extends DetailBase { mode: 'expert'; input: { temp: number; rh: number; vent: number } }
+export interface ExpertInputRow { temp: number; rh: number; vent: number }   // 1행 = 1시간, vent는 가동률 %
+export interface ExpertRequest { rows: ExpertInputRow[] }                      // 24행, 첫 행 = 현재 시각 다음 정시
+export interface ExpertDetail extends DetailBase { mode: 'expert'; input: ExpertRequest }  // 요청 rows echo
 export interface ControlBlock {
   baselineFanPct: number[];      // 145, frames와 같은 순서
   optimizedFanPct: number[];     // 145
@@ -200,7 +202,7 @@ export interface ControlDetail extends DetailBase { mode: 'control'; target: 'en
 | `GET /api/detail/geometry` | 없음 | 형상 파일 반환(상세 진입 시 1회) |
 | `GET /api/detail/current` | 없음 | 과거 3시간 입력 37건(5분 간격) → `POST /v1/current`. 끝 시각 단위 캐시. 외기 온·습도는 기상청 초단기실황, 환기팬 가동률은 센서 181건의 5분 집계 |
 | `GET /api/detail/forecast` | 없음 | 실측 37건(current와 같은 구간, 5분 간격) + 단기예보 1시간 TMP·REH를 5분 간격으로 보간한 288건(fan_pct는 외기 기온 5단 구간 표로 계산) = 325건 → `POST /v1/forecast` |
-| `GET /api/detail/expert` | `temp`, `rh`, `vent` (필수) | 목업 반환, input 회신. 유효성 검사(숫자·범위·빈 값)는 대시보드 입력 필드에서 하고 통과한 값만 전송, 중계 서버도 같은 범위로 재확인(직접 호출 대비, 위반 시 400) |
+| `POST /api/detail/expert` | 본문 `{ rows: [{temp, rh, vent}] × 24 }` (2026-10-13 B-2) | 목업 반환, input 회신. 유효성 검사(24행·숫자·범위·빈칸)는 대시보드 입력 표에서 하고 통과한 값만 전송, 중계 서버도 같은 규칙으로 재확인(직접 호출 대비, 위반 시 400) |
 | `GET /api/detail/control` | `target` = `energy`(기본) \| `environment` | 목업 반환 |
 
 - **current·forecast 실측 구간의 입력 출처(2026-10-13 온도 측 B-3 확정)**

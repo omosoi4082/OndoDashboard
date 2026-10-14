@@ -1,5 +1,5 @@
-// 전문가 모드(20~26, 01-functional-spec.md 4.3) — 입력 필드(21) 확인 클릭 시에만
-// GET /api/detail/expert를 호출한다(탭 선택 자체로는 호출하지 않음, ForecastDetailView의
+// 전문가 모드(20~26, 01-functional-spec.md 4.3) — 입력 표(21, 24행 × 3열) 적용 클릭 시에만
+// POST /api/detail/expert를 호출한다(탭 선택 자체로는 호출하지 않음, ForecastDetailView의
 // "탭 선택 시 1회"와 다른 트리거). 입력 전(store.expert===null)에는 EmptyDetail3D로 방 모델과
 // 중립색 포인트만 그리고 그 위에 안내 문구를 겹친다(01-functional-spec.md 3장 "데이터가 없을 때").
 // 응답을 받은 뒤에는 ForecastDetailView와 같은 구조(ControlsRow + Detail3DView(포인트+
@@ -9,8 +9,10 @@ import { useDetailStore } from '../../store/detailStore.js';
 import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { fetchDetailExpert } from '../../api/endpoints.js';
-import { validateExpertInput, type ExpertInputDraft, type ExpertInputFieldRange } from '../../detail/expertInputValidation.js';
+import { validateExpertRows, type ExpertInputFieldRange, type ExpertRowDraft } from '../../detail/expertInputValidation.js';
+import { expertExampleDrafts, expertRowTimes } from '../../detail/expertInputRows.js';
 import {
+  EXPERT_INPUT_ROW_COUNT,
   EXPERT_RH_MAX,
   EXPERT_RH_MIN,
   EXPERT_TEMP_MAX,
@@ -43,13 +45,16 @@ export function ExpertModeView(): ReactElement {
   const valueField = useDetailStore((s) => s.valueField);
   const timelineFrameIndex = useDetailStore((s) => s.timelineFrameIndex);
 
-  const [draft, setDraft] = useState<ExpertInputDraft>({ temp: '', rh: '', vent: '' });
-  // 마지막으로 "적용"을 눌렀던 입력값 — 지금 draft와 같을 때만 "적용 완료" 상태로 본다.
-  // 적용 후 값을 다시 바꾸면 draft !== appliedDraft가 되어 버튼이 "적용"으로 돌아간다
+  // 행 시각은 탭에 들어온 시점 기준으로 한 번 정한다(첫 행 = 다음 정시). 표는 예시 값
+  // (mock_expert.json 정시 값 24개)으로 채워 둔다(docs/04-tasks.md P2).
+  const [rowTimes] = useState<Date[]>(() => expertRowTimes(new Date(), EXPERT_INPUT_ROW_COUNT));
+  const [drafts, setDrafts] = useState<ExpertRowDraft[]>(expertExampleDrafts);
+  // 마지막으로 "적용"을 눌렀던 입력값 — 지금 drafts와 같은 배열일 때만 "적용 완료" 상태로 본다.
+  // 칸을 고치면 drafts가 새 배열이 되어 버튼이 "적용"으로 돌아간다
   // (2026-10-10 사용자 요청: "적용완료후 다시 인풋값 입력시 적용으로 버튼 변경되야됨").
-  const [appliedDraft, setAppliedDraft] = useState<ExpertInputDraft | null>(null);
+  const [appliedDrafts, setAppliedDrafts] = useState<ExpertRowDraft[] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const validation = validateExpertInput(draft, EXPERT_INPUT_RANGE);
+  const validation = validateExpertRows(drafts, EXPERT_INPUT_RANGE, EXPERT_INPUT_ROW_COUNT);
 
   // 입력 전·로딩 중엔 expertFrames를 null로 둬서 아래 렌더링이 "포인트 없음" 상태를
   // 그대로 따르게 한다(이전 입력 결과가 남아 있어도 로딩 중엔 보여주지 않는다).
@@ -59,11 +64,12 @@ export function ExpertModeView(): ReactElement {
   const isosurfaceCache = useIsosurfaceCache(geometry, expertFrames);
 
   function handleSubmit(): void {
-    if (validation.temp.value === null || validation.rh.value === null || validation.vent.value === null) return;
+    if (validation.values === null) return;
+    const submitted = drafts;
     setIsLoading(true);
-    fetchDetailExpert(validation.temp.value, validation.rh.value, validation.vent.value).then((res) => {
+    fetchDetailExpert(validation.values).then((res) => {
       setExpert(res);
-      setAppliedDraft(draft);
+      setAppliedDrafts(submitted);
       setIsLoading(false);
     });
   }
@@ -78,19 +84,17 @@ export function ExpertModeView(): ReactElement {
   return (
     <>
       <ExpertInputForm
-        draft={draft}
+        rowTimes={rowTimes}
+        drafts={drafts}
         validation={validation}
         isLoading={isLoading}
         isApplied={
           !isLoading &&
           expert !== null &&
           expert.status !== 'error' &&
-          appliedDraft !== null &&
-          appliedDraft.temp === draft.temp &&
-          appliedDraft.rh === draft.rh &&
-          appliedDraft.vent === draft.vent
+          appliedDrafts === drafts
         }
-        onChange={setDraft}
+        onChange={setDrafts}
         onSubmit={handleSubmit}
       />
       {/* 입력 폼과 분석 항목 사이 구분선 — Figma node 374:11732(03_전문가모드_디자인) 실측,

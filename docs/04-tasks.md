@@ -62,9 +62,9 @@
 
 ### P2. 전문가 모드 입력 24×3 표 (B-2)
 
-- [ ] **API 형식 변경** — `GET /api/detail/expert?temp=&rh=&vent=`(값 3개)를 **`POST /api/detail/expert`** + 본문 `rows[24]{temp, rh, vent}`로 바꾼다. `packages/shared`의 `ExpertDetail.input` 타입 변경(양쪽에서 import, 앱 안에 복제 금지). `routes/detailExpert.ts`의 검증을 24행·빈칸 불허·범위(−30~50 / 0~100 / 20~100)로 교체.
-- [ ] **입력 표 UI** — `components/detail/ExpertInputForm.tsx`를 24행 × 3열 표로 교체. 행 = 1시간 간격 24개, **첫 행 = 현재 시각 다음 정시**. 예시 값은 `mock_expert.json`의 `input` 정시 값 24개(2026-10-05 16:00 ~ 10-06 15:00, 실제로 24개 확인)를 순서대로 채운다 — "예시 값"이므로 행 라벨 시각과 값의 원래 시각이 어긋나는 것은 무시한다. 환기량 단위는 **가동률 %**(시안의 'cmm' 폐기, 05-open-questions #41 ① 종결).
-- [ ] **검증·연동** — `detail/expertInputValidation.ts`를 24행 검증으로 교체(+테스트), `api/endpoints.ts`·`components/detail/ExpertModeView.tsx` 연동. '적용' 시 입력값과 무관하게 목업 결과가 나오는 동작은 그대로 유지한다.
+- [x] **API 형식 변경** (2026-10-14 완료) — `GET /api/detail/expert?temp=&rh=&vent=`(값 3개)를 **`POST /api/detail/expert`** + 본문 `rows[24]{temp, rh, vent}`로 바꾼다. `packages/shared`의 `ExpertDetail.input` 타입 변경(양쪽에서 import, 앱 안에 복제 금지). `routes/detailExpert.ts`의 검증을 24행·빈칸 불허·범위(−30~50 / 0~100 / 20~100)로 교체.
+- [x] **입력 표 UI** (2026-10-14 완료, 표 레이아웃은 05-open-questions #44) — `components/detail/ExpertInputForm.tsx`를 24행 × 3열 표로 교체. 행 = 1시간 간격 24개, **첫 행 = 현재 시각 다음 정시**. 예시 값은 `mock_expert.json`의 `input` 정시 값 24개(2026-10-05 16:00 ~ 10-06 15:00, 실제로 24개 확인)를 순서대로 채운다 — "예시 값"이므로 행 라벨 시각과 값의 원래 시각이 어긋나는 것은 무시한다. 환기량 단위는 **가동률 %**(시안의 'cmm' 폐기, 05-open-questions #41 ① 종결).
+- [x] **검증·연동** (2026-10-14 완료) — `detail/expertInputValidation.ts`를 24행 검증으로 교체(+테스트), `api/endpoints.ts`·`components/detail/ExpertModeView.tsx` 연동. '적용' 시 입력값과 무관하게 목업 결과가 나오는 동작은 그대로 유지한다.
 
 ### P3. 3D 범례·오류 처리·헬스체크
 

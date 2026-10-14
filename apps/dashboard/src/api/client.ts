@@ -24,9 +24,9 @@ export async function fetchRaw<T>(path: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-export async function fetchApi<T>(path: string): Promise<ApiResponse<T>> {
+export async function fetchApi<T>(path: string, init?: RequestInit): Promise<ApiResponse<T>> {
   try {
-    const res = await fetch(path);
+    const res = await fetch(path, init);
     const json = (await res.json()) as ApiResponse<T>;
     return json;
   } catch (err) {
