@@ -21,10 +21,16 @@ export interface BarnNodeConfig {
 }
 
 // config.js의 BARNS 배열 순서·매칭 기준 그대로 — RoomId NH(자돈)/GH(육성)/FH(비육)에 대응.
+//
+// 2026-10-14: 육성·비육에 방 껍데기 노드(P1.005·P1.006 = 바닥 슬래브 + 벽 4면, 아래 Cube.018~025)를
+// 추가했다. 그 전에는 Grower_/Finisher_ 접두사만 봐서 **칸막이벽과 팬만** 방으로 잡혔다 —
+// 두 방의 바닥·벽에는 roomId가 안 붙어 호버해도 정보 판넬이 안 떴고, 방 바운딩박스도
+// 실제 방(7.5 m·12 m)이 아니라 2.9 m·6.8 m로 작게 잡혀 이름표·돼지 배치 기준이 어긋났다.
+// 이름이 Cube.0XX로 남아 접두사에 안 걸린 것뿐이고 실제로는 방 모델이다(아래 2026-10-09 주석).
 export const BARN_NODE_CONFIG: readonly BarnNodeConfig[] = [
   { roomId: 'NH', modelNodeName: 'P1' },
-  { roomId: 'GH', modelNodePrefix: 'Grower_' },
-  { roomId: 'FH', modelNodePrefix: 'Finisher_' },
+  { roomId: 'GH', modelNodeName: 'P1.005', modelNodePrefix: 'Grower_' },
+  { roomId: 'FH', modelNodeName: 'P1.006', modelNodePrefix: 'Finisher_' },
 ];
 
 // 상세보기(컷어웨이) 전용 "판(두께 없음)" 대체 벽 노드 — 메인 화면은 두꺼운 벽을 그대로
@@ -45,23 +51,23 @@ export function sanitizeNodeName(name: string): string {
 }
 
 /**
- * config.modelNodeName(단일 노드, 정확히 일치)이면 그 노드 하나만, config.modelNodePrefix면
- * 그 접두사로 시작하는 노드를 전부 찾아 배열로 반환한다.
+ * config.modelNodeName(정확히 일치하는 노드 하나)과 config.modelNodePrefix(그 접두사로
+ * 시작하는 노드 전부)를 모두 모아 반환한다 — 한 방이 "방 껍데기 노드 하나 + 접두사 노드
+ * 여러 개"로 쪼개져 있는 경우(육성·비육)가 있어 둘을 같이 쓸 수 있다.
  */
 export function findBarnNodes(modelRoot: THREE.Object3D, config: BarnNodeConfig): THREE.Object3D[] {
+  const matched: THREE.Object3D[] = [];
   if (config.modelNodeName) {
     const node = modelRoot.getObjectByName(sanitizeNodeName(config.modelNodeName));
-    return node ? [node] : [];
+    if (node) matched.push(node);
   }
   if (config.modelNodePrefix) {
     const prefix = sanitizeNodeName(config.modelNodePrefix);
-    const matched: THREE.Object3D[] = [];
     modelRoot.traverse((obj) => {
       if (obj.name && obj.name.startsWith(prefix)) matched.push(obj);
     });
-    return matched;
   }
-  return [];
+  return matched;
 }
 
 /** hit(레이캐스트로 맞은 메시)에서 부모 쪽으로 올라가며 가장 가까운 userData.roomId를 찾는다. */
@@ -131,6 +137,38 @@ export function computeBarnSections(
     sections.push({ roomId: config.roomId, center, size });
   }
   return sections;
+}
+
+/**
+ * 방 이름표·정보 판넬을 붙일 벽 — **원형 환기구(배기구 `outlet_model`)가 있는 서쪽 긴 벽**
+ * (2026-10-14 사용자 요청: "원형 환기구 있는 벽으로 위치이동"). 세 방 모두 같은 쪽이다
+ * (모델 실측: 배기구 x 자돈 −2.03 / 육성·비육 −1.96, 벽 바깥면은 셋 다 x −2.01).
+ * 육성·비육 벽은 이름이 `Cube.0XX`로 남아 있다(BARN_NODE_CONFIG 주석 참고).
+ */
+const ROOM_LABEL_WALL_NODE: Record<RoomId, string> = {
+  NH: 'PigRoom_Wall_W',
+  GH: 'Cube.020',
+  FH: 'Cube.023',
+};
+
+/**
+ * 이름표 앵커 = 환기구 벽의 바깥면(x) · 벽 윗변(y) · 방 길이 방향 가운데(z).
+ *
+ * 방 바운딩박스를 그대로 쓰면 지붕 처마(x −2.19)와 천정 급기팬(y 3.45)까지 포함돼 이름표가
+ * 벽에서 뜨고 너무 높이 뜬다(2026-10-14 사용자: "조금 내려서 벽쪽에 가까이 해줘").
+ * 벽 노드를 못 찾으면 예전처럼 박스 모서리로 떨어진다.
+ */
+export function roomLabelAnchor(modelRoot: THREE.Object3D, section: BarnSection): THREE.Vector3 {
+  const wall = modelRoot.getObjectByName(sanitizeNodeName(ROOM_LABEL_WALL_NODE[section.roomId]));
+  if (!wall) {
+    return new THREE.Vector3(
+      section.center.x - section.size.x / 2,
+      section.center.y + section.size.y / 2,
+      section.center.z,
+    );
+  }
+  const box = new THREE.Box3().setFromObject(wall);
+  return new THREE.Vector3(box.min.x, box.max.y, section.center.z);
 }
 
 export function findSection(sections: readonly BarnSection[], roomId: RoomId): BarnSection | null {

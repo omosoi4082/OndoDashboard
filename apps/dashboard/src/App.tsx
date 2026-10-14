@@ -52,9 +52,13 @@ function App(): ReactElement {
             클릭/드래그는 OutdoorPanel처럼 안에서 다시 auto로 켠 요소만 받고, 나머지는 이
             레이어(캔버스)까지 그대로 통과해 OrbitControls가 받는다 — 이 레이어 자체는
             pointer-events를 꺼두면 안 된다(껐더니 OrbitControls가 죽었음, 자식 요소까지
-            상속되는 속성이라). */}
+            상속되는 속성이라).
+            isolate(= isolation: isolate)는 이 레이어 안에서 쓰는 z-index를 바깥과 섞이지 않게
+            가둔다 — drei <Html>(방 이름표·정보 판넬)이 z-index 16777271을 달고 나와서 헤더와
+            상세 패널까지 덮었다(2026-10-14 사용자: "ui 순번 아래로 상세패널이 먼저 보여야 돼").
+            이 레이어가 DOM에서 헤더·상세 패널보다 앞이라, 가둬 두면 그 둘이 항상 위에 온다. */}
         <div
-          className="absolute left-0 top-0"
+          className="absolute left-0 top-0 isolate"
           style={{ width: MAIN_SCENE_WIDTH_PX, height: MAIN_SCENE_HEIGHT_PX }}
         >
           <MainScene />

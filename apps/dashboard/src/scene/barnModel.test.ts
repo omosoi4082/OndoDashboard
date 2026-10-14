@@ -5,6 +5,7 @@ import {
   computeBarnSections,
   computeRotationCenter,
   findBarnNodes,
+  roomLabelAnchor,
   findSection,
   groundAndCenterModel,
   resolveRoomId,
@@ -153,5 +154,38 @@ describe('unionSectionsBox / computeRotationCenter', () => {
     const sections = computeBarnSections(root, [{ roomId: 'GH', modelNodePrefix: 'Grower_' }]);
     const box = unionSectionsBox(sections)!;
     expect(computeRotationCenter(sections, box, 'NH', 0.5)).toBeNull();
+  });
+});
+
+describe('roomLabelAnchor', () => {
+  function sceneWithWall(): THREE.Object3D {
+    const root = new THREE.Object3D();
+    // 방 박스는 지붕 처마(x −2.2)·천정 팬(y 3.4)까지 포함하고, 벽은 그보다 안쪽·아래다.
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.8, 4.7));
+    wall.name = 'PigRoom_Wall_W';
+    wall.position.set(-1.96, 1.55, 9.75);
+    root.add(wall);
+    root.updateMatrixWorld(true);
+    return root;
+  }
+
+  const section = {
+    roomId: 'NH' as const,
+    center: new THREE.Vector3(0, 1.7, 9.75),
+    size: new THREE.Vector3(4.4, 3.4, 4.7),
+  };
+
+  it('벽 바깥면(x)·벽 윗변(y)·방 길이 가운데(z)를 쓴다', () => {
+    const anchor = roomLabelAnchor(sceneWithWall(), section);
+    expect(anchor.x).toBeCloseTo(-2.01, 5); // 벽 바깥면 — 박스 모서리(−2.2)보다 안쪽
+    expect(anchor.y).toBeCloseTo(2.95, 5); // 벽 윗변 — 박스 윗면(3.4)보다 아래
+    expect(anchor.z).toBeCloseTo(9.75, 5);
+  });
+
+  it('벽 노드를 못 찾으면 방 박스 모서리로 떨어진다', () => {
+    const anchor = roomLabelAnchor(new THREE.Object3D(), section);
+    expect(anchor.x).toBeCloseTo(-2.2, 5);
+    expect(anchor.y).toBeCloseTo(3.4, 5);
+    expect(anchor.z).toBeCloseTo(9.75, 5);
   });
 });

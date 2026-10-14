@@ -15,14 +15,14 @@ import {
   computeRotationCenter,
   OVERVIEW_MODEL_URL,
   resolveRoomId,
+  roomLabelAnchor,
   unionSectionsBox,
 } from './barnModel.js';
 import { CameraRig } from './CameraRig.js';
 import { SceneLighting } from './SceneLighting.js';
-import { ROOM_CALLOUT_OFFSET_M } from '../config/constants.js';
 import { useMainStore } from '../store/mainStore.js';
 import { okData } from '../api/client.js';
-import { RoomInfoPanel } from '../components/RoomInfoPanel.js';
+import { RoomInfoPanel, RoomNameLabel } from '../components/RoomInfoPanel.js';
 
 // 실험군(EX) 자돈방 — 상세 패널 대상이자 메인 화면에서 유일하게 클릭 가능한 방
 // (01-functional-spec.md 2장 "3D 모델링 규칙"). 카메라 회전 중심을 이 방 쪽으로
@@ -45,6 +45,10 @@ export function OverviewScene(): ReactElement {
 
   // scene은 useGLTF 캐시로 로드마다 같은 인스턴스를 반환하므로(drei), 정렬·태깅은
   // scene 참조가 바뀌지 않는 한 한 번만 계산된다(groundAndCenterModel은 멱등 처리됨).
+  // 육성·비육방 돼지(19두씩, 온도 측 2026-10-14 회신)는 아직 붙이지 않는다 — 자돈 모델을
+  // 비율만 키워 쓰는 임시 대체는 2026-10-14 사용자 지시로 보류했다("돼지 모델링은 하지마
+  // 내가 찾아서 돼지 모델링 줄꺼니깐"). 성돈 모델을 받으면 scene/roomPigs.ts의
+  // buildRoomPigs(scene, computed)를 여기서 부르면 된다(05-open-questions.md #48).
   const sections = useMemo(() => {
     computeShadowFlags(scene);
     return computeBarnSections(scene, BARN_NODE_CONFIG);
@@ -92,23 +96,33 @@ export function OverviewScene(): ReactElement {
         <primitive object={scene} />
       </group>
 
-      {/* 정보 판넬(5-1~5-3) — 호버한 방 바로 위에 뜨는 콜아웃(docs/design/screen-design.png on-01
-          ④⑤). 3개 방 모두 호버 시에만 표시(05-open-questions.md #29, 2026-10-09 확정). */}
-      {sections
-        .filter((section) => section.roomId === hoveredRoomId)
-        .map((section) => (
+      {/* 방 이름표와 정보 판넬(5-1~5-3) — 둘 다 **원형 환기구(배기구)가 있는 벽 쪽, 천정
+          높이, 길이 방향 가운데**에 같은 앵커로 띄운다. 2026-10-14 사용자 요청 순서대로
+          "이름표를 방 중간에" → "가운데가 천정에서 가운데, 방 안이 아니고" → "원형 환기구
+          있는 벽으로 위치이동하고 높이, 가운데는 그대로". 높이(박스 윗면)와 길이 방향(z)
+          가운데는 그대로 두고 폭 방향(x)만 그 벽으로 옮긴다.
+          앵커 좌표는 barnModel.ts의 roomLabelAnchor가 **벽 노드**에서 직접 잡는다 — 방
+          바운딩박스를 쓰면 지붕 처마·천정 급기팬까지 포함돼 벽에서 뜨고 높이 뜬다
+          (2026-10-14 "조금 내려서 벽쪽에 가까이 해줘"). 평소에는 이름표, 호버한 방만 정보
+          판넬로 바뀐다(3개 방 모두 호버 시 표시 — 05-open-questions.md #29·#35). 모델에
+          가리지 않게 drei <Html>의 기본(occlude 없음)을 그대로 쓴다. */}
+      {sections.map((section) => {
+        const summary = roomsData?.[section.roomId] ?? null;
+        const anchor = roomLabelAnchor(scene, section);
+        return (
           <Html
             key={section.roomId}
-            position={[
-              section.center.x,
-              section.center.y + section.size.y / 2 + ROOM_CALLOUT_OFFSET_M,
-              section.center.z,
-            ]}
+            position={[anchor.x, anchor.y, anchor.z]}
             style={{ pointerEvents: 'none' }}
           >
-            <RoomInfoPanel roomId={section.roomId} summary={roomsData?.[section.roomId] ?? null} />
+            {section.roomId === hoveredRoomId ? (
+              <RoomInfoPanel roomId={section.roomId} summary={summary} />
+            ) : (
+              <RoomNameLabel roomId={section.roomId} name={summary?.name ?? section.roomId} />
+            )}
           </Html>
-        ))}
+        );
+      })}
     </>
   );
 }

@@ -25,10 +25,6 @@ export const OVERVIEW_CAMERA_MARGIN_FACTOR = 1.6;
 // (2026-10-10 사용자가 메인 화면만 직접 조정 — 수작업으로 바꿀 때는 이 배열만 수정할 것).
 export const OVERVIEW_CAMERA_DIRECTION: Vector3Tuple = [0.2, 0.18, 0.24];
 
-// 방 호버 정보 판넬(5-1~5-3) 콜아웃 앵커 — 방 바운딩박스 중심에서 위로 띄우는 높이(m).
-// overviewScene.js의 labelAnchors(center.y + size.y/2 + 0.4)와 동일.
-export const ROOM_CALLOUT_OFFSET_M = 0.4;
-
 // 스케일 바가 화면에서 겨냥하는 목표 픽셀 길이 — 개발자 결정.
 export const SCALE_BAR_TARGET_PX = 120;
 
@@ -93,6 +89,12 @@ export const TIMELINE_FRAME_DURATION_MS = 500;
 // (2026-10-10 사용자 확인: "온습도 메쉬 ... 예측모드만 안보여"). 전문가·제어 모드는 같은
 // 컴포넌트·같은 상수를 쓰지만 입력값이 선풍기 주변에 좁게 뭉쳐 대비가 커 보였을 뿐이라,
 // 세 모드 모두에 적용되는 이 상수 자체를 올려 전반적으로 더 또렷하게 보이게 한다.
+//
+// 2026-10-14 재발("예측모드에 온도 습도 메쉬 안나오는데") — 투명도가 아니라 **등치면 단계를
+// 어느 범위에서 뽑는지**가 진짜 원인이었다. 응답 전체 range(예측은 24시간 외기 변화 폭)로
+// 4단계를 잡으면 한 프레임 값 폭(2~3 ℃)에 한 단계만, 그것도 끝값 근처에 걸려 표면이 거의 안
+// 생긴다. 단계는 프레임 자체 min~max에서 뽑도록 고쳤다(detail/isosurfaceField.ts
+// fieldValueRange, 05-open-questions.md #47) — 그래서 이 상수(4단계·0.75)는 그대로 둔다.
 export const ISOSURFACE_LEVEL_COUNT = 4;
 export const ISOSURFACE_OPACITY = 0.75;
 
