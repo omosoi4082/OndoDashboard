@@ -9,19 +9,17 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElemen
 import type { DetailBase, DetailFrame, Geometry, GridDef } from '@ondo/shared';
 import { bilinearUpsample2x, extractZLayer, nearestZIndex } from '../../detail/sectionGrid.js';
 import { buildHeatmapImage } from '../../detail/heatmapImage.js';
-import { colormapRGB01 } from '../../detail/colormap.js';
-import { axisTicksWithEnd, niceAxisTicks } from '../../detail/axisTicks.js';
-import { getFieldRange, getFieldUnit } from '../../detail/pointSelection.js';
+import { axisTicksWithEnd } from '../../detail/axisTicks.js';
+import { getFieldRange } from '../../detail/pointSelection.js';
 import { useDetailStore } from '../../store/detailStore.js';
 import { SECTION_PARTITION_SEGMENTS, SECTION_Z_M } from '../../config/constants.js';
+import { ColorLegend } from './ColorLegend.js';
 
 interface Detail2DSectionProps {
   geometry: Geometry;
   frame: DetailFrame;
   range: DetailBase['range'];
 }
-
-const LEGEND_STEPS = 24;
 
 /** 축 눈금 라벨 — 부동소수 꼬리(4.500000000000001)를 없애고 정수는 소수점 없이 보여준다. */
 function formatTick(v: number): string {
@@ -128,26 +126,6 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   const fittedCanvasH = Math.min(canvasHFromW, canvasHCap);
   const fittedCanvasW = fittedCanvasH * (viewW / viewH);
 
-  const unit = getFieldUnit(valueField);
-  // CSS linear-gradient의 색상 정지점은 반드시 오름차순 퍼센트로 나열해야 한다 — 내림차순으로
-  // 주면 두 번째 정지점부터 전부 이전 값으로 클램프돼 그라데이션이 단색으로 뭉개진다(2026-10-10
-  // 확인 — "값에따른 색상적용은 안된거 아냐", 범례 막대가 늘 단색 파랑으로만 보였던 원인).
-  // pct는 0%(막대 위, 최댓값)→100%(막대 아래, 최솟값)로 오름차순 유지, t는 그 반대로 간다.
-  const legendStops = Array.from({ length: LEGEND_STEPS }, (_, i) => {
-    const pct = (i / (LEGEND_STEPS - 1)) * 100;
-    const t = 1 - i / (LEGEND_STEPS - 1);
-    const [r, g, b] = colormapRGB01(t, valueField);
-    return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}) ${pct.toFixed(1)}%`;
-  }).join(', ');
-  // 범례 칫수(값) — 최솟값·최댓값만이 아니라 중간 눈금도 보여준다(2026-10-10 사용자 요청:
-  // "범례에도 값에 대한 색상이 나오고 치수들이 보여야지"). niceAxisTicks는 공간 좌표뿐 아니라
-  // 임의의 min~max 범위에 적당한 간격 눈금을 고르는 범용 함수라 그대로 재사용한다.
-  const legendTicks = useMemo(
-    () => niceAxisTicks(fieldRange.min, fieldRange.max, 4),
-    [fieldRange.min, fieldRange.max],
-  );
-  const legendSpan = Math.max(fieldRange.max - fieldRange.min, 1e-9);
-
   return (
     <div className="flex h-full gap-3 rounded-lg border border-ondo-border bg-ondo-surface p-2">
       {/* 실제 치수 비율대로 맞춘 박스를 이 영역 안에서 가운데 정렬한다(남는 공간은 레터박스). */}
@@ -215,22 +193,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
         </div>
       </div>
       <div className="flex shrink-0 items-stretch justify-center py-1" style={{ width: `${(1 - PLAN_WIDTH_SHARE) * 100}%` }}>
-        {/* 범례 두께 24px(2026-10-10 사용자 요청: "범례두께 24로 변경"). */}
-        <div className="relative my-1 w-6 rounded" style={{ background: `linear-gradient(to bottom, ${legendStops})` }}>
-          {legendTicks.map((v) => (
-            <div
-              key={v}
-              className="absolute left-full flex -translate-y-1/2 items-center gap-1 pl-1"
-              style={{ top: `${(1 - (v - fieldRange.min) / legendSpan) * 100}%` }}
-            >
-              <span className="h-px w-1.5 bg-white/40" />
-              <span className="whitespace-nowrap text-[9px] text-white/60">
-                {v.toFixed(1)}
-                {unit}
-              </span>
-            </div>
-          ))}
-        </div>
+        <ColorLegend range={range} valueField={valueField} />
       </div>
     </div>
   );

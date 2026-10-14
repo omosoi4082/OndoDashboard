@@ -22,6 +22,7 @@ import { DETAIL_MODEL_URL, getOrPrepareDetailRoomModel } from '../../scene/detai
 import { PointsInstanced } from './PointsInstanced.js';
 import { FlowArrow } from './FlowArrow.js';
 import { Detail3DSection } from './DetailSections.js';
+import { ColorLegend } from './ColorLegend.js';
 
 interface Detail3DViewProps {
   geometry: Geometry;
@@ -44,6 +45,12 @@ interface Detail3DViewProps {
   htmlOverlay?: ReactNode;
   /** 데이터 없음 안내·로딩·오류 문구 — 3D 뷰 가운데에 겹쳐 표시한다. */
   message?: { text: string; isError: boolean } | null;
+  /**
+   * 작은 알림 문구(위쪽 가운데) — 데이터는 그대로 보여주면서 덧붙이는 오류 안내. 현재 모드
+   * 재조회가 연산 서버 실패로 끝났을 때 이전 정상 결과를 유지하면서 띄운다(2026-10-14 D-4,
+   * detail/keepLastGood.ts). message와 달리 3D를 가리지 않도록 가운데가 아니라 위쪽에 작게 둔다.
+   */
+  notice?: string | null;
 }
 
 function CameraFraming({ roomSize }: { roomSize: readonly [number, number, number] }): ReactElement {
@@ -162,6 +169,7 @@ export function Detail3DView({
   overlay = null,
   htmlOverlay = null,
   message = null,
+  notice = null,
 }: Detail3DViewProps): ReactElement {
   const valueField = useDetailStore((s) => s.valueField);
   const pointsVisible = useDetailStore((s) => s.pointsVisible);
@@ -257,6 +265,24 @@ export function Detail3DView({
           </Html>
         )}
       </Canvas>
+
+      {/* 색 범례(2026-10-14 B-8) — 2D 단면과 같은 ColorLegend를 좌측 상단에 작게 얹는다.
+          우측 하단은 제어 모드 요약 카드, 가운데는 방·안내 문구 자리라 피한다. 막대 오른쪽
+          바깥에 그려지는 눈금 라벨이 잘리지 않도록 오른쪽 여백(pr-12)을 둔다. range가 없으면
+          (데이터 전·로딩·오류, EmptyDetail3D) 그리지 않는다. */}
+      {range && (
+        <div className="pointer-events-none absolute left-3 top-3 flex h-40 items-stretch rounded bg-[#141414]/50 py-1 pl-2 pr-12">
+          <ColorLegend range={range} valueField={valueField} />
+        </div>
+      )}
+
+      {notice && (
+        <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center px-4">
+          <div className="rounded-md border border-red-500/30 bg-red-950/60 px-3 py-1 text-center text-xs text-red-300 backdrop-blur-sm">
+            {notice}
+          </div>
+        </div>
+      )}
 
       {/* 제어 모드 요약 카드 위치 — 우측 하단(2026-10-11 04_제어모드_디자인_01_gh 전달,
           이전엔 좌측 상단이었다). */}

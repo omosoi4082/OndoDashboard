@@ -5,6 +5,7 @@ import type { Geometry } from '@ondo/shared';
 import type { ComputeClient } from './computeClient.js';
 import { createHttpComputeClient } from './computeClient.js';
 import { createMockComputeClient } from './mockComputeClient.js';
+import { withComputeRetry } from './computeRetry.js';
 
 export interface ComputeClientOpts {
   mode: 'mock' | 'http';
@@ -13,16 +14,23 @@ export interface ComputeClientOpts {
   apiKey: string;
   apiKeyHeader: string;
   timeoutMs: number;
+  /** GET /v1/health 타임아웃(http 모드). */
+  pingTimeoutMs: number;
+  /** SERVER·BUSY 오류 재시도 대기(http 모드, D-4). */
+  retryDelayMs: number;
 }
 
 export function createComputeClient(opts: ComputeClientOpts): ComputeClient {
   if (opts.mode === 'mock') {
     return createMockComputeClient({ geometry: opts.geometry });
   }
-  return createHttpComputeClient({
+  // 재시도는 http 모드에만 씌운다 — mock은 오류 code를 내지 않는다(D-4, clients/computeRetry.ts).
+  const http = createHttpComputeClient({
     baseUrl: opts.baseUrl,
     apiKey: opts.apiKey,
     apiKeyHeader: opts.apiKeyHeader,
     timeoutMs: opts.timeoutMs,
+    pingTimeoutMs: opts.pingTimeoutMs,
   });
+  return withComputeRetry(http, { delayMs: opts.retryDelayMs });
 }

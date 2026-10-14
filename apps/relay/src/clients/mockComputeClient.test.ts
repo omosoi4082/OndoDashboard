@@ -175,3 +175,9 @@ describe('createMockComputeClient — 합성 생성기 폴백(2순위)', () => {
     warn.mockRestore();
   });
 });
+
+describe('createMockComputeClient.ping', () => {
+  it('mock 모드는 항상 살아 있음(D-5)', async () => {
+    await expect(createMockComputeClient({ geometry: GEOMETRY }).ping()).resolves.toBe(true);
+  });
+});

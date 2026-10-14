@@ -187,7 +187,13 @@
 - 포인트 좌표와 grid·flow_grid 정의는 응답에 넣지 않는다(고정 형상, 중계 서버 `GEOMETRY_FILE`). 배열 순서·개수는 그 정의를 따른다: points 125, grid 2,584(i + nx×(j + ny×k)), flow 288.
 - 125개 포인트 좌표는 온도에서 한 번만 받는다.
 - 중계 서버 변환: 시각 `+09:00`, `offsetMin`, range 계산, `geometryId` 부착, 배열 개수 검증. 값은 바꾸지 않는다.
-- 오류: `{ "request_id", "status": "error", "message" }` + HTTP 4xx/5xx → `UPSTREAM_ERROR`.
+- 오류(2026-10-13 온도 측 D-4 확정): `{ "request_id"?, "status": "error", "code": "BAD_REQUEST" | "SERVER" | "BUSY", "field"?, "message" }` + HTTP 4xx/5xx → `UPSTREAM_ERROR`. `code`는 구버전 목업에 없으므로 optional이며, 없거나 모르는 값이면 재시도하지 않는다.
+  - `BAD_REQUEST`: 재시도하지 않는다. 메시지는 `예측 서버 요청 거부: <message> (항목: <field>)`(field 없으면 괄호 생략).
+  - `SERVER`: `COMPUTE_RETRY_DELAY_MS`(기본 60000 = 1분) 뒤 1회 재시도. 그래도 실패하면 `예측 서버 오류`.
+  - `BUSY`: 같은 대기 뒤 재시도. 횟수는 온도 측이 정하지 않아 1회로 둔다. 그래도 실패하면 `예측 서버가 다른 계산 중이라 응답하지 못했습니다. 잠시 후 다시 시도해 주세요.`
+  - 타임아웃(`COMPUTE_TIMEOUT_MS`)·연결 실패: 재시도하지 않는다. `UPSTREAM_TIMEOUT`/`UPSTREAM_UNREACHABLE`, 메시지 `예측 서버 연결 안 됨`. 마지막 정상 결과 유지는 대시보드가 맡는다.
+  - 재시도는 `COMPUTE_MODE=http`에만 적용한다(`withComputeRetry`, mock은 code를 내지 않음). 재시도가 걸리면 relay 응답까지 최대 약 `2 × COMPUTE_TIMEOUT_MS + COMPUTE_RETRY_DELAY_MS`가 걸린다.
+- 상태 확인(2026-10-13 D-5): `GET /v1/health`, HTTP 2xx면 살아 있음. `/api/health`의 `compute`에 쓴다(타임아웃 `UPSTREAM_TIMEOUT_MS`). mock 모드는 항상 `ok`.
 - 연산 30초 초과 시 작업 등록/조회 방식 제안 예정.
 
 ### 4.3 Mock

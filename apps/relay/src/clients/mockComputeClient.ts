@@ -61,6 +61,11 @@ export function createMockComputeClient(opts: MockComputeClientOpts): ComputeCli
   const warnFallbackOnce = makeFallbackWarner();
 
   return {
+    // mock 모드는 로컬에서 항상 동작하므로 health에서 ok로 본다(D-5).
+    async ping(): Promise<boolean> {
+      return true;
+    },
+
     async requestCurrent(inputs: ComputeRequestInput[]): Promise<ComputeResult> {
       const last = inputs.at(-1);
       if (!last) {

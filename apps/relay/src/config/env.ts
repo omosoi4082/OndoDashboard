@@ -48,6 +48,9 @@ const envSchema = z.object({
 
   UPSTREAM_TIMEOUT_MS: z.coerce.number().int().positive().default(10_000),
   COMPUTE_TIMEOUT_MS: z.coerce.number().int().positive().default(60_000),
+  // 연산 서버 SERVER·BUSY 오류 시 재시도 전 대기(2026-10-13 D-4 "1분 뒤 재시도", 1회).
+  // GET /v1/health(D-5)는 진단용이라 COMPUTE_TIMEOUT_MS가 아니라 UPSTREAM_TIMEOUT_MS를 쓴다.
+  COMPUTE_RETRY_DELAY_MS: z.coerce.number().int().nonnegative().default(60_000),
 
   GEOMETRY_FILE: z.string().min(1).default('./config/geometry.json'),
 

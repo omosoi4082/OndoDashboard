@@ -5,6 +5,7 @@
 import { create } from 'zustand';
 import type { ApiResponse, ControlDetail, CurrentDetail, ExpertDetail, ForecastDetail, Geometry } from '@ondo/shared';
 import { advanceTimelineFrame } from '../detail/timeline.js';
+import { keepLastGoodOnComputeFailure } from '../detail/keepLastGood.js';
 
 // 01-functional-spec.md 1장: 모드 탭(현재/예측/전문가/제어). shared의 각 Detail*의
 // mode 리터럴을 그대로 모아 쓴다(타입 복제가 아니라 참조).
@@ -21,6 +22,12 @@ export interface DetailState {
   pointsVisible: boolean;
   /** GET /api/detail/current 응답 — M4. null = 아직 응답을 받지 못함(최초 로딩). */
   current: ApiResponse<CurrentDetail> | null;
+  /**
+   * 현재 모드 재조회가 연산 서버 실패로 끝나 이전 정상 결과(current)를 유지 중일 때의 오류
+   * 문구(2026-10-14 D-4, detail/keepLastGood.ts). null = 유지 중 아님. 다음 응답이 오면
+   * 다시 계산된다.
+   */
+  currentStaleNotice: string | null;
   /**
    * GET /api/detail/forecast 응답(M5) — null = 아직 예측 탭을 선택하지 않았거나 응답이
    * 오기 전(hooks/useForecastDetailOnDemand.ts가 탭 선택 시 1회만 요청해 채운다). 탭을
@@ -82,6 +89,7 @@ export const useDetailStore = create<DetailState>((set) => ({
   valueField: 'temp',
   pointsVisible: defaultPointsVisible('current'),
   current: null,
+  currentStaleNotice: null,
   forecast: null,
   expert: null,
   control: null,
@@ -110,7 +118,12 @@ export const useDetailStore = create<DetailState>((set) => ({
     }),
   setValueField: (field) => set({ valueField: field }),
   setPointsVisible: (visible) => set({ pointsVisible: visible }),
-  setCurrent: (current) => set({ current }),
+  // 연산 서버 실패 시 이전 정상 결과를 유지할지는 순수 함수로 판단한다(D-4).
+  setCurrent: (next) =>
+    set((s) => {
+      const { response, staleNotice } = keepLastGoodOnComputeFailure(s.current, next);
+      return { current: response, currentStaleNotice: staleNotice };
+    }),
   setForecast: (forecast) => set({ forecast }),
   setExpert: (expert) => set({ expert }),
   setControl: (control) => set({ control }),

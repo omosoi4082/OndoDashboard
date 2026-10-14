@@ -7,9 +7,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildComputeRequestBody,
   buildForecastRequestBody,
+  COMPUTE_UNREACHABLE_MESSAGE,
   createHttpComputeClient,
+  parseComputeResponse,
   type ComputeRequestInput,
 } from './computeClient.js';
+
+const OPTS = { baseUrl: 'http://compute.test', apiKey: '', apiKeyHeader: 'X-API-Key', timeoutMs: 1000, pingTimeoutMs: 1000 };
 
 const INPUTS: ComputeRequestInput[] = [{ time: '2026-10-05T15:20:00', T_out: 21.5, RH_out: 65, fan_pct: 60 }];
 
@@ -41,8 +45,7 @@ describe('buildForecastRequestBody', () => {
 // 통과하면 연산 서버를 붙였을 때 응답 파싱 단계에서 오류가 나지 않는다.
 describe('createHttpComputeClient — v3 응답 파일 수용', () => {
   const mockDir = fileURLToPath(new URL('../../../../mock/', import.meta.url));
-  const OPTS = { baseUrl: 'http://compute.test', apiKey: '', apiKeyHeader: 'X-API-Key', timeoutMs: 1000 };
-
+  
   afterEach(() => {
     vi.unstubAllGlobals();
   });
@@ -80,5 +83,114 @@ describe('createHttpComputeClient — v3 응답 파일 수용', () => {
     expect(result.frames.length).toBe(145);
     expect(result.range).toBeDefined();
     expect(result.geometryId).toBe('pig-nh-v1');
+  });
+});
+
+// D-4(2026-10-13): 오류 본문 { request_id?, status: "error", code, field?, message }.
+describe('parseComputeResponse — 오류 본문(D-4)', () => {
+  it('BAD_REQUEST + field → upstreamCode·field 보존, 메시지에 항목명 포함', () => {
+    const r = parseComputeResponse({ request_id: 'x', status: 'error', code: 'BAD_REQUEST', field: 'inputs[3].T_out', message: 'null not allowed' });
+    expect(r).toEqual({
+      ok: false,
+      code: 'UPSTREAM_ERROR',
+      message: '예측 서버 요청 거부: null not allowed (항목: inputs[3].T_out)',
+      upstreamCode: 'BAD_REQUEST',
+      field: 'inputs[3].T_out',
+    });
+  });
+
+  it('BAD_REQUEST, field 없음 → 항목명 없이', () => {
+    const r = parseComputeResponse({ status: 'error', code: 'BAD_REQUEST', message: 'bad' });
+    expect(r.ok).toBe(false);
+    if (r.ok) return;
+    expect(r.message).toBe('예측 서버 요청 거부: bad');
+    expect(r.field).toBeUndefined();
+  });
+
+  it.each(['SERVER', 'BUSY'] as const)('%s → upstreamCode 보존, 메시지는 원문', (code) => {
+    const r = parseComputeResponse({ status: 'error', code, message: 'm' });
+    expect(r).toEqual({ ok: false, code: 'UPSTREAM_ERROR', message: 'm', upstreamCode: code });
+  });
+
+  it('code 없음(구버전 목업) → upstreamCode 없이 기존과 같다', () => {
+    const r = parseComputeResponse({ request_id: 'x', status: 'error', message: 'old' });
+    expect(r).toEqual({ ok: false, code: 'UPSTREAM_ERROR', message: 'old' });
+  });
+
+  it('모르는 code → 형식 오류가 아니라 code 없음으로 취급', () => {
+    const r = parseComputeResponse({ status: 'error', code: 'WHATEVER', message: 'm' });
+    expect(r).toEqual({ ok: false, code: 'UPSTREAM_ERROR', message: 'm' });
+  });
+});
+
+describe('createHttpComputeClient — 오류·연결 실패', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('HTTP 503 + SERVER 본문 → upstreamCode SERVER', async () => {
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ status: 'error', code: 'SERVER', message: 'oom' }), { status: 503 }),
+    );
+    const r = await createHttpComputeClient(OPTS).requestCurrent(INPUTS);
+    expect(r).toEqual({ ok: false, code: 'UPSTREAM_ERROR', message: 'oom', upstreamCode: 'SERVER' });
+  });
+
+  it('HTTP 500 + JSON 아닌 본문 → code 없는 UPSTREAM_ERROR', async () => {
+    vi.stubGlobal('fetch', async () => new Response('<html>', { status: 500 }));
+    const r = await createHttpComputeClient(OPTS).requestCurrent(INPUTS);
+    expect(r).toEqual({ ok: false, code: 'UPSTREAM_ERROR', message: '연산 서버 HTTP 500' });
+  });
+
+  it('연결 실패 → UPSTREAM_UNREACHABLE + "예측 서버 연결 안 됨"', async () => {
+    vi.stubGlobal('fetch', async () => {
+      throw new TypeError('fetch failed');
+    });
+    const r = await createHttpComputeClient(OPTS).requestCurrent(INPUTS);
+    expect(r).toEqual({ ok: false, code: 'UPSTREAM_UNREACHABLE', message: COMPUTE_UNREACHABLE_MESSAGE });
+  });
+
+  it('타임아웃 → UPSTREAM_TIMEOUT + "예측 서버 연결 안 됨"', async () => {
+    vi.stubGlobal('fetch', (_url: string, init: { signal: AbortSignal }) =>
+      new Promise((_resolve, reject) => {
+        init.signal.addEventListener('abort', () => {
+          const e = new Error('aborted');
+          e.name = 'AbortError';
+          reject(e);
+        });
+      }),
+    );
+    const r = await createHttpComputeClient({ ...OPTS, timeoutMs: 10 }).requestCurrent(INPUTS);
+    expect(r).toEqual({ ok: false, code: 'UPSTREAM_TIMEOUT', message: COMPUTE_UNREACHABLE_MESSAGE });
+  });
+});
+
+// D-5(2026-10-13): GET /v1/health, HTTP 2xx면 살아 있음.
+describe('createHttpComputeClient.ping', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('GET /v1/health 200 → true, API 키가 있으면 헤더 포함', async () => {
+    const calls: { url: string; method: string | undefined; headers: Record<string, string> }[] = [];
+    vi.stubGlobal('fetch', async (url: string, init: { method?: string; headers: Record<string, string> }) => {
+      calls.push({ url, method: init.method, headers: init.headers });
+      return new Response('{"status":"ok"}', { status: 200 });
+    });
+    const ok = await createHttpComputeClient({ ...OPTS, apiKey: 'k' }).ping();
+    expect(ok).toBe(true);
+    expect(calls[0]).toEqual({ url: 'http://compute.test/v1/health', method: 'GET', headers: { 'X-API-Key': 'k' } });
+  });
+
+  it('HTTP 503 → false', async () => {
+    vi.stubGlobal('fetch', async () => new Response('', { status: 503 }));
+    await expect(createHttpComputeClient(OPTS).ping()).resolves.toBe(false);
+  });
+
+  it('연결 실패 → false(예외 없음)', async () => {
+    vi.stubGlobal('fetch', async () => {
+      throw new TypeError('fetch failed');
+    });
+    await expect(createHttpComputeClient(OPTS).ping()).resolves.toBe(false);
   });
 });

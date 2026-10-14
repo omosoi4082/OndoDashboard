@@ -59,6 +59,8 @@ const computeClient = createComputeClient({
   apiKey: env.COMPUTE_API_KEY,
   apiKeyHeader: env.COMPUTE_API_KEY_HEADER,
   timeoutMs: env.COMPUTE_TIMEOUT_MS,
+  pingTimeoutMs: env.UPSTREAM_TIMEOUT_MS,
+  retryDelayMs: env.COMPUTE_RETRY_DELAY_MS,
 });
 
 // 센서 5분 집계·결측 처리 임계값(docs/03-upstream-apis.md 1.2) — 센서 이력을 쓰는 연산 입력은
@@ -73,7 +75,7 @@ const fanAggThreshold: AggregateThresholds = {
   outOfRange: 'clamp',
 };
 
-registerHealthRoute(app, { sensorClient, kmaClient });
+registerHealthRoute(app, { sensorClient, kmaClient, computeClient });
 registerMainRoomsRoute(app, { sensorClient });
 registerMainWeatherKmaRoute(app, { kmaClient, farmLat: env.FARM_LAT, farmLon: env.FARM_LON, areaName: env.FARM_AREA_NAME });
 registerMainWeatherStationRoute(app, { sensorClient, farmLat: env.FARM_LAT, farmLon: env.FARM_LON });

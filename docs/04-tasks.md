@@ -9,7 +9,7 @@
 - [x] **문서 동기화(우선)**: `docs/02-relay-api.md` 6장, `docs/03-upstream-apis.md` 1.2·4.1·4.4장, `CLAUDE.md`의 "181건"/"1분 확장 1,440건" 서술을 5분 간격(현재 37건, 예측 실측 37 + 예보 288 = 325건)으로 갱신. `packages/shared` 타입에 top-level `model_version`, 프레임별 `outdoor`·`summary`·`quality` 필드 추가(05-open-questions #2, #5, #26).
 - [x] **M4(현재 모드)**: `SensorHistoryClient`를 181 슬롯(1분)이 아닌 37 슬롯(5분 간격)으로 변경. 실제 센서 서버 API는 1분 간격만 제공(확인 완료, 05-open-questions #26) — 센서 서버에 5분 간격 이력 조회를 먼저 시도하고, 지원하지 않으면 1분 이력을 조회해 5분 마크(00·05·…·55분)만 선택(평균·보간 금지)해 연산 서버에는 5분 간격으로 넘긴다.
 - [x] **M5(예측 모드)**: 예보 5분 간격 288건(실측 37+예보 288=325건) 구현 완료. `fan_pct` 클램프 계산식·`forecast_from`/`forecast_issued_at` 포함. summary 형식 폐기, `FORECAST_INPUT_FORMAT` 분기 제거 완료.
-- [ ] **COMPUTE_BASE_URL**: 포트 9000은 `.env`/`.env.example`에 반영됨. `GET /v1/health` 핑 체크를 `GET /api/health`의 compute 상태에 반영하는 건 **아직 안 됨** — `apps/relay/src/routes/health.ts`가 여전히 `compute: 'disconnected'` 고정값(주석도 "M4/M8에서 붙는다"로 구식). 남은 작업.
+- [x] **COMPUTE_BASE_URL** (2026-10-14 `/v1/health` 핑 반영 완료 — P3 D-5): 포트 9000은 `.env`/`.env.example`에 반영됨. `GET /v1/health` 핑 체크를 `GET /api/health`의 compute 상태에 반영하는 건 **아직 안 됨** — `apps/relay/src/routes/health.ts`가 여전히 `compute: 'disconnected'` 고정값(주석도 "M4/M8에서 붙는다"로 구식). 남은 작업.
 - [x] **geometry 반영**: 온도 측 2026-10-08 v2 제공 `geometry.json`(room 칸막이·급기구 3개·배기구·센서 8개 위치 포함, 125개 포인트 실측 좌표)을 `config/geometry.json`에 반영 완료(2026-10-09). `scene/layout.ts`의 임시값은 메인 화면이 실측 glb 모델(`weaner_room_test-001.glb`)로 교체되면서 더 이상 렌더링에 쓰이지 않아 치수만 참고용으로 남겨둠(육성·비육 치수는 여전히 미확정, 05-open-questions #18).
 - [x] **농장 위경도**: `.env`에 `FARM_LAT=33.446297`·`FARM_LON=126.563879`·`KMA_NX=53`·`KMA_NY=37` 반영 완료, 온도 측 값과 일치.
 - [x] **M6(전문가 모드)**: 온도 측 2026-10-08 v2 제공 `mock/mock_expert.json`을 relay가 읽어 변환해 반환하도록 구현 완료. 입력값은 그대로 echo, 결과(frames)는 입력과 무관하게 동일(확인된 설계대로).
@@ -68,9 +68,9 @@
 
 ### P3. 3D 범례·오류 처리·헬스체크
 
-- [ ] **B-8 3D 색 막대** — 3D·2D는 이미 같은 색상표(`detail/colormap.ts`)와 같은 `range`를 쓴다. **3D에 색 범례가 없는 것만** 추가한다. `Detail2DSection.tsx`의 범례(그라데이션 막대 + `niceAxisTicks` 눈금)를 공용 컴포넌트로 뽑아 `Detail3DView`에도 얹는다.
-- [ ] **D-4 오류 코드별 처리** — `clients/computeClient.ts`의 `computeErrSchema`가 `message`만 읽고 `code`가 없다. 재시도 로직도 전혀 없다. `code`(`BAD_REQUEST`/`SERVER`/`BUSY`)·`field`를 파싱하고 회신대로 처리: `BAD_REQUEST`는 표시만, `SERVER`는 1분 뒤 1회 재시도 후 '예측 서버 오류', `BUSY`는 1분 뒤 재시도, 타임아웃은 '예측 서버 연결 안 됨' + 마지막 정상 결과 유지.
-- [ ] **D-5 `/v1/health` 핑** — `routes/health.ts`가 `compute: 'disconnected'` 고정값이다(2026-10-07 섹션의 미완 항목). `GET /v1/health` 결과를 `GET /api/health`의 compute 상태에 반영.
+- [x] **B-8 3D 색 막대** (2026-10-14 완료 — 공용 `ColorLegend.tsx`, 3D 좌상단 오버레이. 위치는 시안 없어 임의, 05 #46) — 3D·2D는 이미 같은 색상표(`detail/colormap.ts`)와 같은 `range`를 쓴다. **3D에 색 범례가 없는 것만** 추가한다. `Detail2DSection.tsx`의 범례(그라데이션 막대 + `niceAxisTicks` 눈금)를 공용 컴포넌트로 뽑아 `Detail3DView`에도 얹는다.
+- [x] **D-4 오류 코드별 처리** (2026-10-14 완료 — relay `clients/computeRetry.ts`, 대시보드 현재 모드는 연산 실패 시 마지막 정상 결과 유지 + 상단 안내(`detail/keepLastGood.ts`). 예측 모드는 탭 선택 시 1회 호출이라 유지할 이전 결과가 없어 해당 없음. BUSY 재시도 횟수는 05 #45) — `clients/computeClient.ts`의 `computeErrSchema`가 `message`만 읽고 `code`가 없다. 재시도 로직도 전혀 없다. `code`(`BAD_REQUEST`/`SERVER`/`BUSY`)·`field`를 파싱하고 회신대로 처리: `BAD_REQUEST`는 표시만, `SERVER`는 1분 뒤 1회 재시도 후 '예측 서버 오류', `BUSY`는 1분 뒤 재시도, 타임아웃은 '예측 서버 연결 안 됨' + 마지막 정상 결과 유지.
+- [x] **D-5 `/v1/health` 핑** (2026-10-14 완료 — `ComputeClient.ping()`, mock은 항상 ok, 핑 타임아웃은 `UPSTREAM_TIMEOUT_MS`) — `routes/health.ts`가 `compute: 'disconnected'` 고정값이다(2026-10-07 섹션의 미완 항목). `GET /v1/health` 결과를 `GET /api/health`의 compute 상태에 반영.
 
 ### P4. 3D 모델링 (일부 자료 대기)
 

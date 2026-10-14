@@ -24,6 +24,9 @@ export function DetailPanel(): ReactElement {
   const geometry = useDetailStore((s) => s.geometry);
   const mode = useDetailStore((s) => s.mode);
   const current = useDetailStore((s) => s.current);
+  // 재조회가 연산 서버 실패로 끝나도 이전 정상 결과(current)를 유지하고 이 문구만 작게
+  // 띄운다(2026-10-14 D-4, detail/keepLastGood.ts).
+  const currentStaleNotice = useDetailStore((s) => s.currentStaleNotice);
 
   return (
     <aside className="flex h-full w-full flex-col gap-2.5">
@@ -54,7 +57,12 @@ export function DetailPanel(): ReactElement {
             ) : (
               <>
                 <Detail3DSection>
-                  <Detail3DView geometry={geometry} frame={current.data.frames[0]} range={current.data.range} />
+                  <Detail3DView
+                    geometry={geometry}
+                    frame={current.data.frames[0]}
+                    range={current.data.range}
+                    notice={currentStaleNotice}
+                  />
                 </Detail3DSection>
                 {SHOW_2D_IN_CURRENT && (
                   <Detail2DBox>

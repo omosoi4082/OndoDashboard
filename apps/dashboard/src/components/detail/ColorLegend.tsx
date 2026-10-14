@@ -1,0 +1,46 @@
+// 색 범례(그라데이션 막대 + 값 눈금) — 2D 단면(Detail2DSection) 우측과 3D 뷰(Detail3DView)
+// 좌측 상단 오버레이가 공유한다(2026-10-14 B-8). 둘 다 같은 컬러맵(detail/colormap.ts)과
+// 같은 응답 range를 쓰므로 범례도 하나여야 한다. 선택된 값 필드(온도·습도·유동)를 따른다.
+import { useMemo, type ReactElement } from 'react';
+import type { DetailBase } from '@ondo/shared';
+import type { ValueField } from '../../store/detailStore.js';
+import { niceAxisTicks } from '../../detail/axisTicks.js';
+import { legendGradientStops, legendTickTopPct } from '../../detail/colorLegend.js';
+import { getFieldRange, getFieldUnit } from '../../detail/pointSelection.js';
+
+interface ColorLegendProps {
+  range: DetailBase['range'];
+  valueField: ValueField;
+}
+
+/**
+ * 막대 높이는 부모를 따라 늘어난다(items-stretch 부모 안에서 쓰거나, 부모에 높이를 준다).
+ * 눈금 라벨은 막대 오른쪽 바깥(left-full)에 그려지므로 부모 쪽에 라벨 폭만큼 여백을 둔다.
+ */
+export function ColorLegend({ range, valueField }: ColorLegendProps): ReactElement {
+  const fieldRange = getFieldRange(range, valueField);
+  const unit = getFieldUnit(valueField);
+  const stops = useMemo(() => legendGradientStops(valueField), [valueField]);
+  // 범례 칫수(값) — 최솟값·최댓값만이 아니라 중간 눈금도 보여준다(2026-10-10 사용자 요청:
+  // "범례에도 값에 대한 색상이 나오고 치수들이 보여야지").
+  const ticks = useMemo(() => niceAxisTicks(fieldRange.min, fieldRange.max, 4), [fieldRange.min, fieldRange.max]);
+
+  return (
+    // 범례 두께 24px(2026-10-10 사용자 요청: "범례두께 24로 변경").
+    <div className="relative my-1 w-6 rounded" style={{ background: `linear-gradient(to bottom, ${stops})` }}>
+      {ticks.map((v) => (
+        <div
+          key={v}
+          className="absolute left-full flex -translate-y-1/2 items-center gap-1 pl-1"
+          style={{ top: `${legendTickTopPct(v, fieldRange.min, fieldRange.max)}%` }}
+        >
+          <span className="h-px w-1.5 bg-white/40" />
+          <span className="whitespace-nowrap text-[9px] text-white/60">
+            {v.toFixed(1)}
+            {unit}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}

@@ -51,10 +51,20 @@ export interface ComputeOkResult {
   forecastIssuedAt?: string;
 }
 
+/**
+ * 연산 서버 오류 본문의 `code`(2026-10-13 온도 측 D-4 확정). 재시도 판단에 쓴다
+ * (clients/computeRetry.ts) — BAD_REQUEST는 재시도 안 함, SERVER·BUSY는 1분 뒤 1회 재시도.
+ */
+export type ComputeUpstreamCode = 'BAD_REQUEST' | 'SERVER' | 'BUSY';
+
 export interface ComputeErrResult {
   ok: false;
   code: ComputeErrorCode;
   message: string;
+  /** 연산 서버가 오류 본문에 준 code. 없으면(구버전 목업·알 수 없는 값·본문 없음) 재시도하지 않는다. */
+  upstreamCode?: ComputeUpstreamCode;
+  /** BAD_REQUEST일 때 문제 입력 항목명(있으면). */
+  field?: string;
 }
 
 export type ComputeResult = ComputeOkResult | ComputeErrResult;
@@ -65,6 +75,8 @@ export interface ForecastRequestExtra {
 }
 
 export interface ComputeClient {
+  /** GET /v1/health(2026-10-13 D-5). HTTP 2xx면 true. 실패·타임아웃은 false(예외를 던지지 않는다). */
+  ping(): Promise<boolean>;
   requestCurrent(inputs: ComputeRequestInput[]): Promise<ComputeResult>;
   /** POST /v1/forecast: inputs(325건) + forecast_from·forecast_issued_at(최상위, docs/02 6장). */
   requestForecast(inputs: ComputeRequestInput[], extra: ForecastRequestExtra): Promise<ComputeResult>;
@@ -144,11 +156,39 @@ const computeOkSchema = z.object({
   forecast_issued_at: z.string().optional(),
 });
 
+// D-4(2026-10-13): { request_id?, status: "error", code, field?, message }. code는 구버전 목업에
+// 없으므로 optional이고, 모르는 값이 와도 응답 전체를 형식 오류로 만들지 않으려고 문자열로 받은
+// 뒤 toUpstreamCode에서 좁힌다(모르는 값 = code 없음과 같이 취급, 재시도 안 함).
 const computeErrSchema = z.object({
   request_id: z.string().optional(),
   status: z.literal('error'),
+  code: z.string().optional(),
+  field: z.string().optional(),
   message: z.string(),
 });
+
+const UPSTREAM_CODES: readonly ComputeUpstreamCode[] = ['BAD_REQUEST', 'SERVER', 'BUSY'];
+
+function toUpstreamCode(raw: string | undefined): ComputeUpstreamCode | undefined {
+  return UPSTREAM_CODES.find((c) => c === raw);
+}
+
+/** 연산 서버 오류 본문 → ComputeErrResult. BAD_REQUEST는 field를 메시지에 붙인다. */
+function toComputeErr(err: z.infer<typeof computeErrSchema>): ComputeErrResult {
+  const upstreamCode = toUpstreamCode(err.code);
+  const field = err.field !== undefined && err.field.length > 0 ? err.field : undefined;
+  const message =
+    upstreamCode === 'BAD_REQUEST'
+      ? `예측 서버 요청 거부: ${err.message}${field ? ` (항목: ${field})` : ''}`
+      : err.message;
+  return {
+    ok: false,
+    code: 'UPSTREAM_ERROR',
+    message,
+    ...(upstreamCode ? { upstreamCode } : {}),
+    ...(field ? { field } : {}),
+  };
+}
 
 const computeResponseSchema = z.union([computeOkSchema, computeErrSchema]);
 
@@ -158,7 +198,7 @@ export function parseComputeResponse(json: unknown): ComputeResult {
     return { ok: false, code: 'UPSTREAM_ERROR', message: `연산 서버 응답 형식 오류: ${parsed.error.message}` };
   }
   if (parsed.data.status === 'error') {
-    return { ok: false, code: 'UPSTREAM_ERROR', message: parsed.data.message };
+    return toComputeErr(parsed.data);
   }
   const { range, geometryId, forecast_issued_at: forecastIssuedAt } = parsed.data;
   return {
@@ -193,6 +233,34 @@ export interface HttpComputeClientOpts {
   apiKey: string; // 빈 문자열이면 헤더 생략(docs/03 4장)
   apiKeyHeader: string;
   timeoutMs: number;
+  /** GET /v1/health 타임아웃. 진단용이라 연산 타임아웃(60초)보다 짧게 둔다. */
+  pingTimeoutMs: number;
+}
+
+/** 타임아웃·연결 실패 공통 문구(D-4). 마지막 정상 결과 유지는 대시보드 몫이다. */
+export const COMPUTE_UNREACHABLE_MESSAGE = '예측 서버 연결 안 됨';
+
+function authHeaders(opts: HttpComputeClientOpts): Record<string, string> {
+  return opts.apiKey.length > 0 ? { [opts.apiKeyHeader]: opts.apiKey } : {};
+}
+
+async function pingCompute(opts: HttpComputeClientOpts): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), opts.pingTimeoutMs);
+  try {
+    const res = await fetch(`${opts.baseUrl}/v1/health`, {
+      method: 'GET',
+      headers: authHeaders(opts),
+      signal: controller.signal,
+    });
+    // 본문은 보지 않는다(2xx면 살아 있음). 연결을 닫으려고 읽어서 버린다.
+    await res.text().catch(() => '');
+    return res.ok;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function postCompute(
@@ -214,8 +282,7 @@ async function postCompute(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
   try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (opts.apiKey.length > 0) headers[opts.apiKeyHeader] = opts.apiKey;
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...authHeaders(opts) };
 
     const res = await fetch(`${opts.baseUrl}${path}`, {
       method: 'POST',
@@ -226,7 +293,7 @@ async function postCompute(
     const text = await res.text();
 
     if (!res.ok) {
-      // 오류 응답 본문이 { status: "error", message } 형식일 수도 있으므로 먼저 파싱 시도.
+      // 오류 응답 본문이 { status: "error", code, field?, message }(D-4) 형식이면 code를 살린다.
       try {
         const json: unknown = JSON.parse(text);
         const result = parseComputeResponse(json);
@@ -241,9 +308,14 @@ async function postCompute(
     return parseComputeResponse(json);
   } catch (err) {
     if (err instanceof Error && err.name === 'AbortError') {
-      return { ok: false, code: 'UPSTREAM_TIMEOUT', message: '연산 서버 응답 시간 초과' };
+      return { ok: false, code: 'UPSTREAM_TIMEOUT', message: COMPUTE_UNREACHABLE_MESSAGE };
     }
-    return { ok: false, code: 'UPSTREAM_UNREACHABLE', message: err instanceof Error ? err.message : String(err) };
+    if (err instanceof SyntaxError) {
+      // 2xx인데 본문이 JSON이 아님 — 연결 문제가 아니라 응답 형식 문제다.
+      return { ok: false, code: 'UPSTREAM_ERROR', message: `연산 서버 응답 형식 오류: ${err.message}` };
+    }
+    console.warn(`[compute] 연결 실패: ${err instanceof Error ? err.message : String(err)}`);
+    return { ok: false, code: 'UPSTREAM_UNREACHABLE', message: COMPUTE_UNREACHABLE_MESSAGE };
   } finally {
     clearTimeout(timer);
   }
@@ -251,6 +323,9 @@ async function postCompute(
 
 export function createHttpComputeClient(opts: HttpComputeClientOpts): ComputeClient {
   return {
+    ping(): Promise<boolean> {
+      return pingCompute(opts);
+    },
     requestCurrent(inputs: ComputeRequestInput[]): Promise<ComputeResult> {
       return postCompute('/v1/current', inputs, opts);
     },
