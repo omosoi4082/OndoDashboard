@@ -127,19 +127,18 @@ export function fiveMinuteSeriesMarks(from: Date, count: number): Date[] {
 }
 
 export interface FanPctConfig {
-  tLow: number; // FAN_T_LOW
-  tHigh: number; // FAN_T_HIGH
-  min: number; // FAN_MIN
-  max: number; // FAN_MAX
+  /** 구간 경계 기온(℃), 오름차순. 기본 [22, 24, 26, 28] — FAN_STEP_TEMPS. */
+  stepTemps: readonly number[];
+  /** 구간별 fan_pct(%), stepTemps보다 1개 많다. 기본 [20, 40, 60, 80, 100] — FAN_STEP_PCTS. */
+  stepPcts: readonly number[];
 }
 
 /**
- * 예보 구간 fan_pct(docs/03 2장): clamp(min + (max-min)*(T_out-tLow)/(tHigh-tLow), min, max),
- * 소수 1자리 반올림. null을 쓰지 않는다(센서 결측과 달리 항상 값을 만들어낸다).
+ * 예보 구간 fan_pct(docs/03 2장, 2026-10-13 B-4): 외기 기온 5단 구간 표. 경계는 아래쪽 포함·
+ * 위쪽 미포함(24.0 ℃ → 60 %). null을 쓰지 않는다(센서 결측과 달리 항상 값을 만들어낸다).
  */
 export function fanPctFromTemp(tOut: number, cfg: FanPctConfig): number {
-  const span = cfg.tHigh - cfg.tLow;
-  const raw = span === 0 ? cfg.min : cfg.min + (cfg.max - cfg.min) * ((tOut - cfg.tLow) / span);
-  const clamped = Math.min(cfg.max, Math.max(cfg.min, raw));
-  return Math.round(clamped * 10) / 10;
+  let step = 0;
+  while (step < cfg.stepTemps.length && tOut >= (cfg.stepTemps[step] ?? Infinity)) step += 1;
+  return cfg.stepPcts[step] ?? cfg.stepPcts[cfg.stepPcts.length - 1] ?? 0;
 }

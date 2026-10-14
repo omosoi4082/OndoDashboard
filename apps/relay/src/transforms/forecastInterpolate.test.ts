@@ -120,22 +120,27 @@ describe('fiveMinuteSeriesMarks', () => {
   });
 });
 
-describe('fanPctFromTemp', () => {
-  const cfg = { tLow: 22, tHigh: 30, min: 20, max: 100 };
+describe('fanPctFromTemp (5단 구간 표, B-4)', () => {
+  const cfg = { stepTemps: [22, 24, 26, 28], stepPcts: [20, 40, 60, 80, 100] };
 
-  it('기준 공식: clamp(20 + 80*(T_out-22)/8, 20, 100)', () => {
-    expect(fanPctFromTemp(26, cfg)).toBeCloseTo(60, 5); // 20 + 80*4/8 = 60
-  });
-
-  it('하한 아래는 min으로 clamp', () => {
+  it('구간별 값', () => {
     expect(fanPctFromTemp(10, cfg)).toBe(20);
+    expect(fanPctFromTemp(23, cfg)).toBe(40);
+    expect(fanPctFromTemp(25, cfg)).toBe(60);
+    expect(fanPctFromTemp(27, cfg)).toBe(80);
+    expect(fanPctFromTemp(35, cfg)).toBe(100);
   });
 
-  it('상한 위는 max로 clamp', () => {
-    expect(fanPctFromTemp(40, cfg)).toBe(100);
+  it('경계값은 아래쪽 포함(위 구간으로 간다)', () => {
+    expect(fanPctFromTemp(22, cfg)).toBe(40);
+    expect(fanPctFromTemp(24, cfg)).toBe(60);
+    expect(fanPctFromTemp(26, cfg)).toBe(80);
+    expect(fanPctFromTemp(28, cfg)).toBe(100);
   });
 
-  it('소수 1자리로 반올림', () => {
-    expect(fanPctFromTemp(22.33, cfg)).toBe(23.3); // 20 + 80*0.33/8 = 23.3
+  it('경계 바로 아래는 아래 구간', () => {
+    expect(fanPctFromTemp(21.99, cfg)).toBe(20);
+    expect(fanPctFromTemp(23.99, cfg)).toBe(40);
+    expect(fanPctFromTemp(27.99, cfg)).toBe(80);
   });
 });

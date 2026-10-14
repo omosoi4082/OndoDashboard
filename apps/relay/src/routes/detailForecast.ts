@@ -1,15 +1,12 @@
-// docs/02-relay-api.md 6장 GET /api/detail/forecast. 흐름: 현재 모드와 같은 37건(5분 집계,
-// 결측 판정 공유) + 기상청 단기예보(getVilageFcst) 정시 TMP·REH → 5분 간격 288건 보간
+// docs/02-relay-api.md 6장 GET /api/detail/forecast. 흐름: 현재 모드와 같은 37건(팬 5분 집계 +
+// 기상청 실황 외기, 결측 판정 공유) + 기상청 단기예보(getVilageFcst) 정시 TMP·REH → 5분 간격 288건 보간
 // (fan_pct는 외기 기온 규칙) = 325건 → POST /v1/forecast → 응답 변환(+09:00·offsetMin·
 // geometryId·range·배열 개수 검증, 145프레임). 탭 선택 시 1회 호출(캐시 없음, docs/01 4.2).
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import type { ApiError, ApiErrorCode, ApiOk, ForecastDetail, Geometry } from '@ondo/shared';
-import type { SensorHistoryClient } from '../clients/sensorHistoryClient.js';
 import type { ComputeClient, ComputeRequestInput } from '../clients/computeClient.js';
 import type { KmaClient, KmaFcstResult } from '../clients/kmaClient.js';
-import { completedTenMinuteWindow, fiveMinuteMarks } from '../transforms/currentWindow.js';
-import { aggregateAndValidate, type AggregateThresholds } from '../transforms/aggregate5min.js';
-import { buildSensorErrorMessage, type SensorFieldError } from '../transforms/sensorErrorMessage.js';
+import { completedTenMinuteWindow } from '../transforms/currentWindow.js';
 import { buildForecastDetail } from '../transforms/detailTransform.js';
 import {
   ceilToHour,
@@ -27,15 +24,10 @@ import {
 import { httpStatusForErrorCode } from '../utils/apiError.js';
 import { formatKstWallClockNaive, kstWallClock, nowKstIso } from '../utils/time.js';
 import { parseFcstDateTime, type KmaFcstItem } from '../clients/kmaParse.js';
+import { buildMeasuredInputs, type MeasuredInputsDeps } from './measuredInputs.js';
 
 const FORECAST_5MIN_COUNT = 288; // docs/03-upstream-apis.md 2장 "24시간"
 const MINUTE_MS = 60_000;
-
-const FIELD_LABELS = {
-  tOut: '기상대 온도',
-  rhOut: '기상대 습도',
-  fanPct: '환기팬 가동률',
-} as const;
 
 function sendError(reply: FastifyReply, requestedAt: string, code: ApiErrorCode, source: ApiError['error']['source'], message: string): ApiError {
   const body: ApiError = { status: 'error', requestedAt, error: { code, source, message } };
@@ -70,12 +62,10 @@ function isAllNumber(values: readonly (number | null)[]): values is number[] {
 export function registerDetailForecastRoute(
   app: FastifyInstance,
   deps: {
-    sensorHistoryClient: SensorHistoryClient;
+    measured: MeasuredInputsDeps;
     kmaClient: KmaClient;
     computeClient: ComputeClient;
     geometry: Geometry;
-    inputPaths: { tOut: string; rhOut: string; fanPct: string };
-    thresholds: { temp: AggregateThresholds; rh: AggregateThresholds; fan: AggregateThresholds };
     forecastGapMaxHours: number;
     fanPctConfig: FanPctConfig;
   },
@@ -88,39 +78,13 @@ export function registerDetailForecastRoute(
     const now = kstWallClock(realNow);
     const window = completedTenMinuteWindow(now);
 
-    // 1) 실측 37건(현재 모드와 같은 5분 집계 구간·결측 판정 공유).
-    const [tOutRaw, rhOutRaw, fanRaw] = await Promise.all([
-      deps.sensorHistoryClient.range(deps.inputPaths.tOut, window.startMin, window.endMin),
-      deps.sensorHistoryClient.range(deps.inputPaths.rhOut, window.startMin, window.endMin),
-      deps.sensorHistoryClient.range(deps.inputPaths.fanPct, window.startMin, window.endMin),
-    ]);
-
-    const tOutAgg = aggregateAndValidate(tOutRaw, deps.thresholds.temp);
-    const rhOutAgg = aggregateAndValidate(rhOutRaw, deps.thresholds.rh);
-    const fanAgg = aggregateAndValidate(fanRaw, deps.thresholds.fan);
-
-    const sensorErrors: SensorFieldError[] = [];
-    if (tOutAgg.error) sensorErrors.push({ label: FIELD_LABELS.tOut, path: deps.inputPaths.tOut, missingMinutes: tOutAgg.error.missingMinutes });
-    if (rhOutAgg.error) sensorErrors.push({ label: FIELD_LABELS.rhOut, path: deps.inputPaths.rhOut, missingMinutes: rhOutAgg.error.missingMinutes });
-    if (fanAgg.error) sensorErrors.push({ label: FIELD_LABELS.fanPct, path: deps.inputPaths.fanPct, missingMinutes: fanAgg.error.missingMinutes });
-
-    if (sensorErrors.length > 0) {
-      // 센서 쪽이 오류면 기상청·연산 서버를 호출하지 않는다(docs/02-relay-api.md 6장).
-      return sendError(reply, requestedAt, 'UPSTREAM_ERROR', 'sensor', buildSensorErrorMessage(sensorErrors));
+    // 1) 실측 37건(현재 모드와 같은 구간·결측 판정 공유 — measuredInputs.ts). 실측 쪽이
+    //    실패하면 기상청 예보·연산 서버를 호출하지 않는다(docs/02-relay-api.md 6장).
+    const measured = await buildMeasuredInputs(deps.measured, window);
+    if (!measured.ok) {
+      return sendError(reply, requestedAt, measured.code, measured.source, measured.message);
     }
-
-    const marks = fiveMinuteMarks(window.startMin, window.endMin); // 37개
-    const measuredInputs: ComputeRequestInput[] = [];
-    for (let i = 0; i < marks.length; i += 1) {
-      const mark = marks[i];
-      const tOut = tOutAgg.values[i];
-      const rhOut = rhOutAgg.values[i];
-      const fanPct = fanAgg.values[i];
-      if (!mark || tOut === null || tOut === undefined || rhOut === null || rhOut === undefined || fanPct === null || fanPct === undefined) {
-        return sendError(reply, requestedAt, 'INTERNAL_ERROR', 'relay', '집계 결과에 결측 값이 남아 있습니다.');
-      }
-      measuredInputs.push({ time: formatKstWallClockNaive(mark), T_out: tOut, RH_out: rhOut, fan_pct: fanPct });
-    }
+    const measuredInputs = measured.inputs;
 
     // 2) 단기예보 288건(5분 보간) — 마지막 실측 다음 5분부터 24시간.
     const forecastFromMin = new Date(window.endMin.getTime() + 5 * MINUTE_MS);
@@ -142,7 +106,7 @@ export function registerDetailForecastRoute(
     // 24시간을 못 채우면(결측 있으면) 직전 발표분을 재요청해 빈 슬롯만 보충한다(docs/02 6장).
     const issuedAt = primary.baseAt;
     if (tmpValues.includes(null) || rehValues.includes(null)) {
-      const fallback: KmaFcstResult | null = await deps.kmaClient.getVilageFcst(realNow, 1);
+      const fallback: KmaFcstResult | null = await deps.kmaClient.getVilageFcst(realNow, (primary.stepsBack ?? 0) + 1);
       if (fallback) {
         tmpValues = mergeHourlyFallback(tmpValues, hourlyValuesAtMarks(hourMarks, categoryMap(fallback.items, 'TMP')));
         rehValues = mergeHourlyFallback(rehValues, hourlyValuesAtMarks(hourMarks, categoryMap(fallback.items, 'REH')));

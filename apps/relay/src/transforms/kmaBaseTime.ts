@@ -41,6 +41,17 @@ export function ultraSrtNcstBaseTime(now: Date, stepsBack = 0): KmaBaseTime {
 }
 
 /**
+ * 특정 정시의 초단기실황 발표 시각(과거 정시 조회용, 2026-10-13 B-3). hour는 kstWallClock()
+ * 표현의 정시 Date — 분 이하는 버린다. 자정·월 경계는 Date가 이미 처리한 값을 그대로 쓴다.
+ */
+export function ultraSrtNcstBaseTimeAtHour(hour: Date): KmaBaseTime {
+  return {
+    baseDate: formatDate(hour.getUTCFullYear(), hour.getUTCMonth() + 1, hour.getUTCDate()),
+    baseTime: `${pad2(hour.getUTCHours())}00`,
+  };
+}
+
+/**
  * 초단기예보(getUltraSrtFcst) 발표 시각: 매시 HH30.
  * 분이 30 미만이면 아직 그 시각 발표 전이므로 한 시간 전 HH30을 쓴다.
  */

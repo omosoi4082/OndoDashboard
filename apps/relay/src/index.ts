@@ -18,6 +18,7 @@ import { createSensorHistoryClient } from './clients/sensorHistoryClient.js';
 import { createKmaClient } from './clients/kmaClient.js';
 import { createComputeClient } from './clients/computeClientFactory.js';
 import type { AggregateThresholds } from './transforms/aggregate5min.js';
+import type { MeasuredInputsDeps } from './routes/measuredInputs.js';
 import { geometry } from './config/geometry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -42,6 +43,7 @@ const kmaClient = createKmaClient({
   nx: env.KMA_NX,
   ny: env.KMA_NY,
   timeoutMs: env.UPSTREAM_TIMEOUT_MS,
+  vilageMaxStepsBack: env.KMA_VILAGE_MAX_STEPS_BACK,
 });
 
 const sensorHistoryClient = createSensorHistoryClient({
@@ -59,20 +61,16 @@ const computeClient = createComputeClient({
   timeoutMs: env.COMPUTE_TIMEOUT_MS,
 });
 
-// 센서 5분 집계·결측 처리 임계값(docs/03-upstream-apis.md 1.2) — 세 항목 모두 같은
-// 보간/오류 임계값을 쓰지만 범위(온도·습도·팬)와 범위 밖 처리 방식만 다르다.
-// 범위 밖 처리(2026-10-13 온도 측 A-2·B-5): 환기팬 가동률은 센서 특성상 172.5처럼 튀는
-// 값이 섞여 들어오므로 결측으로 보지 않고 경계값으로 자른다('clamp'). 온도·습도는 범위를
-// 벗어나면 센서 고장에 가까우므로 기존처럼 결측으로 둔다('null').
-const aggCommon = {
+// 센서 5분 집계·결측 처리 임계값(docs/03-upstream-apis.md 1.2) — 센서 이력을 쓰는 연산 입력은
+// 환기팬 가동률 하나뿐이다(2026-10-13 B-3). 범위 밖 처리(2026-10-13 온도 측 A-2·B-5): 센서
+// 특성상 172.5처럼 튀는 값이 섞여 들어오므로 결측으로 보지 않고 경계값으로 자른다('clamp').
+const fanAggThreshold: AggregateThresholds = {
   interpMaxGap: env.AGG_INTERP_MAX_GAP,
   errorMinGap: env.AGG_ERROR_MIN_GAP,
   errorMaxRatio: env.AGG_ERROR_MAX_RATIO,
-};
-const aggThresholds: { temp: AggregateThresholds; rh: AggregateThresholds; fan: AggregateThresholds } = {
-  temp: { ...aggCommon, rangeMin: env.SENSOR_TEMP_MIN, rangeMax: env.SENSOR_TEMP_MAX, outOfRange: 'null' },
-  rh: { ...aggCommon, rangeMin: env.SENSOR_RH_MIN, rangeMax: env.SENSOR_RH_MAX, outOfRange: 'null' },
-  fan: { ...aggCommon, rangeMin: env.SENSOR_FAN_MIN, rangeMax: env.SENSOR_FAN_MAX, outOfRange: 'clamp' },
+  rangeMin: env.SENSOR_FAN_MIN,
+  rangeMax: env.SENSOR_FAN_MAX,
+  outOfRange: 'clamp',
 };
 
 registerHealthRoute(app, { sensorClient, kmaClient });
@@ -80,22 +78,24 @@ registerMainRoomsRoute(app, { sensorClient });
 registerMainWeatherKmaRoute(app, { kmaClient, farmLat: env.FARM_LAT, farmLon: env.FARM_LON, areaName: env.FARM_AREA_NAME });
 registerMainWeatherStationRoute(app, { sensorClient, farmLat: env.FARM_LAT, farmLon: env.FARM_LON });
 registerDetailGeometryRoute(app, { geometry });
-registerDetailCurrentRoute(app, {
+// 현재·예측 모드 실측 구간 입력(routes/measuredInputs.ts). 센서 이력은 환기팬 하나만 쓰고,
+// 외기 온·습도는 기상청 실황 정시 값이다(2026-10-13 B-3) — 그 값의 유효 범위는 센서와 같은
+// 온도·습도 범위를 쓴다.
+const measuredDeps: MeasuredInputsDeps = {
   sensorHistoryClient,
-  computeClient,
-  geometry,
-  inputPaths: { tOut: env.INPUT_T_OUT_PATH, rhOut: env.INPUT_RH_OUT_PATH, fanPct: env.INPUT_FAN_PATH },
-  thresholds: aggThresholds,
-});
+  kmaClient,
+  fanPath: env.INPUT_FAN_PATH,
+  fanThreshold: fanAggThreshold,
+  outdoorRange: { tempMin: env.SENSOR_TEMP_MIN, tempMax: env.SENSOR_TEMP_MAX, rhMin: env.SENSOR_RH_MIN, rhMax: env.SENSOR_RH_MAX },
+};
+registerDetailCurrentRoute(app, { measured: measuredDeps, computeClient, geometry });
 registerDetailForecastRoute(app, {
-  sensorHistoryClient,
+  measured: measuredDeps,
   kmaClient,
   computeClient,
   geometry,
-  inputPaths: { tOut: env.INPUT_T_OUT_PATH, rhOut: env.INPUT_RH_OUT_PATH, fanPct: env.INPUT_FAN_PATH },
-  thresholds: aggThresholds,
   forecastGapMaxHours: env.FORECAST_GAP_MAX_HOURS,
-  fanPctConfig: { tLow: env.FAN_T_LOW, tHigh: env.FAN_T_HIGH, min: env.FAN_MIN, max: env.FAN_MAX },
+  fanPctConfig: { stepTemps: env.FAN_STEP_TEMPS, stepPcts: env.FAN_STEP_PCTS },
 });
 registerDetailExpertRoute(app, {
   geometry,

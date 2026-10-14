@@ -3,6 +3,7 @@ import {
   kmaBaseTimeToIso,
   ultraSrtFcstBaseTime,
   ultraSrtNcstBaseTime,
+  ultraSrtNcstBaseTimeAtHour,
   vilageFcstBaseTime,
 } from './kmaBaseTime.js';
 
@@ -10,6 +11,17 @@ import {
 function kst(y: number, m: number, d: number, h: number, mi = 0): Date {
   return new Date(Date.UTC(y, m - 1, d, h, mi));
 }
+
+describe('ultraSrtNcstBaseTimeAtHour (과거 정시 지정)', () => {
+  it('정시 Date를 그대로 base_date/base_time으로', () => {
+    expect(ultraSrtNcstBaseTimeAtHour(kst(2026, 10, 14, 12))).toEqual({ baseDate: '20261014', baseTime: '1200' });
+  });
+
+  it('분은 버리고 자정·월 경계 날짜를 따른다', () => {
+    expect(ultraSrtNcstBaseTimeAtHour(kst(2026, 10, 14, 0, 40))).toEqual({ baseDate: '20261014', baseTime: '0000' });
+    expect(ultraSrtNcstBaseTimeAtHour(kst(2026, 10, 31, 23))).toEqual({ baseDate: '20261031', baseTime: '2300' });
+  });
+});
 
 describe('ultraSrtNcstBaseTime (매시 HH00)', () => {
   it('같은 시의 정각을 돌려준다', () => {

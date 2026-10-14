@@ -11,16 +11,20 @@ loadDotenv({ path: path.resolve(__dirname, '../../../../.env') });
 // FARM_LAT/LON, KMA_NX/NY는 M1(KmaClient)부터 required로 좁힌다(docs/05-open-questions.md #12).
 // KMA_SERVICE_KEY는 공공데이터포털에서 발급 전까지 빈 값일 수 있으므로 계속 optional(빈 문자열 허용) —
 // 비어 있어도 서버는 뜨고, 실제 기상청 호출만 실패(disconnected)한다.
+// 쉼표로 구분한 숫자 목록("22,24,26,28") → number[].
+const numberList = z
+  .string()
+  .transform((v) => v.split(',').map((x) => Number(x.trim())))
+  .refine((arr) => arr.length > 0 && arr.every((n) => Number.isFinite(n)), '쉼표로 구분한 숫자 목록이어야 합니다');
+
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(8080),
 
   SENSOR_MODE: z.enum(['live', 'mock']).default('live'),
-  // 현재·예측 모드 입력용 이력(range)만 따로 전환. 비우면 SENSOR_MODE를 따른다
-  // (외기 3시간 이력 미제공 기간에 메인은 live, 상세 입력만 mock으로 쓰기 위함 — 05-open-questions #34).
+  // 현재·예측 모드 입력용 이력(range)만 따로 전환. 비우면 SENSOR_MODE를 따른다. 지금 이력을
+  // 쓰는 입력은 환기팬 하나뿐이다(외기 온·습도는 기상청 실황 — 2026-10-13 B-3, 05-open-questions #34).
   SENSOR_HISTORY_MODE: z.preprocess((v) => (v === '' ? undefined : v), z.enum(['live', 'mock']).optional()),
   SENSOR_BASE_URL: z.string().min(1),
-  INPUT_T_OUT_PATH: z.string().min(1).default('JE/OU/WS/WS1/TEMP'),
-  INPUT_RH_OUT_PATH: z.string().min(1).default('JE/OU/WS/WS1/RH'),
   INPUT_FAN_PATH: z.string().min(1).default('JE/EX/NH/FN1/FAN1'),
 
   KMA_SERVICE_KEY: z.string().default(''),
@@ -35,13 +39,10 @@ const envSchema = z.object({
   COMPUTE_BASE_URL: z.string().min(1).default('http://localhost:9000'),
   COMPUTE_API_KEY: z.string().default(''),
   COMPUTE_API_KEY_HEADER: z.string().min(1).default('X-API-Key'),
-  // 예측 입력(forecast 구간) fan_pct 계산식(docs/03 2장): clamp(FAN_MIN + (FAN_MAX-FAN_MIN)
-  // *(T_out-FAN_T_LOW)/(FAN_T_HIGH-FAN_T_LOW), FAN_MIN, FAN_MAX). summary 형식은 폐기됨
-  // (FORECAST_INPUT_FORMAT·FAN_T_100·FAN_T_50·FAN_T_20 제거, 2026-10-07 확정).
-  FAN_T_LOW: z.coerce.number().default(22),
-  FAN_T_HIGH: z.coerce.number().default(30),
-  FAN_MIN: z.coerce.number().default(20),
-  FAN_MAX: z.coerce.number().default(100),
+  // 예측 입력(forecast 구간) fan_pct 5단 구간 표(docs/03 2장, 2026-10-13 B-4). 경계 기온(℃,
+  // 오름차순)과 구간별 가동률(%, 경계보다 1개 많게)을 쉼표로 적는다. 경계는 아래쪽 포함.
+  FAN_STEP_TEMPS: numberList.default('22,24,26,28'),
+  FAN_STEP_PCTS: numberList.default('20,40,60,80,100'),
 
   SECTION_Z_M: z.coerce.number().default(0.5),
 
@@ -73,6 +74,10 @@ const envSchema = z.object({
   SENSOR_FAN_MIN: z.coerce.number().default(0),
   SENSOR_FAN_MAX: z.coerce.number().default(100),
 
+  // 기상청 단기예보 NO_DATA 시 최신 발표분에서 최대 몇 단계 이전 발표분까지 내려갈지(발표는 3시간
+  // 간격 — 2면 23:00 → 20:00 → 17:00). 2026-10-13 23:30 실측에서 두 단계 연속 NO_DATA였다.
+  KMA_VILAGE_MAX_STEPS_BACK: z.coerce.number().int().nonnegative().default(2),
+
   // 기상청 단기예보 결측 허용 시간(docs/03 2장) — 연속 이 값(시간) 이상 결측이면 예보 조회 실패.
   FORECAST_GAP_MAX_HOURS: z.coerce.number().int().positive().default(3),
 
@@ -86,10 +91,20 @@ const envSchema = z.object({
   EXPERT_VENT_MAX: z.coerce.number().default(100),
 });
 
-export type Env = z.infer<typeof envSchema>;
+const refinedEnvSchema = envSchema.superRefine((e, ctx) => {
+  const temps = e.FAN_STEP_TEMPS;
+  if (temps.some((t, i) => i > 0 && t <= (temps[i - 1] ?? -Infinity))) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['FAN_STEP_TEMPS'], message: '오름차순이어야 합니다' });
+  }
+  if (e.FAN_STEP_PCTS.length !== temps.length + 1) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['FAN_STEP_PCTS'], message: `FAN_STEP_TEMPS보다 1개 많아야 합니다(${temps.length + 1}개)` });
+  }
+});
+
+export type Env = z.infer<typeof refinedEnvSchema>;
 
 function loadEnv(): Env {
-  const result = envSchema.safeParse(process.env);
+  const result = refinedEnvSchema.safeParse(process.env);
   if (!result.success) {
     const issues = result.error.issues
       .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)

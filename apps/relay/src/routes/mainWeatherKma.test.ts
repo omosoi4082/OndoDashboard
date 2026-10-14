@@ -16,6 +16,9 @@ describe('GET /api/main/weather/kma', () => {
           baseAt: '2026-10-07T15:00:00+09:00',
         };
       },
+      async getUltraSrtNcstAtHour() {
+        return null;
+      },
       async getUltraSrtFcst() {
         return {
           items: [{ category: 'SKY', fcstDate: '20261007', fcstTime: '1530', fcstValue: '3' }],
@@ -48,6 +51,9 @@ describe('GET /api/main/weather/kma', () => {
       async getUltraSrtNcst() {
         return null;
       },
+      async getUltraSrtNcstAtHour() {
+        return null;
+      },
       async getUltraSrtFcst() {
         return null;
       },
@@ -74,6 +80,9 @@ describe('GET /api/main/weather/kma', () => {
     const kmaClient: KmaClient = {
       async getUltraSrtNcst() {
         return { map: { T1H: '5', REH: '90', VEC: '100', PTY: '1' }, baseAt: '2026-10-07T15:00:00+09:00' };
+      },
+      async getUltraSrtNcstAtHour() {
+        return null;
       },
       async getUltraSrtFcst() {
         return { items: [{ category: 'SKY', fcstDate: '20261007', fcstTime: '1530', fcstValue: '1' }], baseAt: '' };
