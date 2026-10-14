@@ -24,6 +24,13 @@ import { FlowArrow } from './FlowArrow.js';
 import { Detail3DSection } from './DetailSections.js';
 import { ColorLegend } from './ColorLegend.js';
 
+// 3D 뷰 오버레이 범례 틀 — 2026-10-14 사용자 지정(56×180), 디자인
+// docs/design/UI/04_제어모드_디자인_범례추가.png 실측과 같다(패널 56×180, 오른쪽 여백 약
+// 12px, 세로 가운데). 막대는 시안의 15px에 맞춰 16px로 두고 남는 폭을 눈금 라벨에 준다.
+const LEGEND_WIDTH_PX = 56;
+const LEGEND_HEIGHT_PX = 180;
+const LEGEND_BAR_WIDTH_PX = 16;
+
 interface Detail3DViewProps {
   geometry: Geometry;
   frame: DetailFrame | null;
@@ -269,13 +276,16 @@ export function Detail3DView({
         )}
       </Canvas>
 
-      {/* 색 범례(2026-10-14 B-8) — 2D 단면과 같은 ColorLegend를 좌측 상단에 작게 얹는다.
-          우측 하단은 제어 모드 요약 카드, 가운데는 방·안내 문구 자리라 피한다. 막대 오른쪽
-          바깥에 그려지는 눈금 라벨이 잘리지 않도록 오른쪽 여백(pr-12)을 둔다. range가 없으면
-          (데이터 전·로딩·오류, EmptyDetail3D) 그리지 않는다. */}
+      {/* 색 범례(2026-10-14 B-8) — 2D 단면과 같은 ColorLegend를 오른쪽 가운데에 얹는다
+          (docs/design/UI/04_제어모드_디자인_범례추가.png, 2026-10-14 사용자 지정: 틀 56×180,
+          그래프 카드는 왼쪽 아래로). range가 없으면(데이터 전·로딩·오류, EmptyDetail3D)
+          그리지 않는다. */}
       {range && (
-        <div className="pointer-events-none absolute left-3 top-3 flex h-40 items-stretch rounded bg-[#141414]/50 py-1 pl-2 pr-12">
-          <ColorLegend range={range} valueField={valueField} />
+        <div
+          className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-stretch rounded bg-[#141414]/50 p-1"
+          style={{ width: LEGEND_WIDTH_PX, height: LEGEND_HEIGHT_PX }}
+        >
+          <ColorLegend range={range} valueField={valueField} barWidthPx={LEGEND_BAR_WIDTH_PX} showUnit={false} />
         </div>
       )}
 
@@ -287,9 +297,9 @@ export function Detail3DView({
         </div>
       )}
 
-      {/* 제어 모드 요약 카드 위치 — 우측 하단(2026-10-11 04_제어모드_디자인_01_gh 전달,
-          이전엔 좌측 상단이었다). */}
-      {htmlOverlay && <div className="pointer-events-none absolute bottom-3 right-3">{htmlOverlay}</div>}
+      {/* 제어 모드 요약 카드(그래프) 위치 — 좌측 하단(2026-10-14 04_제어모드_디자인_범례추가
+          전달. 2026-10-11 시안에서는 우측 하단이었는데, 그 자리에 범례가 들어오면서 옮겼다). */}
+      {htmlOverlay && <div className="pointer-events-none absolute bottom-3 left-3">{htmlOverlay}</div>}
 
       {message && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">

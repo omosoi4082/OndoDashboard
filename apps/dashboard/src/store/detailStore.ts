@@ -6,6 +6,7 @@ import { create } from 'zustand';
 import type { ApiResponse, ControlDetail, CurrentDetail, ExpertDetail, ForecastDetail, Geometry } from '@ondo/shared';
 import { advanceTimelineFrame } from '../detail/timeline.js';
 import { keepLastGoodOnComputeFailure } from '../detail/keepLastGood.js';
+import { formatFrameDateTime } from '../detail/timeline.js';
 
 // 01-functional-spec.md 1장: 모드 탭(현재/예측/전문가/제어). shared의 각 Detail*의
 // mode 리터럴을 그대로 모아 쓴다(타입 복제가 아니라 참조).
@@ -121,7 +122,10 @@ export const useDetailStore = create<DetailState>((set) => ({
   // 연산 서버 실패 시 이전 정상 결과를 유지할지는 순수 함수로 판단한다(D-4).
   setCurrent: (next) =>
     set((s) => {
-      const { response, staleNotice } = keepLastGoodOnComputeFailure(s.current, next);
+      // 유지하는 결과가 언제 값인지 문구에 같이 띄운다(온도 측 2026-10-14 회신).
+      const { response, staleNotice } = keepLastGoodOnComputeFailure(s.current, next, (d) =>
+        formatFrameDateTime(d.baseAt),
+      );
       return { current: response, currentStaleNotice: staleNotice };
     }),
   setForecast: (forecast) => set({ forecast }),

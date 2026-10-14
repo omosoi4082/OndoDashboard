@@ -9,7 +9,7 @@ import { MarchingCubes } from 'three-stdlib';
 import type { DetailBase, Geometry } from '@ondo/shared';
 import { zUpVolumeGroupTransform } from './coords.js';
 import { valueToRGB01 } from '../detail/colormap.js';
-import { fillCubeField, isosurfaceCubeResolution, levelIsolations } from '../detail/isosurfaceField.js';
+import { fieldValueRange, fillCubeField, isosurfaceCubeResolution, levelIsolations } from '../detail/isosurfaceField.js';
 import { upsampledGridSize } from '../detail/gridUpsample.js';
 import {
   ISOSURFACE_LEVEL_COUNT,
@@ -72,16 +72,21 @@ export function IsosurfaceVolume({ geometry, range, valueField, frameCache }: Is
 
   useEffect(() => {
     if (!frameCache) return;
-    const fieldRange = valueField === 'temp' ? range.temp : range.rh;
+    // 색은 응답 전체 range 기준(프레임끼리 색이 같은 뜻 — 밤에 파랗게 식는 게 보인다),
+    // 등치면 임계값은 이 프레임 field의 실제 min~max 기준으로 잡는다(2026-10-14,
+    // docs/05-open-questions.md #47). 전체 range로 잡으면 한 프레임 값 폭(2~3 ℃)이 range
+    // (예측은 24시간 외기 변화 폭)보다 훨씬 좁아 4단계 중 한 단계만 끝값 근처에 걸려 표면이
+    // 거의 안 생긴다 — "예측 모드에 온도·습도 메쉬가 안 나온다"의 원인이었다.
+    const colorRange = valueField === 'temp' ? range.temp : range.rh;
     const values = valueField === 'temp' ? frameCache.temp : frameCache.rh;
     fillCubeField(fieldScratch, resolution, values, frameCache.size);
-    const isolations = levelIsolations(fieldRange, ISOSURFACE_LEVEL_COUNT);
+    const isolations = levelIsolations(fieldValueRange(fieldScratch), ISOSURFACE_LEVEL_COUNT);
 
     instances.forEach((mc, i) => {
       mc.field.set(fieldScratch);
-      const isolation = isolations[i] ?? fieldRange.max;
+      const isolation = isolations[i] ?? colorRange.max;
       mc.isolation = isolation;
-      const [r, g, b] = valueToRGB01(isolation, fieldRange.min, fieldRange.max, valueField);
+      const [r, g, b] = valueToRGB01(isolation, colorRange.min, colorRange.max, valueField);
       const material = mc.material;
       if (!Array.isArray(material)) (material as THREE.MeshStandardMaterial).color.setRGB(r, g, b);
       mc.update();

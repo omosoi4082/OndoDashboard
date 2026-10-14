@@ -14,6 +14,30 @@ export function isosurfaceCubeResolution(upsampledSize: readonly [number, number
 }
 
 /**
+ * 이 프레임 field의 실제 최솟값·최댓값. 등치면 임계값을 응답 전체 range가 아니라 프레임 자체
+ * 범위에서 뽑기 위해 쓴다(2026-10-14, docs/05-open-questions.md #47).
+ *
+ * 왜 필요한가: 예측·전문가·제어 응답의 `range`는 145프레임 전체(예측은 24시간 외기 변화)를
+ * 덮는 범위라, 한 프레임의 실내 값 폭(2~3 ℃)보다 훨씬 넓다. 전체 range로 4단계를 균등하게
+ * 잡으면 그중 보통 한 단계만 프레임 값 폭에 걸리고, 그것도 프레임의 끝값 근처라 표면이 거의
+ * 생기지 않는다(예측 mock frame 0: 삼각형 196개 — 현재 모드 9,264개 대비 2%, 화면상 안 보임).
+ * 색은 그대로 전체 range 기준으로 칠해서 절대값 비교는 유지한다(scene/IsosurfaceVolume.tsx).
+ *
+ * 빈 배열이면 {min:0,max:0}을 돌려준다(호출 측에서 span<=0으로 처리된다).
+ */
+export function fieldValueRange(values: ArrayLike<number>): MinMax {
+  if (values.length === 0) return { min: 0, max: 0 };
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < values.length; i += 1) {
+    const v = values[i] ?? 0;
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return { min, max };
+}
+
+/**
  * range.min~max 사이에 levelCount개의 등치면 임계값을 균등하게 둔다(양 끝은 피한다 —
  * 끝값과 같으면 표면이 거의 생기지 않거나 방 전체를 채워버린다).
  */

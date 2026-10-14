@@ -15,9 +15,21 @@ export interface KeptResult<T> {
   staleNotice: string | null;
 }
 
-export function keepLastGoodOnComputeFailure<T>(prev: ApiResponse<T> | null, next: ApiResponse<T>): KeptResult<T> {
+export function keepLastGoodOnComputeFailure<T>(
+  prev: ApiResponse<T> | null,
+  next: ApiResponse<T>,
+  /**
+   * 유지하는 결과의 시각을 뽑는다 — 온도 측 2026-10-14 회신: "마지막 정상 결과를 **그 시각과
+   * 함께** 유지해 주시면 됩니다". 화면 문구가 "지금 값"으로 오해되지 않게 언제 값인지 같이 쓴다.
+   */
+  keptTimeOf?: (data: T) => string | null,
+): KeptResult<T> {
   if (next.status === 'error' && next.error.source === 'compute' && prev !== null && prev.status !== 'error') {
-    return { response: prev, staleNotice: next.error.message };
+    const keptTime = keptTimeOf?.(prev.data) ?? null;
+    return {
+      response: prev,
+      staleNotice: keptTime ? `${next.error.message} (마지막 결과 ${keptTime})` : next.error.message,
+    };
   }
   return { response: next, staleNotice: null };
 }
