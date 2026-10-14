@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { DetailBase, DetailFrame, Geometry } from '@ondo/shared';
-import { zUpToYUp } from '../../scene/coords.js';
+import { sizeZUpToYUp, zUpToYUp } from '../../scene/coords.js';
 import { computeCameraFrame } from '../../scene/cameraFraming.js';
 import { CAMERA_MARGIN_FACTOR } from '../../config/constants.js';
 import { useDetailStore } from '../../store/detailStore.js';
@@ -58,8 +58,9 @@ function CameraFraming({ roomSize }: { roomSize: readonly [number, number, numbe
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
   useEffect(() => {
-    const [w, h, d] = zUpToYUp(roomSize);
-    const box = new THREE.Box3(new THREE.Vector3(0, 0, 0), new THREE.Vector3(w, h, d));
+    // 방 박스는 Three.js에서 z −d~0(scene/coords.ts). 카메라는 +z 쪽(배기구 벽 y=0 앞)에 앉는다.
+    const [w, h, d] = sizeZUpToYUp(roomSize);
+    const box = new THREE.Box3(new THREE.Vector3(0, 0, -d), new THREE.Vector3(w, h, 0));
     const frame = computeCameraFrame(box, CAMERA_MARGIN_FACTOR);
 
     camera.position.copy(frame.position);
@@ -114,14 +115,16 @@ function DetailRoomLighting({ roomSize }: { roomSize: readonly [number, number, 
 
   useEffect(() => {
     const [w, h, d] = roomSize;
+    // 방 박스가 z −d~0이라(scene/coords.ts) 방 기준 z 위치는 cz(방 중심)에서 잰다.
+    const cz = -d / 2;
     const group = new THREE.Group();
 
     group.add(new THREE.HemisphereLight(0xffffff, 0xd9dfe6, 0.55));
     group.add(new THREE.AmbientLight(0xffffff, 0.18));
 
     const dir = new THREE.DirectionalLight(0xffffff, 1.1);
-    dir.position.set(w / 2 + 2, h + 3, d / 2 + 1.5);
-    dir.target.position.set(w / 2, 0, d / 2);
+    dir.position.set(w / 2 + 2, h + 3, cz + 1.5);
+    dir.target.position.set(w / 2, 0, cz);
     dir.castShadow = true;
     dir.shadow.mapSize.set(2048, 2048);
     dir.shadow.bias = -0.0015;
@@ -136,13 +139,13 @@ function DetailRoomLighting({ roomSize }: { roomSize: readonly [number, number, 
     group.add(dir, dir.target);
 
     const fill = new THREE.DirectionalLight(0xffffff, 0.12);
-    fill.position.set(-6, 4, -5);
+    fill.position.set(-6, 4, cz - d / 2 - 5);
     group.add(fill);
 
     // 실내등(포인트 라이트)은 그림자 없이 은은한 채움광으로만 — 천장 근처에서 역제곱
     // 법칙으로 한 지점만 하얗게 뜨는 문제가 있어 세기를 낮추고 천장에서 띄운다.
     const roomLight = new THREE.PointLight(0xfff2e0, 0.8, 0, 2);
-    roomLight.position.set(w / 2, h - 0.7, d / 2);
+    roomLight.position.set(w / 2, h - 0.7, cz);
     group.add(roomLight);
 
     scene.add(group);
@@ -186,7 +189,7 @@ export function Detail3DView({
 
   // geometry는 상세 진입 시 1회만 받아오는 고정값(store에 보관)이라 참조가 안정적이다 —
   // useMemo로 묶어서 매 렌더마다 조명/모델 effect가 불필요하게 재생성되지 않게 한다.
-  const roomSizeYUp = useMemo(() => zUpToYUp(geometry.room.size), [geometry.room.size]);
+  const roomSizeYUp = useMemo(() => sizeZUpToYUp(geometry.room.size), [geometry.room.size]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-ondo-border bg-ondo-surface">

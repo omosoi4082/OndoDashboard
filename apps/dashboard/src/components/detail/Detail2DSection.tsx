@@ -91,13 +91,10 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   // "x축 눈금이 4 m에서 끝나는데 방 폭은 4.5 m입니다". 나이스 넘버만 쓰면 0·1·2·3·4로
   // 끝나 방이 4 m인 것처럼 보였다.
   //
-  // y축 방향(y=0이 위)은 **그대로 둔다**. B-9의 "3D 시점과 일치시켜 달라"는 요청에 대해
-  // 기본 카메라 방향(scene/cameraFraming.ts DEFAULT_CAMERA_DIRECTION = [0.433, 0.379, 0.462])
-  // 으로 화면 up 벡터를 계산하면 (−0.339, +0.828, −0.362)이고 z 성분이 음수다. 데이터 y는
-  // Three.js z로 가므로(scene/coords.ts) y가 커질수록 화면 아래로 간다 — 지금 2D(row=j가
-  // 위에서 아래로)와 같은 방향이다. x축도 같은 방식으로 확인했다(둘 다 오른쪽으로 증가).
-  // 온도 측이 말한 "그림 1 평면도는 y=0이 아래"는 그쪽 도면 기준이고, "어느 쪽이든 3D와
-  // 같으면 됩니다"라고 했으므로 뒤집지 않는다.
+  // y축은 **y = 0이 아래**(2026-10-14 B-9 재검토). 온도 측 평면도(그림 1)가 y = 0이 아래이고,
+  // 3D 상세보기도 좌표 변환을 회전((x, z, −y), scene/coords.ts)으로 고쳐 위에서 보면 같은
+  // 방향이 됐다. 전에는 3D가 거울상((x, z, y) 반사)이라 2D를 y = 0이 위로 맞춰 두었었다.
+  // 히트맵(heatmapImage.ts row = height−1−j)·칸막이 SVG(아래 <g> 뒤집기)·y 눈금을 함께 뒤집는다.
   const axisMaxX = activeGrid.origin[0] + (activeGrid.size[0] - 1) * activeGrid.spacing[0];
   const axisMaxY = activeGrid.origin[1] + (activeGrid.size[1] - 1) * activeGrid.spacing[1];
   const xTicks = useMemo(() => axisTicksWithEnd(activeGrid.origin[0], axisMaxX), [activeGrid, axisMaxX]);
@@ -142,7 +139,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
                 <span
                   key={v}
                   className="absolute right-1 -translate-y-1/2 whitespace-nowrap text-[9px] text-white/50"
-                  style={{ top: `${((v - viewMinY) / viewH) * 100}%` }}
+                  style={{ top: `${((viewMinY + viewH - v) / viewH) * 100}%` }}
                 >
                   {formatTick(v)}m
                 </span>
@@ -159,6 +156,8 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
                 viewBox={`${viewMinX} ${viewMinY} ${viewW} ${viewH}`}
                 preserveAspectRatio="none"
               >
+                {/* SVG는 y가 아래로 커지므로 viewBox 세로 범위 안에서 위아래를 뒤집는다(y = 0이 아래). */}
+                <g transform={`translate(0 ${2 * viewMinY + viewH}) scale(1 -1)`}>
                 {SECTION_PARTITION_SEGMENTS.map(([[x1, y1], [x2, y2]], idx) => (
                   <line
                     key={idx}
@@ -172,6 +171,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
                     vectorEffect="non-scaling-stroke"
                   />
                 ))}
+                </g>
               </svg>
             </div>
           </div>

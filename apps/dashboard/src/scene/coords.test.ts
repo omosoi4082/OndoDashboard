@@ -1,20 +1,35 @@
 import { describe, expect, it } from 'vitest';
-import { dataBoxToThree, zUpToYUp, zUpVolumeGroupTransform, type VolumeGroupTransform } from './coords.js';
+import { dataBoxToThree, sizeZUpToYUp, zUpToYUp, zUpVolumeGroupTransform, type VolumeGroupTransform } from './coords.js';
 
 describe('zUpToYUp', () => {
-  it('y·z를 맞바꾼다(x는 그대로)', () => {
-    expect(zUpToYUp([1, 2, 3])).toEqual([1, 3, 2]);
+  it('X축 -90° 회전: (x, y, z) → (x, z, −y)', () => {
+    expect(zUpToYUp([1, 2, 3])).toEqual([1, 3, -2]);
   });
 
-  it('0벡터는 그대로 0벡터', () => {
-    expect(zUpToYUp([0, 0, 0])).toEqual([0, 0, 0]);
+  it('0벡터는 그대로 0벡터(원점 = 배기구 벽 서쪽 바닥 모서리)', () => {
+    const [x, y, z] = zUpToYUp([0, 0, 0]);
+    expect([x, y, z + 0]).toEqual([0, 0, 0]);
+  });
+
+  it('반사가 아니라 회전이다: 오른손 좌표계가 유지된다(x × y = z)', () => {
+    const ex = zUpToYUp([1, 0, 0]);
+    const ey = zUpToYUp([0, 1, 0]);
+    const ez = zUpToYUp([0, 0, 1]);
+    const cross = [ex[1] * ey[2] - ex[2] * ey[1], ex[2] * ey[0] - ex[0] * ey[2], ex[0] * ey[1] - ex[1] * ey[0]];
+    expect(cross.map((v) => v + 0)).toEqual(ez.map((v) => v + 0));
+  });
+});
+
+describe('sizeZUpToYUp', () => {
+  it('크기는 부호 없이 y·z만 맞바꾼다', () => {
+    expect(sizeZUpToYUp([4.5, 4.0, 2.8])).toEqual([4.5, 2.8, 4.0]);
   });
 });
 
 describe('dataBoxToThree', () => {
-  it('중심·크기 둘 다 y/z를 맞바꾼다', () => {
-    const result = dataBoxToThree([2.25, 0, 1.6], [0.4, 0.1, 0.4]);
-    expect(result.position).toEqual([2.25, 1.6, 0]);
+  it('중심은 회전, 크기는 부호 없이 변환한다', () => {
+    const result = dataBoxToThree([2.25, 1, 1.6], [0.4, 0.1, 0.4]);
+    expect(result.position).toEqual([2.25, 1.6, -1]);
     expect(result.size).toEqual([0.4, 0.4, 0.1]);
   });
 });
@@ -47,6 +62,13 @@ describe('zUpVolumeGroupTransform', () => {
     expect(p[0]).toBeCloseTo(expected[0], 6);
     expect(p[1]).toBeCloseTo(expected[1], 6);
     expect(p[2]).toBeCloseTo(expected[2], 6);
+  });
+
+  it('로컬 (-1,1,-1)(데이터 y만 끝, 맞은편 벽)은 z = −roomY로 간다', () => {
+    const p = applyVolumeTransform(transform, [-1, 1, -1]);
+    expect(p[0]).toBeCloseTo(0, 6);
+    expect(p[1]).toBeCloseTo(0, 6);
+    expect(p[2]).toBeCloseTo(-roomSize[1], 6);
   });
 
   it('로컬 (1,-1,-1)(데이터 x만 끝)은 zUpToYUp([roomX,0,0])로 간다', () => {

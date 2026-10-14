@@ -136,9 +136,9 @@ export function cloneRoomRoot(gltfScene: THREE.Object3D): THREE.Object3D {
 
 /**
  * p1.glb 클론을 targetRoomSizeYUp(Three.js y-up, m)에 맞춰 준비한다: 두꺼운 벽/천장을
- * 숨기고, 방 껍질 치수를 재서 축마다 스케일하고, 방 박스(0,0,0)~(w,h,d) 기준으로 배치한 뒤
+ * 숨기고, 방 껍질 치수를 재서 축마다 스케일하고, 방 박스(0,0,−d)~(w,h,0) 기준으로 배치한 뒤
  * 컷어웨이(카메라 쪽 벽/천장 투명화)·그림자 플래그까지 적용한 최종 모델을 반환한다.
- * scene/coords.ts의 zUpToYUp 변환을 거친 값을 넘겨야 한다(이 함수 자체는 좌표 변환을
+ * scene/coords.ts의 sizeZUpToYUp 변환을 거친 값을 넘겨야 한다(이 함수 자체는 좌표 변환을
  * 하지 않는다 — CLAUDE.md "좌표 변환은 coords.ts 한 곳에서만" 규칙).
  */
 export function prepareDetailRoomModel(
@@ -152,7 +152,9 @@ export function prepareDetailRoomModel(
   const [w, h, d] = targetRoomSizeYUp;
   const { scale, position } = computeRoomFitTransform(shellBox, new THREE.Vector3(w, h, d), {
     x: w / 2,
-    z: d / 2,
+    // 방 박스가 z −d~0(scene/coords.ts). p1.glb도 같은 방향(배기구 z≈0, 맞은편 벽 z≈−4)으로
+    // 만들어져 있어 뒤집지 않고 중심만 맞춘다.
+    z: -d / 2,
   });
 
   model.scale.copy(scale);

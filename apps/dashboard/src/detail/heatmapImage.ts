@@ -12,7 +12,11 @@ export interface HeatmapImage {
   data: Uint8ClampedArray<ArrayBuffer>; // RGBA, width*height*4
 }
 
-/** layer[i][j](i=x, j=y) → RGBA 픽셀 버퍼. 이미지 row=j, col=i로 둔다. */
+/**
+ * layer[i][j](i=x, j=y) → RGBA 픽셀 버퍼. col=i, **row = height−1−j**(y = 0이 맨 아래 줄) —
+ * 온도 측 평면도(그림 1)와 3D 상세보기처럼 y가 위로 커지게 그린다(2026-10-14 B-9 재검토,
+ * scene/coords.ts 참고).
+ */
 export function buildHeatmapImage(
   layer: readonly (readonly number[])[],
   min: number,
@@ -29,7 +33,7 @@ export function buildHeatmapImage(
       const row = layer[i];
       const value = row ? row[j] ?? 0 : 0;
       const [r, g, b] = valueToRGB255(value, min, max, field);
-      const pixelIndex = (j * width + i) * 4;
+      const pixelIndex = ((height - 1 - j) * width + i) * 4;
       data[pixelIndex] = r;
       data[pixelIndex + 1] = g;
       data[pixelIndex + 2] = b;
