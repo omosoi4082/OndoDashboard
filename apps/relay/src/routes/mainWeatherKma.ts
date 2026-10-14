@@ -32,6 +32,9 @@ export function registerMainWeatherKmaRoute(
 
     const temp = ncst ? toNumberOrNull(ncst.map['T1H']) : null;
     const rh = ncst ? toNumberOrNull(ncst.map['REH']) : null;
+    // 외부환경 타일 풍속·강수량(05-open-questions #36) — 같은 초단기실황 응답의 WSD·RN1.
+    const windSpeed = ncst ? toNumberOrNull(ncst.map['WSD']) : null;
+    const rain = ncst ? toNumberOrNull(ncst.map['RN1']) : null;
 
     // 초단기실황(온도·습도·풍향의 출처)이 핵심이므로 그 성패로 sourceStatus를 정한다.
     // 초단기예보(SKY) 실패는 PTY≠0인 한 영향 없고, PTY=0인데 SKY도 없으면 weatherCode만 null이 된다.
@@ -47,8 +50,10 @@ export function registerMainWeatherKmaRoute(
       isNight: isNightAt(now, deps.farmLat, deps.farmLon),
       windDir: wind.windDir,
       windDeg: wind.windDeg,
+      windSpeed,
       temp,
       rh,
+      rain,
     };
 
     return {

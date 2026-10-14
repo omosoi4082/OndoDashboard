@@ -14,7 +14,7 @@
 - [x] **농장 위경도**: `.env`에 `FARM_LAT=33.446297`·`FARM_LON=126.563879`·`KMA_NX=53`·`KMA_NY=37` 반영 완료, 온도 측 값과 일치.
 - [x] **M6(전문가 모드)**: 온도 측 2026-10-08 v2 제공 `mock/mock_expert.json`을 relay가 읽어 변환해 반환하도록 구현 완료. 입력값은 그대로 echo, 결과(frames)는 입력과 무관하게 동일(확인된 설계대로).
 - [x] **M6(제어 모드)**: 온도 측 2026-10-08 v2 제공 `mock/mock_control.json`(`target:"energy"` 시나리오 하나)을 relay가 읽어 변환해 반환. `target=environment` 요청도 같은 파일을 쓰고 응답 `target` 필드만 요청값으로 덮어씀(05-open-questions #27, 파일 하나로 충분하다는 확정과 일치). `control` 블록(절감률·곡선) C안 화면까지 구현 완료.
-- [ ] **WIND/날씨 변환**: `WIND` 0~360 숫자 → 16방위 변환은 구현됨(`windDirection.ts`). 미세기후 weatherCode의 "RAIN > 0이면 시간 무관 RAIN" 규칙도 구현됨(`weatherCode.ts`). **다만 풍속 `CURWIND`/`MAXWIND` 별도 필드는 아직 `StationWeather` 타입·3-2 화면에 반영 안 됨**(`mainWeatherStation.ts`가 `WIND`만 읽음, 풍속 표시 없음) — 남은 작업.
+- [x] **WIND/날씨 변환** (2026-10-14 풍속 `CURWIND` 반영 완료 — 아래 P1 '외부환경 풍속·강수량'): `WIND` 0~360 숫자 → 16방위 변환은 구현됨(`windDirection.ts`). 미세기후 weatherCode의 "RAIN > 0이면 시간 무관 RAIN" 규칙도 구현됨(`weatherCode.ts`). 풍속은 `StationWeather.windSpeed`(`CURWIND`, `MAXWIND`는 쓰지 않음)로 3-2 화면 타일에 표시.
 - [x] **EXPERT_INPUT_RANGE**: `EXPERT_TEMP_MIN/MAX`(−30~50)·`EXPERT_RH_MIN/MAX`(0~100)·`EXPERT_VENT_MIN/MAX`(20~100)로 `.env`/`env.ts`/대시보드 상수에 반영 완료.
 
 ## 2026-10-13 디자인 시안 검토 답변 반영 — 할 일
@@ -55,7 +55,7 @@
   - `.env`·`.env.example`의 `INPUT_T_OUT_PATH`·`INPUT_RH_OUT_PATH` 폐기. 센서 입력은 `INPUT_FAN_PATH`(`JE/EX/NH/FN1/FAN1`)만 남는다.
   - 미래 24시간은 기존 단기예보 유지, 화면의 미세기후 패널은 기상대 값 유지(변경 없음).
 - [x] **단기예보 발표분 재시도 단계 늘리기** (2026-10-14 완료 — `.env`의 `KMA_VILAGE_MAX_STEPS_BACK`, 기본 2. 2026-10-14 실측: 오래된 발표분도 3~4일치를 담고 있어 17시 발표분으로도 24시간은 채워진다. 기본 단계 수는 온도 측 확인 대기) — `clients/kmaClient.ts`가 `NO_DATA`면 직전 발표분으로 **1회만** 재요청한다. **2026-10-13 23:30 실측에서 23:00·20:00 발표분이 연속으로 `NO_DATA`였고 유효한 최신 발표분은 17:00(TMP 83건)이었다** — 발표 시각(02·05·08·11·14·17·20·23시)은 맞지만 실제 제공이 늦어 두 단계가 비는 경우가 있다. `detailForecast.ts`가 `startStepsBack=1`로 한 번 더 시도해도 20:00이라 역시 비어서, 지금 그대로면 예측 모드가 "기상청 예보 조회 실패"로 막힌다. 재시도를 2~3단계까지 내려가게 고치고(최대 단계는 `.env`로), 그 단계 수로 24시간을 채울 수 있는지 함께 확인한다. 발표분이 오래될수록 예보 시작 시각이 과거라 24시간 구간을 못 채울 수 있다. 참고: 키·실황은 정상 확인됨(초단기실황 `resultCode=00`, 과거 정시 조회도 정상).
-- [ ] **외부환경 풍속·강수량 채우기** (05-open-questions #36) — 타일 4칸 중 풍속·강수량이 `-`로 비어 있다. **출처는 추가 조회 없이 이미 있는 응답에서 꺼내면 된다.** 온도 측 회신이 필요한 사항이 아니므로 바로 구현한다.
+- [x] **외부환경 풍속·강수량 채우기** (2026-10-14 완료 — 기상대 `CURWIND` 단위는 05-open-questions #43 확인 대기) (05-open-questions #36) — 타일 4칸 중 풍속·강수량이 `-`로 비어 있다. **출처는 추가 조회 없이 이미 있는 응답에서 꺼내면 된다.** 온도 측 회신이 필요한 사항이 아니므로 바로 구현한다.
   - 기상청: `routes/mainWeatherKma.ts`가 초단기실황에서 `T1H`·`REH`·`VEC`·`PTY`만 읽는다 → 같은 응답의 **`WSD`(풍속 m/s)·`RN1`(1시간 강수량 mm)** 추가.
   - 기상대: `routes/mainWeatherStation.ts`가 `WIND`만 읽는다 → **`CURWIND`(현재 풍속)** 추가. 센서에 `MAXWIND`(최대 풍속)도 있으나 타일에는 현재값을 쓴다. 강수량 `RAIN`은 이미 읽고 있다.
   - `packages/shared`의 `KmaWeather`·`StationWeather`에 필드 추가 → 대시보드 타일 연결. `docs/02-relay-api.md` 4.2·4.3, `docs/03-upstream-apis.md` 기상청 항목표도 같이 갱신.

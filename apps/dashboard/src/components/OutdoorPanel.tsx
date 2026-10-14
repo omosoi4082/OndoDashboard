@@ -2,8 +2,8 @@
 // docs/06-design-guide.md "외부환경"(디자인 원본 실측: 블록 폭 338, 타일 82×66, 간격 4,
 // 타일 안 아이콘 18×18·아이콘-값 간격 12, 2026-10-10 Figma 재확인).
 // 타일 4칸: 풍향·풍속·강수량·습도(2026-10-10 사용자 재확정 — 05-open-questions.md #36의
-// 2026-10-09 순서(풍향·풍속·습도·강수량)에서 변경). 풍속(양쪽)·기상청 강수량은 아직 API에
-// 없어 '-'(05-open-questions.md #36, 사용자가 온도 측 확인 중).
+// 2026-10-09 순서(풍향·풍속·습도·강수량)에서 변경). 풍속·강수량 출처는 기상청 WSD·RN1,
+// 기상대 CURWIND·RAIN(05-open-questions.md #36).
 import type { ReactElement, ReactNode } from 'react';
 import type { WeatherCode } from '@ondo/shared';
 import { okData } from '../api/client.js';
@@ -96,8 +96,8 @@ export function OutdoorPanel(): ReactElement {
         rh={kma?.rh ?? null}
         windDir={kma?.windDir ?? null}
         windDeg={kma?.windDeg ?? null}
-        windSpeed={null}
-        rain={null}
+        windSpeed={kma?.windSpeed ?? null}
+        rain={kma?.rain ?? null}
       />
       <WeatherBlock
         title={station?.label ?? '미세기후'}
@@ -108,7 +108,7 @@ export function OutdoorPanel(): ReactElement {
         rh={station?.rh ?? null}
         windDir={station?.windDir ?? null}
         windDeg={station?.windDeg ?? null}
-        windSpeed={null}
+        windSpeed={station?.windSpeed ?? null}
         rain={station?.rain ?? null}
       />
     </div>

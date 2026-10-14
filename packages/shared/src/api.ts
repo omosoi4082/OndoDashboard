@@ -63,8 +63,12 @@ export interface KmaWeather {
   isNight: boolean;
   windDir: string | null;
   windDeg: number | null;
+  /** WSD(m/s) — 초단기실황. */
+  windSpeed: number | null;
   temp: number | null;
   rh: number | null;
+  /** RN1(1시간 강수량 mm) — 초단기실황. */
+  rain: number | null;
 }
 
 // 4.3 GET /api/main/weather/station
@@ -76,6 +80,8 @@ export interface StationWeather {
   isNight: boolean;
   windDir: string | null;
   windDeg: number | null;
+  /** CURWIND(현재 풍속) — MAXWIND는 쓰지 않는다. */
+  windSpeed: number | null;
   temp: number | null;
   rh: number | null;
   rain: number | null;

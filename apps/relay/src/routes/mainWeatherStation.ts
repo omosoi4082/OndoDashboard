@@ -30,14 +30,17 @@ export function registerMainWeatherStationRoute(
     const rainItem = device?.['RAIN'];
     const solarItem = device?.['SOLAR'];
     const windItem = device?.['WIND'];
+    // 풍속 타일은 현재 풍속 CURWIND를 쓴다(MAXWIND는 쓰지 않음 — 05-open-questions #36).
+    const windSpeedItem = device?.['CURWIND'];
 
     const temp = tempItem ? toNumberOrNull(tempItem.value) : null;
     const rh = rhItem ? toNumberOrNull(rhItem.value) : null;
     const rain = rainItem ? toNumberOrNull(rainItem.value) : null;
     const solar = solarItem ? toNumberOrNull(solarItem.value) : null;
     const wind = windItem ? resolveWind(windItem.value) : { windDir: null, windDeg: null };
+    const windSpeed = windSpeedItem ? toNumberOrNull(windSpeedItem.value) : null;
 
-    const timestamps = [tempItem, rhItem, rainItem, solarItem, windItem].map((item) =>
+    const timestamps = [tempItem, rhItem, rainItem, solarItem, windItem, windSpeedItem].map((item) =>
       item ? toKstIso(item.timestamp) : null,
     );
     const measuredAt = latestIso(timestamps);
@@ -53,6 +56,7 @@ export function registerMainWeatherStationRoute(
       isNight: isNightAt(now, deps.farmLat, deps.farmLon),
       windDir: wind.windDir,
       windDeg: wind.windDeg,
+      windSpeed,
       temp,
       rh,
       rain,

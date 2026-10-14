@@ -12,7 +12,7 @@ describe('GET /api/main/weather/kma', () => {
     const kmaClient: KmaClient = {
       async getUltraSrtNcst() {
         return {
-          map: { T1H: '21.5', REH: '68', VEC: '227', PTY: '0' },
+          map: { T1H: '21.5', REH: '68', VEC: '227', PTY: '0', WSD: '3.2', RN1: '0' },
           baseAt: '2026-10-07T15:00:00+09:00',
         };
       },
@@ -41,6 +41,8 @@ describe('GET /api/main/weather/kma', () => {
     expect(body.data.weatherCode).toBe('MOSTLY_CLOUDY'); // SKY=3
     expect(body.data.windDir).toBe('남서');
     expect(body.data.windDeg).toBe(227);
+    expect(body.data.windSpeed).toBe(3.2);
+    expect(body.data.rain).toBe(0);
     expect(body.data.temp).toBe(21.5);
 
     await app.close();

@@ -17,6 +17,8 @@ describe('GET /api/main/weather/station', () => {
           RAIN: { timestamp: '2026-10-07T12:00:00', value: 0 },
           SOLAR: { timestamp: '2026-10-07T12:00:00', value: 800 },
           WIND: { timestamp: '2026-10-07T12:00:00', value: 227 },
+          CURWIND: { timestamp: '2026-10-07T12:00:00', value: 2.1 },
+          MAXWIND: { timestamp: '2026-10-07T12:00:00', value: 4.5 },
         };
       },
     };
@@ -32,6 +34,8 @@ describe('GET /api/main/weather/station', () => {
     expect(body.data.weatherCode).toBe('CLEAR');
     expect(body.data.windDir).toBe('남서');
     expect(body.data.windDeg).toBe(227);
+    expect(body.data.windSpeed).toBe(2.1); // CURWIND, MAXWIND 아님
+    expect(body.data.rain).toBe(0);
     expect(body.data.measuredAt).toBe('2026-10-07T12:00:00+09:00');
 
     await app.close();
