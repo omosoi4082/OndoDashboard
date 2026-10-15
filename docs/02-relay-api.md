@@ -108,7 +108,7 @@ export interface StationWeather {
   weatherCode: WeatherCode | null;
   isNight: boolean;
   windDir: string | null; windDeg: number | null;
-  windSpeed: number | null;    // CURWIND(현재 풍속) — MAXWIND는 쓰지 않는다
+  windSpeed: number | null;    // CURWIND(현재 풍속, m/s) — MAXWIND는 쓰지 않는다
   temp: number | null; rh: number | null;
   rain: number | null; solar: number | null;
 }

@@ -31,6 +31,7 @@ export function registerMainWeatherStationRoute(
     const solarItem = device?.['SOLAR'];
     const windItem = device?.['WIND'];
     // 풍속 타일은 현재 풍속 CURWIND를 쓴다(MAXWIND는 쓰지 않음 — 05-open-questions #36).
+    // 단위는 m/s로 확정(2026-10-15 온도 측, #43) — 기상청 WSD와 같아 환산하지 않는다.
     const windSpeedItem = device?.['CURWIND'];
 
     const temp = tempItem ? toNumberOrNull(tempItem.value) : null;

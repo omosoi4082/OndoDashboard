@@ -46,7 +46,8 @@ export interface KmaClient {
   /**
    * 단기예보(getVilageFcst): TMP, REH(1시간 단위). startStepsBack(기본 0 = 최신 발표분)부터
    * NO_DATA면 한 단계씩 이전 발표분으로 내려가며 `KMA_VILAGE_MAX_STEPS_BACK` 단계까지 시도한다
-   * (2026-10-13 23:30 실측: 23:00·20:00 발표분이 연속 NO_DATA, 17:00만 유효). docs/02-relay-api.md
+   * (2026-10-13 23:30 실측: 23:00·20:00 발표분이 연속 NO_DATA, 17:00만 유효. 기본 3단계 =
+   * 최대 9시간 전 발표분, 2026-10-15 온도 측 확정 — 05-open-questions.md #50). docs/02-relay-api.md
    * 6장 "예보가 24시간을 못 채우면 직전 발표분 재요청" 용도로는 찾은 발표분의 stepsBack + 1을
    * 넘긴다 — 이때는 최대 단계를 넘더라도 그 한 단계는 시도한다.
    */

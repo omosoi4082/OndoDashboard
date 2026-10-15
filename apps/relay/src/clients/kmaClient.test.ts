@@ -51,6 +51,14 @@ describe('getVilageFcst — NO_DATA 재시도 단계(KMA_VILAGE_MAX_STEPS_BACK)'
     expect(r?.stepsBack).toBe(2);
   });
 
+  it('기본 3단계면 14:00 발표분(9시간 전)까지 내려간다(2026-10-15 온도 측 확정값)', async () => {
+    const requested = kmaWithData(['1400']);
+    const r = await client(3).getVilageFcst(kstAsUtc(2026, 10, 6, 23, 30));
+    expect(requested).toEqual(['2300', '2000', '1700', '1400']);
+    expect(r?.baseAt).toBe('2026-10-06T14:00:00+09:00');
+    expect(r?.stepsBack).toBe(3);
+  });
+
   it('최대 1단계면 20:00까지만 보고 실패(null)', async () => {
     const requested = kmaWithData(['1700']);
     const r = await client(1).getVilageFcst(kstAsUtc(2026, 10, 2, 23, 30));

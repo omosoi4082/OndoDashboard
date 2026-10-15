@@ -78,8 +78,9 @@ const envSchema = z.object({
   SENSOR_FAN_MAX: z.coerce.number().default(100),
 
   // 기상청 단기예보 NO_DATA 시 최신 발표분에서 최대 몇 단계 이전 발표분까지 내려갈지(발표는 3시간
-  // 간격 — 2면 23:00 → 20:00 → 17:00). 2026-10-13 23:30 실측에서 두 단계 연속 NO_DATA였다.
-  KMA_VILAGE_MAX_STEPS_BACK: z.coerce.number().int().nonnegative().default(2),
+  // 간격 — 3이면 23:00 → 20:00 → 17:00 → 14:00 = 최대 9시간 전 발표분). 2026-10-13 23:30 실측에서
+  // 두 단계 연속 NO_DATA였고, 2026-10-15 온도 측이 3단계로 확정했다(05-open-questions.md #50).
+  KMA_VILAGE_MAX_STEPS_BACK: z.coerce.number().int().nonnegative().default(3),
 
   // 기상청 단기예보 결측 허용 시간(docs/03 2장) — 연속 이 값(시간) 이상 결측이면 예보 조회 실패.
   FORECAST_GAP_MAX_HOURS: z.coerce.number().int().positive().default(3),
