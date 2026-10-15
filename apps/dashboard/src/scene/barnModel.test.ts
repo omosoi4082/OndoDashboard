@@ -182,6 +182,15 @@ describe('roomLabelAnchor', () => {
     expect(anchor.z).toBeCloseTo(9.75, 5);
   });
 
+  it('2026-10-15 교체본 이름(PigRoom_Wall_W_Fan)도 같은 앵커로 잡는다', () => {
+    const root = sceneWithWall();
+    root.children[0]!.name = 'PigRoom_Wall_W_Fan';
+    const anchor = roomLabelAnchor(root, section);
+    expect(anchor.x).toBeCloseTo(-2.01, 5);
+    expect(anchor.y).toBeCloseTo(2.95, 5);
+    expect(anchor.z).toBeCloseTo(9.75, 5);
+  });
+
   it('벽 노드를 못 찾으면 방 박스 모서리로 떨어진다', () => {
     const anchor = roomLabelAnchor(new THREE.Object3D(), section);
     expect(anchor.x).toBeCloseTo(-2.2, 5);

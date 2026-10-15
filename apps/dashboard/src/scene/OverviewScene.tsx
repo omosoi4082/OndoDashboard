@@ -1,5 +1,5 @@
 // 메인 3D 돈사(01-functional-spec.md 2장 #4) — 자돈·육성·비육 3방이 통합된 실측 모델
-// (weaner_room_test_op.glb, 머티리얼은 glb 그대로)을 로드해 보여준다. 모델 로드·정렬·방 노드 태깅은
+// (weaner_room_test.glb, 머티리얼은 glb 그대로)을 로드해 보여준다. 모델 로드·정렬·방 노드 태깅은
 // scene/barnModel.ts(technical-review/pig-farm-cfd-demo/src/barnFactory.js 포팅,
 // docs/07-starter-kit-assets.md)에 둔 순수 함수를 쓴다. 정보 판넬(5-1~5-3)은 호버한 방에만
 // 표시(01-functional-spec.md 2장, 05-open-questions.md #29 — 2026-10-09 호버 전용으로 확정). 클릭은

@@ -6,11 +6,25 @@
 import * as THREE from 'three';
 import type { RoomId } from '@ondo/shared';
 
-// 2026-10-09 교체본 — 자돈(P1 단일 노드)·육성(Grower_ 접두사)·비육(Finisher_ 접두사) 3방이
-// 하나로 붙은 실측 모델. public/assets/models에 복사해 Vite가 정적으로 서빙한다.
-// 머티리얼은 glb에 들어 있는 것을 그대로 쓴다(육성·비육 회색 PigRoom_Gray 포함) — 코드에서
-// 덮어쓰지 않는다.
-export const OVERVIEW_MODEL_URL = '/assets/models/weaner_room_test_op.glb';
+// 2026-10-15 교체본(weaner_room_test.glb, 이전 weaner_room_test_op.glb) — 자돈(P1 단일 노드)·
+// 육성(P1.005 + Grower_ 접두사)·비육(P1.006 + Finisher_ 접두사) 3방이 하나로 붙은 실측 모델.
+// public/assets/models에 복사해 Vite가 정적으로 서빙한다. 머티리얼은 glb에 들어 있는 것을
+// 그대로 쓴다(육성·비육 회색 PigRoom_Gray 포함) — 코드에서 덮어쓰지 않는다.
+//
+// 교체본에서 달라진 점(glb 직접 파싱 확인): ① 자돈방 서쪽 벽 노드 이름이 `PigRoom_Wall_W` →
+// `PigRoom_Wall_W_Fan`(크기·위치는 같다 — 아래 ROOM_LABEL_WALL_NODES가 두 이름을 모두 받는다),
+// ② 자돈방 `PigRoom_Wall_E`·`PigRoom_Wall_S`와 육성·비육의 패널 한 장씩(`Cube.019`·`Cube.024`)이
+// 빠졌다, ③ 육성·비육 천정 급기팬 노드(`Grower_USE_IN_FAN*`·`Finisher_USE_IN_FANA/B*`)와 `IN2`가
+// 없다(자돈방 `USE_IN_FAN.001~003`은 그대로), ④ 모델 높이가 3.45 m → 2.95 m로 낮아졌다.
+// 방 평면(4.7·7.5·12.0 m)과 위치, 방 노드 이름 규칙은 그대로라 데이터 연결 로직은 변경 없다.
+// 파일 크기는 29 MB → 7 MB.
+//
+// ②③④는 **의도된 변경이다**(2026-10-15 사용자 확인: "이거 맞아") — 빠진 벽·팬을 버그로 보고
+// 되살리려 하지 말 것. 그리고 **메인 모델은 계속 교체된다**: 노드 이름이 바뀌거나 노드가
+// 사라지는 일이 반복되므로, 특정 노드 이름에 기대는 코드는 ROOM_LABEL_WALL_NODES처럼 후보를
+// 여러 개 두고 못 찾으면 조용히 대체 동작으로 떨어지게 둔다(computeBarnSections는 노드를 못
+// 찾은 방을 건너뛰고, FLAT_WALL_NODE_NAMES도 없으면 무시한다).
+export const OVERVIEW_MODEL_URL = '/assets/models/weaner_room_test.glb';
 
 export interface BarnNodeConfig {
   roomId: RoomId;
@@ -22,7 +36,8 @@ export interface BarnNodeConfig {
 
 // config.js의 BARNS 배열 순서·매칭 기준 그대로 — RoomId NH(자돈)/GH(육성)/FH(비육)에 대응.
 //
-// 2026-10-14: 육성·비육에 방 껍데기 노드(P1.005·P1.006 = 바닥 슬래브 + 벽 4면, 아래 Cube.018~025)를
+// 2026-10-14: 육성·비육에 방 껍데기 노드(P1.005·P1.006 = 바닥 슬래브 + 벽 몇 면, 아래 Cube.018~025.
+// 2026-10-15 교체본에서는 Cube.019·024가 빠져 방마다 3장이다)를
 // 추가했다. 그 전에는 Grower_/Finisher_ 접두사만 봐서 **칸막이벽과 팬만** 방으로 잡혔다 —
 // 두 방의 바닥·벽에는 roomId가 안 붙어 호버해도 정보 판넬이 안 떴고, 방 바운딩박스도
 // 실제 방(7.5 m·12 m)이 아니라 2.9 m·6.8 m로 작게 잡혀 이름표·돼지 배치 기준이 어긋났다.
@@ -144,11 +159,14 @@ export function computeBarnSections(
  * (2026-10-14 사용자 요청: "원형 환기구 있는 벽으로 위치이동"). 세 방 모두 같은 쪽이다
  * (모델 실측: 배기구 x 자돈 −2.03 / 육성·비육 −1.96, 벽 바깥면은 셋 다 x −2.01).
  * 육성·비육 벽은 이름이 `Cube.0XX`로 남아 있다(BARN_NODE_CONFIG 주석 참고).
+ *
+ * 방마다 후보 이름을 여러 개 둔다 — 먼저 찾은 노드를 쓴다. 자돈방 서쪽 벽은 모델 교체본마다
+ * 이름이 달라서(`PigRoom_Wall_W_Fan` 2026-10-15 / `PigRoom_Wall_W` 그 이전) 둘 다 받는다.
  */
-const ROOM_LABEL_WALL_NODE: Record<RoomId, string> = {
-  NH: 'PigRoom_Wall_W',
-  GH: 'Cube.020',
-  FH: 'Cube.023',
+const ROOM_LABEL_WALL_NODES: Record<RoomId, readonly string[]> = {
+  NH: ['PigRoom_Wall_W_Fan', 'PigRoom_Wall_W'],
+  GH: ['Cube.020'],
+  FH: ['Cube.023'],
 };
 
 /**
@@ -159,7 +177,9 @@ const ROOM_LABEL_WALL_NODE: Record<RoomId, string> = {
  * 벽 노드를 못 찾으면 예전처럼 박스 모서리로 떨어진다.
  */
 export function roomLabelAnchor(modelRoot: THREE.Object3D, section: BarnSection): THREE.Vector3 {
-  const wall = modelRoot.getObjectByName(sanitizeNodeName(ROOM_LABEL_WALL_NODE[section.roomId]));
+  const wall = ROOM_LABEL_WALL_NODES[section.roomId]
+    .map((name) => modelRoot.getObjectByName(sanitizeNodeName(name)))
+    .find((node) => node !== undefined);
   if (!wall) {
     return new THREE.Vector3(
       section.center.x - section.size.x / 2,
