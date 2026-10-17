@@ -18,7 +18,9 @@
     "lint": "eslint . && npm run lint -w apps/dashboard",
     "typecheck": "npm run build -w packages/shared && npm run typecheck -w apps/relay && npm run typecheck -w apps/dashboard",
     "mock:generate": "npm run mock:generate -w apps/relay",
-    "grid": "npm run grid -w apps/relay"
+    "grid": "npm run grid -w apps/relay",
+    "doctor": "npm run doctor -w apps/relay",
+    "setup": "npm run setup -w apps/relay"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.8.0",

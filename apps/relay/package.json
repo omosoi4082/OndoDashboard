@@ -10,7 +10,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "mock:generate": "tsx src/scripts/mockGenerate.ts",
-    "grid": "tsx src/scripts/latlonToGrid.ts"
+    "grid": "tsx src/scripts/latlonToGrid.ts",
+    "doctor": "tsx src/scripts/doctor.ts",
+    "setup": "tsx src/scripts/setup.ts"
   },
   "dependencies": {
     "@fastify/compress": "^8.0.1",

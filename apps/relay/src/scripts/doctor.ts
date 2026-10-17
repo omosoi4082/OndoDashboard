@@ -17,6 +17,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import type { ApiResponse, Geometry, Health, KmaWeather, RoomsResponse, StationWeather } from '@ondo/shared';
 import type { ControlDetail, CurrentDetail, ExpertDetail, ForecastDetail } from '@ondo/shared';
+import { parseEnvFile } from '../utils/envFile.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../../../');
@@ -58,19 +59,6 @@ function rule(): void {
 
 // ── .env 검사 (서버 없이) ──────────────────────────────────────────────────
 
-/** `.env`를 간단히 파싱한다(dotenv와 같은 규칙으로 충분한 범위만 — KEY=VALUE, # 주석). */
-function readEnvFile(file: string): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const raw of readFileSync(file, 'utf8').split(/\r?\n/)) {
-    const text = raw.trim();
-    if (text === '' || text.startsWith('#')) continue;
-    const eq = text.indexOf('=');
-    if (eq <= 0) continue;
-    map.set(text.slice(0, eq).trim(), text.slice(eq + 1).trim());
-  }
-  return map;
-}
-
 /** 비면 서버가 아예 뜨지 않는 값들(config/env.ts에 default가 없다). */
 const REQUIRED_KEYS = ['SENSOR_BASE_URL', 'FARM_LAT', 'FARM_LON', 'KMA_NX', 'KMA_NY'] as const;
 
@@ -92,7 +80,7 @@ function checkEnv(): EnvCheck {
   }
   line('ok', '.env 파일 있음');
 
-  const env = readEnvFile(envPath);
+  const env = parseEnvFile(readFileSync(envPath, 'utf8'));
   const missing = REQUIRED_KEYS.filter((k) => (env.get(k) ?? '') === '');
   if (missing.length > 0) {
     line('fail', `필수 설정이 비어 있습니다: ${missing.join(', ')}`);
@@ -323,17 +311,18 @@ interface Counts {
 async function checkGeometry(baseUrl: string): Promise<Counts | null> {
   section('[5/7] 고정 형상 (돈방 치수·포인트 좌표)');
 
-  const res = await getJson<ApiResponse<Geometry>>(baseUrl, '/api/detail/geometry', CONNECT_TIMEOUT_MS);
-  if (res.body === null || res.body.status === 'error') {
+  // 이 라우트만 ApiOk로 감싸지 않고 Geometry를 그대로 돌려준다(docs/02-relay-api.md 5장).
+  const res = await getJson<Geometry>(baseUrl, '/api/detail/geometry', CONNECT_TIMEOUT_MS);
+  const g = res.body;
+  if (!res.ok || g === null || g.grid === undefined || g.flowGrid === undefined) {
     line('fail', '형상 정보를 받지 못했습니다');
     why(
-      res.body === null ? (res.problem ?? '응답 없음') : apiErrorText(res.body),
+      res.problem ?? (res.body === null ? '응답 없음' : '응답에 grid·flowGrid 정의가 없습니다'),
       'config/geometry.json 파일이 있는지 확인하세요. 없으면 압축이 일부만 풀렸을 수 있습니다.',
     );
     return null;
   }
 
-  const g = res.body.data;
   const grid = g.grid.size[0] * g.grid.size[1] * g.grid.size[2];
   const flow = g.flowGrid.size[0] * g.flowGrid.size[1] * g.flowGrid.size[2];
   line('ok', `형상 정보 정상 — 포인트 ${g.points.length}개 / 격자 ${grid}개 / 유동 격자 ${flow}개 (${g.geometryId})`);
@@ -448,6 +437,24 @@ async function checkHealthSummary(baseUrl: string): Promise<void> {
 
 // ── 실행 ──────────────────────────────────────────────────────────────────
 
+/** 한 점검 단계를 감싼다 — 터져도 실패 1건으로 기록하고 다음 단계로 넘어간다. */
+async function stepValue<T>(run: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    line('fail', '점검 중 예상하지 못한 오류가 났습니다');
+    why(
+      err instanceof Error ? err.message : String(err),
+      '이 문구를 그대로 개발자에게 전달하세요. 나머지 항목은 계속 점검합니다.',
+    );
+    return fallback;
+  }
+}
+
+async function step(run: () => Promise<void>): Promise<void> {
+  await stepValue(run, undefined);
+}
+
 async function main(): Promise<void> {
   rule();
   console.log(' 온도 돈사 대시보드 — 상태 점검');
@@ -478,11 +485,13 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  await checkSensor(baseUrl);
-  await checkKma(baseUrl);
-  const counts = await checkGeometry(baseUrl);
-  await checkDetail(baseUrl, counts);
-  await checkHealthSummary(baseUrl);
+  // 각 단계를 따로 감싼다 — 예상 못 한 응답 형태로 한 단계가 터져도 나머지 점검은 계속해야
+  // 한다(사용자가 없는 자리에서 "중간에 죽어서 뒤를 못 봤다"가 가장 나쁜 결과다).
+  await step(() => checkSensor(baseUrl));
+  await step(() => checkKma(baseUrl));
+  const counts = await stepValue(() => checkGeometry(baseUrl), null);
+  await step(() => checkDetail(baseUrl, counts));
+  await step(() => checkHealthSummary(baseUrl));
 
   console.log('');
   rule();

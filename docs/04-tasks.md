@@ -216,19 +216,19 @@
 
 ### M7-1. 운영 모드 구동 (기능 버그)
 
-- [ ] **`npm start`가 화면을 서빙하지 않는 버그** — `apps/relay/src/index.ts`가
+- [x] **`npm start`가 화면을 서빙하지 않는 버그**(2026-10-17 완료) — `apps/relay/src/index.ts`가
   `process.env.NODE_ENV === 'production'`일 때만 정적 서빙을 등록하는데, `npm start`(`node dist/index.js`)는
   `NODE_ENV`를 세우지 않는다. 지금 `npm start`를 하면 8080에 API만 뜨고 대시보드 화면은 안 나온다.
   **`NODE_ENV` 조건을 버리고 "`apps/dashboard/dist`가 있으면 서빙"으로 바꾼다** — 환경변수 하나를 빼먹어
   화면이 안 뜨는 함정을 없앤다. 뜰 때 로그에 어느 모드인지(정적 서빙 on/off, 접속 주소) 찍는다.
-- [ ] **시작 로그를 사람이 읽을 수 있게** — 포트·접속 주소(`http://localhost:8080`)·`SENSOR_MODE`·`COMPUTE_MODE`를
+- [x] **시작 로그를 사람이 읽을 수 있게**(2026-10-17 완료) — 포트·접속 주소(`http://localhost:8080`)·`SENSOR_MODE`·`COMPUTE_MODE`를
   구동 직후 한 덩어리로 출력. 온도 측이 로그만 보고 지금 설정이 뭔지 알 수 있어야 한다.
 
 ### M7-2. 자가 진단 (`npm run doctor`)
 
 사용자가 없어도 어디가 막혔는지 결과만 보면 알 수 있게 하는 것이 M7의 핵심이다.
 
-- [ ] **`npm run doctor`** — 상위 서버 셋을 각각 찔러보고 항목별로 `✅ 정상` / `❌ 실패`를 한국어로 출력한다.
+- [x] **`npm run doctor`**(2026-10-17 완료 — `apps/relay/src/scripts/doctor.ts`. 실제 센서·기상청 + mock 연산으로 전 항목 통과 확인) — 상위 서버 셋을 각각 찔러보고 항목별로 `✅ 정상` / `❌ 실패`를 한국어로 출력한다.
   실패는 **원인과 조치**를 같이 적는다(예: "기상청 서비스키가 비어 있습니다 → `setup.bat`으로 키를 넣으세요").
   마지막에 전체 판정과 종료 코드(정상 0 / 실패 1)를 낸다.
   - `.env` 존재·필수값 검사(`SENSOR_BASE_URL`·`FARM_LAT`·`FARM_LON`·`KMA_NX`·`KMA_NY`가 없으면 서버가 아예
@@ -238,11 +238,11 @@
     (NO_DATA로 몇 단계 거슬러 올라갔는지도 표시)
   - 연산 서버: `COMPUTE_MODE`가 `http`면 `GET /v1/health` + `POST /v1/current` 실제 1회, `mock`이면 목업 파일 로드 확인
   - 상세 API 4개(`current`·`forecast`·`expert`·`control`)가 배열 개수(125 / 2,584 / 288)까지 맞게 오는지
-- [ ] **`check.bat`** — `npm run doctor`를 더블클릭으로 돌리고 결과를 창에 남긴다(바로 닫히지 않게).
+- [x] **`check.bat`**(2026-10-17 완료 — 결과를 `점검결과.txt`로도 남긴다) — `npm run doctor`를 더블클릭으로 돌리고 결과를 창에 남긴다(바로 닫히지 않게).
 
 ### M7-3. 설정 입력 수단
 
-- [ ] **`setup.bat` + `npm run setup`** — `.env`를 직접 열지 않고 값을 넣는 대화형 스크립트.
+- [x] **`setup.bat` + `npm run setup`**(2026-10-17 완료 — `apps/relay/src/scripts/setup.ts`, 순수 함수는 `utils/envFile.ts`로 분리해 테스트) — `.env`를 직접 열지 않고 값을 넣는 대화형 스크립트.
   최소 **기상청 서비스키**와 **연산 서버 주소(`COMPUTE_BASE_URL`)·`COMPUTE_MODE`**를 다룬다.
   기존 `.env`를 읽어 현재값을 보여주고, 엔터면 그대로 둔다. 저장 전 백업(`.env.bak`).
   **연산 서버 IP는 전달 이후에 받으므로 이 경로가 유일한 입력 수단이 된다.**
@@ -251,8 +251,8 @@
 
 ### M7-4. Windows 실행 스크립트·패키징
 
-- [ ] **`start.bat`** — 빌드 결과로 단일 포트 8080 구동 + 브라우저 자동 열기. 빌드가 없으면 먼저 빌드한다.
-- [ ] **`install.bat`** — 소스만 받은 경우용(npm install → 빌드). 결정 2의 ②.
+- [x] **`start.bat`**(2026-10-17 완료) — 빌드 결과로 단일 포트 8080 구동 + 브라우저 자동 열기. 빌드가 없으면 먼저 빌드한다.
+- [x] **`install.bat`**(2026-10-17 완료) — 소스만 받은 경우용(npm install → 빌드). 결정 2의 ②.
 - [ ] **전달 패키지 만들기** — 빌드까지 끝낸 폴더를 그대로 압축하는 절차를 문서화(또는 스크립트).
   `.env` 포함(결정 1), `technical-review/`·`node_modules/.cache` 등 불필요한 건 제외.
 
