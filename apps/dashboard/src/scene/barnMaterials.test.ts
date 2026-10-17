@@ -48,6 +48,16 @@ describe('normalizeWallCapMaterial', () => {
     expect(shared.color.getHex()).toBe(0x808080);
   });
 
+  it('모델이 이미 단색 캡을 주면 그 색을 건드리지 않는다 — 모델 수정과 충돌 방지', () => {
+    const root = new THREE.Group();
+    // 맵 없이 단색으로 온 캡(= 모델 쪽에서 이미 고쳐 내보낸 경우).
+    const flat = new THREE.MeshStandardMaterial({ name: 'GLTF_WallCap', color: 0x999999 });
+    root.add(new THREE.Mesh(new THREE.BoxGeometry(), flat));
+
+    expect(normalizeWallCapMaterial(root)).toBe(0);
+    expect(flat.color.getHex()).toBe(0x999999);
+  });
+
   it('캡 머티리얼이 없는 모델이면 조용히 넘어간다 — 모델 교체에 대비', () => {
     const root = new THREE.Group();
     root.add(new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ name: 'Other' })));

@@ -21,6 +21,11 @@ export const WALL_CAP_MATERIAL_NAME = 'GLTF_WallCap';
  *
  * 머티리얼은 캡 10장이 공유하므로 한 번만 손보면 된다. useGLTF 캐시를 공유하는 인스턴스라
  * 재마운트 때 또 불려도 괜찮도록 플래그로 멱등 처리한다.
+ *
+ * ★ **맵이 붙어 있을 때만 손본다.** 모델 쪽에서 캡을 단색으로 고쳐 내보내면(2026-10-17 사용자가
+ * 그렇게 하겠다고 함) 이 보정은 할 일이 없어진다 — 그때도 무조건 색을 덮어쓰면 모델에서 고른
+ * 회색을 코드가 조용히 밀어내서 "모델을 고쳤는데 왜 그 색이 아니냐"가 된다. 맵이 없으면
+ * 이미 단색이라는 뜻이므로 그대로 둔다. 모델이 고쳐지면 이 함수 호출을 지워도 된다.
  */
 export function normalizeWallCapMaterial(scene: THREE.Object3D, color: number = WALL_CAP_COLOR): number {
   let patched = 0;
@@ -31,6 +36,7 @@ export function normalizeWallCapMaterial(scene: THREE.Object3D, color: number = 
       if (mat.name !== WALL_CAP_MATERIAL_NAME) continue;
       if (mat.userData.ondoCapNormalized) continue;
       if (!(mat instanceof THREE.MeshStandardMaterial)) continue;
+      if (mat.map === null) continue; // 모델이 이미 단색으로 준 경우 — 그 색을 존중한다
       mat.map = null; // 벽 패널 무늬(밝은 띠/진한 띠)를 떼어낸다
       mat.color.setHex(color);
       mat.userData.ondoCapNormalized = true;
