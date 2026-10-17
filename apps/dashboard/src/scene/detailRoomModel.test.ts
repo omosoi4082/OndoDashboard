@@ -52,19 +52,27 @@ function wrapInGltfScene(root: THREE.Group): THREE.Group {
 }
 
 describe('cloneRoomRoot', () => {
-  it('"P1" 노드를 찾아 clone한다(원본은 그대로 둔다)', () => {
+  // 2026-10-17 교체본(weaner_room_single.glb)은 급기구가 P1 바깥 루트에 형제로 있어서
+  // 씬 전체를 클론한다 — P1만 떼면 급기구가 통째로 빠진다.
+  it('씬 전체를 clone한다(원본은 그대로 둔다)', () => {
     const gltfScene = wrapInGltfScene(buildFakeRoomModel());
     const clone = cloneRoomRoot(gltfScene);
-    expect(clone.name).toBe('P1');
-    expect(clone).not.toBe(gltfScene.getObjectByName('P1'));
+    expect(clone).not.toBe(gltfScene);
+    expect(clone.getObjectByName('P1')).not.toBeNull();
   });
 
-  it('"P1" 노드가 없으면 scene 전체를 clone한다', () => {
-    const scene = new THREE.Group();
-    scene.name = 'Scene';
-    scene.add(boxMesh('SomethingElse', [1, 1, 1], [0, 0, 0]));
-    const clone = cloneRoomRoot(scene);
-    expect(clone.name).toBe('Scene');
+  it('P1 바깥(루트)에 있는 급기구도 함께 따라온다', () => {
+    const gltfScene = wrapInGltfScene(buildFakeRoomModel());
+    gltfScene.add(boxMesh('Inlet_Weaner_1', [0.32, 0.012, 0.687], [2.25, 2.79, -0.8]));
+    const clone = cloneRoomRoot(gltfScene);
+    expect(clone.getObjectByName('Inlet_Weaner_1')).toBeDefined();
+  });
+
+  it('원본 트리는 건드리지 않는다', () => {
+    const gltfScene = wrapInGltfScene(buildFakeRoomModel());
+    const clone = cloneRoomRoot(gltfScene);
+    const cloned = clone.getObjectByName('P1');
+    expect(cloned).not.toBe(gltfScene.getObjectByName('P1'));
   });
 });
 

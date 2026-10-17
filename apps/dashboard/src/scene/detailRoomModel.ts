@@ -8,19 +8,22 @@
 // 벽·천장, 상세에서는 숨김) / PigRoom_FloorSlab / PigRoom_Walls_Flat(스케일 기준 "방 껍질")
 // / 루트 노드 "P1" / 컷어웨이 대상 머티리얼 "Plastic010"(Walls_Flat·Roof_Flat가 공유).
 import * as THREE from 'three';
-import { sanitizeNodeName } from './barnModel.js';
-import {
-  DETAIL_TEXTURES,
-  TEXTURE_TILE_M,
-  createTextureLoaderIfSupported,
-  loadTextureSet,
-  repeatsForSize,
-  withRepeat,
-} from './detailRoomTextures.js';
-import { hideModelInlets } from './inletPanels.js';
 
-// Vite가 /assets/models/p1.glb로 정적 서빙(apps/dashboard/public/assets/models/p1.glb).
-export const DETAIL_MODEL_URL = '/assets/models/p1.glb';
+// 2026-10-17 교체본(weaner_room_single.glb, 이전 p1.glb) — 메인 모델과 같은 텍스처가 구워져
+// 들어온 자돈방 단독 모델(사용자 제공). 달라진 점:
+//   ① 바닥·벽·칸막이 텍스처가 모델에 포함됐다(`GLTF_Slat`·`GLTF_Wall`·`GLTF_Partition`).
+//      코드에서 입히던 텍스처(scene/detailRoomTextures.ts)는 더 이상 쓰지 않는다.
+//   ② 급기구가 **이미 천장면의 얇은 판**이다(`Inlet_Weaner_1~3`, 0.320 × 0.012 × 0.687 m,
+//      y 2.788~2.800). 매달린 팬 하우징(`IN*_FanSimple`)은 사라졌다 — B-6이 모델에서 해결돼
+//      scene/inletPanels.ts로 판을 만들 필요가 없다.
+//   ③ ★ `PigRoom_Walls_Flat`의 머티리얼이 `Plastic010` → **`GLTF_Wall`** 로 바뀌었다.
+//      컷어웨이는 이름이 `Plastic010`인 것만 잡으므로 그대로 두면 **지붕만 잘리고 앞벽은
+//      막힌 채**가 된다. CUTAWAY_MATERIAL_PREFIXES에 `GLTF_Wall`을 더했다(그 주석 참고 —
+//      메인처럼 페이드를 쓸 수 없는 이유도 거기 적어 뒀다).
+//   ④ 급기구가 `P1` 바깥(루트)에 형제로 있어서, 클론할 때 P1만 떼면 급기구가 빠진다 —
+//      cloneRoomRoot가 씬 전체를 클론하도록 바꿨다.
+// Vite가 /assets/models/*.glb로 정적 서빙(apps/dashboard/public/assets/models/).
+export const DETAIL_MODEL_URL = '/assets/models/weaner_room_single.glb';
 
 export const DETAIL_ROOM_NODE_NAMES = {
   root: 'P1',
@@ -28,14 +31,22 @@ export const DETAIL_ROOM_NODE_NAMES = {
   solidRoof: 'PigRoom_RoofPanel_Solid',
   floor: 'PigRoom_FloorSlab',
   flatWalls: 'PigRoom_Walls_Flat',
-  /** Y자 칸막이(머티리얼 PR_PartitionConcrete). 지금은 텍스처를 입히지 않는다 — applyRoomTextures 주석 참고. */
+  /** Y자 칸막이. 2026-10-17 교체본은 머티리얼이 `GLTF_Partition`이고 텍스처가 모델에 들어 있다. */
   partitions: ['PigRoom_W0', 'PigRoom_W1', 'PigRoom_W2', 'PigRoom_W_Joint'],
 } as const;
 
 // 카메라를 향한 면(앞면)은 뚫어서 안 보이게 하고 반대쪽은 그대로 보이게 하는 "컷어웨이"
 // 재질 — barnFactory.js의 applyCameraCutaway를 그대로 포팅(메인 화면은 통짜 모델이라
 // 안 쓰지만 상세 패널은 이 셰이더가 필요하다).
-const CUTAWAY_MATERIAL_PREFIXES = ['Plastic010'] as const;
+// 2026-10-17 교체본에서 평면 벽 머티리얼이 `Plastic010` → `GLTF_Wall`로 바뀌어 추가했다.
+// 지붕(`PigRoom_Roof_Flat`)은 여전히 `Plastic010`이다.
+//
+// ★ 여기서 **페이드(scene/wallFade.ts)를 쓰지 않는 이유**: 이 모델은 벽 네 장이 메쉬 하나
+// (`PigRoom_Walls_Flat`)로 합쳐져 있다. 페이드는 메쉬 단위로 투명도를 주므로 한 면만 지울 수
+// 없다(실제로 붙여 보니 방 전체가 한 덩어리로 잡혀 아무것도 투명해지지 않았다). 컷어웨이는
+// 픽셀 단위로 앞면만 버리므로 메쉬가 어떻게 묶였든 상관없다. 메인 화면은 벽마다 메쉬가
+// 나뉘어 있어 페이드가 맞고, 상세보기는 컷어웨이가 맞다.
+const CUTAWAY_MATERIAL_PREFIXES = ['Plastic010', 'GLTF_Wall'] as const;
 
 function isCutawayMaterial(material: THREE.Material): boolean {
   return CUTAWAY_MATERIAL_PREFIXES.some((prefix) => material.name.startsWith(prefix));
@@ -140,79 +151,10 @@ export function computeRoomFitTransform(
  * ensureRealModel 포팅) — 캐시 원본(gltf.scene)은 손대지 않고 매번 새 인스턴스를 쓴다.
  */
 export function cloneRoomRoot(gltfScene: THREE.Object3D): THREE.Object3D {
-  const key = sanitizeNodeName(DETAIL_ROOM_NODE_NAMES.root);
-  const src = gltfScene.getObjectByName(key) ?? gltfScene;
-  return src.clone(true);
-}
-
-/**
- * 바닥·벽·칸막이에 실제 돈사 텍스처를 입힌다(2026-10-17 사용자 제공, scene/detailRoomTextures.ts).
- *
- * glb 자체 머티리얼(Concrete042A·Plastic010 등)은 단색에 가까워 밋밋했다. 색 맵과 거칠기 맵만
- * 덮어쓰고 **컷어웨이 셰이더(onBeforeCompile)는 건드리지 않는다** — 벽 머티리얼 Plastic010이
- * 그 셰이더를 쓰고 있어서, 머티리얼을 통째로 갈아끼우면 카메라 쪽 벽이 다시 불투명해진다.
- *
- * 타일 횟수는 면 크기에 비례해 계산한다(무늬 크기를 일정하게). 벽 패널은 위아래 색이 달라
- * **세로 반복을 1로 고정**한다 — 반복하면 중간에 색 경계가 한 번 더 생긴다.
- */
-export function applyRoomTextures(
-  model: THREE.Object3D,
-  roomSizeYUp: readonly [number, number, number],
-  loader: THREE.TextureLoader | null = createTextureLoaderIfSupported(),
-): void {
-  // 브라우저가 아니면(vitest) 텍스처를 건너뛴다 — 치수·스케일 로직은 그대로 검증된다.
-  if (loader === null) return;
-  // 높이(h)는 쓰지 않는다 — 벽 텍스처는 세로로 반복하지 않고 방 높이에 한 장을 꽉 채운다
-  // (패널 아래쪽 어두운 띠가 바닥에서 ~1.2 m에 오도록, 실제 돈사 걸레받이와 같은 높이).
-  const [w, , d] = roomSizeYUp;
-
-  const floorSet = loadTextureSet(loader, DETAIL_TEXTURES.floor);
-  const wallSet = loadTextureSet(loader, DETAIL_TEXTURES.wall);
-
-  // 바닥: 가로·세로 모두 반복.
-  const floorMaps = withRepeat(
-    floorSet,
-    repeatsForSize(w, TEXTURE_TILE_M.floor),
-    repeatsForSize(d, TEXTURE_TILE_M.floor),
-  );
-  // 벽: 가로만 반복, 세로는 1(패널 상·하 색 구분을 유지).
-  const wallMaps = withRepeat(wallSet, repeatsForSize(Math.max(w, d), TEXTURE_TILE_M.wall), 1);
-
-  /**
-   * ★ 머티리얼을 **복제한 뒤** 텍스처를 입힌다. p1.glb에서 `PigRoom_Walls_Flat`과
-   * `PigRoom_Roof_Flat`이 머티리얼(`Plastic010`) 하나를 공유하는데, Object3D.clone()은
-   * 머티리얼까지 복사하지 않는다. 복제 없이 벽에 텍스처를 넣으면 **천장에도 같은 벽 패널이
-   * 입혀진다**(위아래 색이 갈린 무늬가 천장에 깔린다). 복제본도 이름을 그대로 두므로
-   * 컷어웨이 판정(`isCutawayMaterial`의 'Plastic010' 접두어)은 계속 걸린다.
-   */
-  const apply = (nodeName: string, maps: { map: THREE.Texture; roughnessMap: THREE.Texture }): void => {
-    const node = model.getObjectByName(nodeName);
-    if (!node) return;
-    node.traverse((obj) => {
-      if (!(obj instanceof THREE.Mesh)) return;
-      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
-      const next = materials.map((mat) => {
-        if (!(mat instanceof THREE.MeshStandardMaterial)) return mat;
-        const copy = mat.clone();
-        copy.map = maps.map;
-        copy.roughnessMap = maps.roughnessMap;
-        // 텍스처 색을 그대로 보여주기 위해 기존 tint를 흰색으로 되돌린다.
-        copy.color.set(0xffffff);
-        // 거칠기 맵의 G 채널을 그대로 쓰려면 곱해지는 스칼라가 1이어야 한다.
-        copy.roughness = 1;
-        // 돈사 바닥·벽·필터는 전부 비금속이다(`_data`의 B를 메탈릭으로 물리지 않는 이유).
-        copy.metalness = 0;
-        copy.needsUpdate = true;
-        return copy;
-      });
-      obj.material = Array.isArray(obj.material) ? next : next[0]!;
-    });
-  };
-
-  apply(DETAIL_ROOM_NODE_NAMES.floor, floorMaps);
-  apply(DETAIL_ROOM_NODE_NAMES.flatWalls, wallMaps);
-  // 칸막이(PR_PartitionConcrete)는 그대로 둔다 — 2026-10-17 지시는 바닥·벽·급기구 셋이고,
-  // 높이 0.78 m 칸막이에 위아래 색이 갈린 벽 패널을 늘려 붙이면 어색하다. 지시가 오면 추가한다.
+  // 2026-10-17 교체본은 급기구(`Inlet_Weaner_1~3`)가 `P1` **바깥 루트에 형제로** 있다.
+  // 예전처럼 P1만 떼어 오면 급기구가 통째로 빠지므로 씬 전체를 클론한다. 단독 방 모델이라
+  // P1과 급기구 말고는 들어 있는 게 없어서 통째로 가져와도 군더더기가 없다.
+  return gltfScene.clone(true);
 }
 
 /**
@@ -241,11 +183,8 @@ export function prepareDetailRoomModel(
   model.scale.copy(scale);
   model.position.copy(position);
 
-  // 입체 급기구(팬 하우징)는 숨기고 얇은 판으로 대체한다(B-6) — 판 자체는 방 좌표계에
-  // 그리므로 이 모델이 아니라 Detail3DView에서 형제로 붙인다(scene/inletPanels.ts).
-  hideModelInlets(model);
-  applyRoomTextures(model, targetRoomSizeYUp);
-
+  // 텍스처는 모델에 구워져 들어왔고(①), 급기구도 이미 얇은 판이다(②) — 코드로 입히거나
+  // 만들지 않는다. 지붕만 컷어웨이로 잘라내고, 벽은 호출부(Detail3DView)가 앞벽 페이드를 건다(③).
   applyCameraCutaway(model);
   model.traverse((obj) => {
     if (!(obj instanceof THREE.Mesh)) return;
