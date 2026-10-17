@@ -42,7 +42,12 @@ const COLUMNS: ReadonlyArray<{ key: keyof ExpertRowDraft; unit: string }> = [
   { key: 'vent', unit: '%' },
 ];
 
-const GRID_COLS = 'grid grid-cols-[56px_repeat(3,minmax(0,1fr))] gap-3';
+// 2026-10-17 사용자 지정 치수. 한 줄 폭 704 = 왼쪽 패딩 26 + 시간 칸 48 + (간격 12 + 입력칸 198) × 3.
+// ★ Tailwind 클래스는 **리터럴로** 적는다 — 템플릿 문자열로 조립하면 빌드 시 스캐너가 못 찾아
+//   해당 CSS가 생성되지 않는다(폭·간격이 통째로 먹지 않는다).
+const GRID_COLS = 'grid grid-cols-[48px_198px_198px_198px] gap-3';
+/** 표 한 줄의 전체 폭(패딩 포함). 열 제목 줄과 입력 줄이 같은 폭을 쓰게 묶어 둔다. */
+const ROW_CLASS = `${GRID_COLS} w-[704px] pl-[26px]`;
 
 export function ExpertInputForm({
   rowLabels,
@@ -71,17 +76,17 @@ export function ExpertInputForm({
             aria-label="결과 화면으로 돌아가기"
             className="flex h-6 w-6 shrink-0 items-center justify-center text-[#ccc] transition-colors hover:text-white"
           >
-            <ChevronLeft size={22} />
+            <ChevronLeft size={24} />
           </button>
         )}
         <span className="text-[16px] font-semibold text-[#ccc]">필수값 설정</span>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="ml-auto flex items-center gap-[12px]">
           {canReset && (
             <button
               type="button"
               onClick={onReset}
-              className="h-[42px] w-[92px] shrink-0 rounded-lg border border-[rgba(85,85,85,0.5)] bg-[rgba(71,73,81,0.45)] text-sm font-medium text-white transition-colors hover:bg-[rgba(71,73,81,0.7)]"
+              className="h-[40px] w-[92px] shrink-0 rounded-lg border border-[rgba(85,85,85,0.5)] bg-[rgba(71,73,81,0.45)] text-[15px] font-medium text-white transition-colors hover:bg-[rgba(71,73,81,0.7)]"
             >
               초기화
             </button>
@@ -90,7 +95,7 @@ export function ExpertInputForm({
             type="button"
             onClick={onSubmit}
             disabled={!validation.isValid || isLoading}
-            className="h-[42px] w-[92px] shrink-0 rounded-lg border border-[#1088de] bg-[#1088de] text-sm font-medium text-white transition-colors hover:bg-[#1088de]/80 disabled:cursor-not-allowed disabled:border-[rgba(85,85,85,0.3)] disabled:bg-[rgba(71,73,81,0.3)] disabled:text-[rgba(255,255,255,0.3)]"
+            className="h-[40px] w-[92px] shrink-0 rounded-lg border border-[#1088de] bg-[#1088de] text-[15px] font-medium text-white transition-colors hover:bg-[#1088de]/80 disabled:cursor-not-allowed disabled:border-[rgba(85,85,85,0.3)] disabled:bg-[rgba(71,73,81,0.3)] disabled:text-[rgba(255,255,255,0.3)]"
           >
             적용
           </button>
@@ -100,7 +105,7 @@ export function ExpertInputForm({
       <div className="h-px shrink-0 bg-ondo-border" />
 
       {/* 열 제목 — 시안은 "시간"(전에는 "시각")이다. */}
-      <div className={`${GRID_COLS} shrink-0 pr-[10px] text-sm font-semibold text-[#ccc]`}>
+      <div className={`${ROW_CLASS} shrink-0 text-[14px] font-semibold text-[#cccccc]`}>
         <span>시간</span>
         {COLUMNS.map((col) => (
           <span key={col.key} className="text-center">
@@ -111,12 +116,14 @@ export function ExpertInputForm({
 
       {/* 24행 전부를 패널 높이만큼 펼치고 넘치는 만큼만 스크롤한다(시안 01~04-1: 오른쪽에
           스크롤바가 보이고 표가 패널 바닥까지 내려간다). */}
-      <div className="ondo-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-[10px]">
+      <div className="ondo-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
         {drafts.map((row, rowIndex) => {
           const rowValidation = validation.rows[rowIndex];
           return (
-            <div key={rowIndex} className={`${GRID_COLS} items-start`}>
-              <span className="pt-2 text-sm text-white/70">{rowLabels[rowIndex] ?? `${rowIndex}시`}</span>
+            <div key={rowIndex} className={`${ROW_CLASS} items-start`}>
+              <span className="flex h-[36px] items-center text-[14px] text-[#cccccc]">
+                {rowLabels[rowIndex] ?? `${rowIndex}시`}
+              </span>
               {COLUMNS.map((col) => {
                 const error = rowValidation?.[col.key].error ?? null;
                 return (
@@ -129,7 +136,7 @@ export function ExpertInputForm({
                       aria-label={`${rowLabels[rowIndex] ?? `${rowIndex}시`} ${EXPERT_FIELD_LABELS[col.key]}`}
                       aria-invalid={error != null}
                       onChange={(e) => updateCell(rowIndex, col.key, e.target.value)}
-                      className={`h-[34px] min-w-0 rounded-md border px-3 text-center text-sm text-white outline-none placeholder:text-white/30 focus:border-[#555] focus:bg-transparent ${
+                      className={`h-[36px] w-[198px] rounded-[6px] border px-3 text-center text-[16px] text-white outline-none placeholder:text-[13px] placeholder:text-white/30 focus:border-[#555] focus:bg-transparent ${
                         error
                           ? 'border-[rgba(255,105,91,0.7)] bg-[rgba(255,105,91,0.05)]'
                           : 'border-[rgba(85,85,85,0.5)] bg-[rgba(71,73,81,0.1)]'
