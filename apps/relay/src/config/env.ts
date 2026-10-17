@@ -1,17 +1,32 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { existsSync } from 'node:fs';
 import { config as loadDotenv } from 'dotenv';
 import { z } from 'zod';
 
 // 패키지 매니저가 apps/relay를 cwd로 실행하므로, 저장소 루트의 .env를 명시적으로 가리킨다.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-loadDotenv({ path: path.resolve(__dirname, '../../../../.env') });
+const envFilePath = path.resolve(__dirname, '../../../../.env');
+loadDotenv({ path: envFilePath });
 
 // .env.example과 항상 일치시킨다. 새 설정을 추가하면 두 파일을 같이 고친다.
 // FARM_LAT/LON, KMA_NX/NY는 M1(KmaClient)부터 required로 좁힌다(docs/05-open-questions.md #12).
 // KMA_SERVICE_KEY는 공공데이터포털에서 발급 전까지 빈 값일 수 있으므로 계속 optional(빈 문자열 허용) —
 // 비어 있어도 서버는 뜨고, 실제 기상청 호출만 실패(disconnected)한다.
 // 쉼표로 구분한 숫자 목록("22,24,26,28") → number[].
+/**
+ * 빈 값을 **0으로 받아들이지 않는** 필수 숫자. `z.coerce.number()`는 `''`를 0으로 바꿔서,
+ * `.env`에서 값을 지워도 서버가 조용히 뜬다 — 2026-10-17 실측에서 `FARM_LAT=`로 두니
+ * 위경도가 0(적도)이 된 채 정상인 척 떴다. 일출·일몰 판정과 격자 좌표가 말없이 틀어지는
+ * 유형이라, 사용자가 자리에 없는 테스트에서는 특히 위험하다. 빈 문자열을 undefined로
+ * 바꿔 "필수값 없음"으로 걸리게 한다.
+ */
+const requiredNumber = (): z.ZodEffects<z.ZodNumber, number, unknown> =>
+  z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.coerce.number({ invalid_type_error: '값이 비어 있거나 숫자가 아닙니다' }),
+  );
+
 const numberList = z
   .string()
   .transform((v) => v.split(',').map((x) => Number(x.trim())))
@@ -28,10 +43,10 @@ const envSchema = z.object({
   INPUT_FAN_PATH: z.string().min(1).default('JE/EX/NH/FN1/FAN1'),
 
   KMA_SERVICE_KEY: z.string().default(''),
-  FARM_LAT: z.coerce.number(),
-  FARM_LON: z.coerce.number(),
-  KMA_NX: z.coerce.number().int(),
-  KMA_NY: z.coerce.number().int(),
+  FARM_LAT: requiredNumber(),
+  FARM_LON: requiredNumber(),
+  KMA_NX: requiredNumber().refine(Number.isInteger, '정수여야 합니다'),
+  KMA_NY: requiredNumber().refine(Number.isInteger, '정수여야 합니다'),
   // 헤더 위치 표시용 동네 이름(기상청 격자 KMA_NX·NY의 예보구역). 비우면 화면에 표시 안 함.
   FARM_AREA_NAME: z.string().default(''),
 
@@ -107,13 +122,49 @@ const refinedEnvSchema = envSchema.superRefine((e, ctx) => {
 
 export type Env = z.infer<typeof refinedEnvSchema>;
 
+/**
+ * 설정이 잘못됐을 때 **비개발자가 읽고 조치할 수 있는 메시지**를 찍는다(M7-3).
+ *
+ * 2026-10-23 온도 측 테스트에는 개발자가 자리에 없다. 전에는 zod 이슈 목록만 영어 경로로
+ * 찍혀서(`FARM_LAT: Expected number, received nan`) 받는 쪽에서 뭘 해야 할지 알 수 없었다.
+ * `.env` 자체가 없는 경우를 따로 구분하는 이유도 같다 — 다른 PC에 복사하면 `.env`는
+ * `.gitignore` 대상이라 따라오지 않아서, 가장 흔한 실패가 이것이다.
+ */
+function printConfigHelp(issues: string): void {
+  const bar = '='.repeat(64);
+  console.error('');
+  console.error(bar);
+  console.error(' 설정에 문제가 있어 중계 서버를 시작할 수 없습니다.');
+  console.error(bar);
+  console.error('');
+
+  if (!existsSync(envFilePath)) {
+    console.error(' 설정 파일(.env)이 없습니다.');
+    console.error(` 찾은 위치: ${envFilePath}`);
+    console.error('');
+    console.error(' [조치] setup.bat 을 실행해 설정을 만드세요.');
+    console.error('        전달받은 .env 파일이 따로 있다면 위 위치에 복사하세요.');
+  } else {
+    console.error(' 아래 설정값이 비어 있거나 형식이 맞지 않습니다:');
+    console.error('');
+    console.error(issues);
+    console.error('');
+    console.error(' [조치] setup.bat 을 실행해 값을 채우세요.');
+    console.error('        setup.bat 으로 고칠 수 없는 항목이면 담당자에게 이 화면을 전달하세요.');
+  }
+
+  console.error('');
+  console.error(bar);
+  console.error('');
+}
+
 function loadEnv(): Env {
   const result = refinedEnvSchema.safeParse(process.env);
   if (!result.success) {
     const issues = result.error.issues
       .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
       .join('\n');
-    console.error(`[config] .env 설정이 올바르지 않습니다:\n${issues}`);
+    printConfigHelp(issues);
     process.exit(1);
   }
   return result.data;
