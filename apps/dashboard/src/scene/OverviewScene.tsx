@@ -20,6 +20,7 @@ import {
 } from './barnModel.js';
 import { CameraRig } from './CameraRig.js';
 import { createWallFade, type WallFade } from './wallFade.js';
+import { normalizeWallCapMaterial } from './barnMaterials.js';
 import { SceneLighting } from './SceneLighting.js';
 import { useMainStore } from '../store/mainStore.js';
 import { okData } from '../api/client.js';
@@ -51,6 +52,8 @@ export function OverviewScene(): ReactElement {
   // **되살리지 않는다**(05-open-questions.md #48 해소).
   const sections = useMemo(() => {
     computeShadowFlags(scene);
+    // 벽 위 테두리를 한 가지 회색으로(2026-10-17 사용자 요청) — scene/barnMaterials.ts.
+    normalizeWallCapMaterial(scene);
     return computeBarnSections(scene, BARN_NODE_CONFIG);
   }, [scene]);
 

@@ -84,6 +84,8 @@ interface FadeWall {
   mesh: THREE.Mesh;
   material: THREE.Material & { opacity: number; transparent: boolean; depthWrite: boolean };
   original: THREE.Material;
+  /** glb 원본의 side(이 모델은 전부 DoubleSide) — 불투명 상태로 돌아갈 때 되돌린다. */
+  originalSide: THREE.Side;
   center: THREE.Vector3;
   outward: THREE.Vector3;
   name: string;
@@ -136,9 +138,23 @@ export function createWallFade(
     // glTF 머티리얼은 여러 벽이 공유한다. 벽마다 따로 투명해져야 하므로 복제한다(원본 주석).
     const original = Array.isArray(mesh.material) ? mesh.material[0]! : mesh.material;
     const clone = original.clone() as FadeWall['material'];
+    // 반투명해진 벽이 바닥과 겹치는 자리에서 반짝이는 것(z-fighting)을 막는다 —
+    // 아래 update()의 side 전환과 함께 쓴다. 깊이 비교에서 이 면을 아주 살짝 앞으로 당겨
+    // 같은 깊이에서 통과/탈락이 픽셀마다 뒤집히는 것을 없앤다.
+    clone.polygonOffset = true;
+    clone.polygonOffsetFactor = -1;
+    clone.polygonOffsetUnits = -1;
     mesh.material = clone;
 
-    walls.push({ mesh, material: clone, original, center: c, outward, name: mesh.parent?.name || mesh.name });
+    walls.push({
+      mesh,
+      material: clone,
+      original,
+      originalSide: original.side,
+      center: c,
+      outward,
+      name: mesh.parent?.name || mesh.name,
+    });
   }
 
   // ── 3. 매 프레임 갱신 ──
@@ -155,6 +171,7 @@ export function createWallFade(
         m.transparent = false;
         m.opacity = 1;
         m.depthWrite = true;
+        m.side = w.originalSide;
         continue;
       }
       if (opt.mode === 'cull') {
@@ -162,6 +179,7 @@ export function createWallFade(
         m.transparent = false;
         m.opacity = 1;
         m.depthWrite = true;
+        m.side = w.originalSide;
         continue;
       }
       const opacity = fadeOpacity(facing, opt.band, opt.keep);
@@ -169,11 +187,19 @@ export function createWallFade(
       m.opacity = opacity;
       m.transparent = opacity < 0.999;
       m.depthWrite = opacity > 0.98; // 반투명일 땐 깊이 기록을 끈다
+      // ★ 반투명일 때만 앞면만 그린다(2026-10-17, 바닥 접합부 반짝임 수정).
+      // 이 모델의 벽은 전부 DoubleSide고 **벽 밑면(y=0)이 바닥 윗면(y=0)과 정확히 겹친다**.
+      // 반투명 + 깊이쓰기 꺼짐 상태에서 양면으로 그리면 아래를 보는 밑면이 바닥과 같은 깊이에
+      // 블렌딩돼, 픽셀마다 깊이 테스트가 뒤집히며 접합부가 반짝인다. 밑면은 법선이 아래를
+      // 향하므로 FrontSide로 두면 잘려 나간다(불투명으로 돌아가면 원래 side로 복구).
+      // 근본 해결은 모델에서 벽 밑면을 바닥면과 겹치지 않게 조금 내리거나 올리는 것이다.
+      m.side = m.transparent ? THREE.FrontSide : w.originalSide;
     }
   }
 
   function dispose(): void {
     for (const w of walls) {
+      w.original.side = w.originalSide; // 원본은 건드리지 않았지만 방어적으로 되돌린다
       w.material.dispose();
       w.mesh.material = w.original;
       w.mesh.visible = true;
