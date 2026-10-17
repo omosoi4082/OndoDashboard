@@ -1,16 +1,23 @@
 // 전문가 모드(20~26, 01-functional-spec.md 4.3) — 입력 표(21, 24행 × 3열) 적용 클릭 시에만
 // POST /api/detail/expert를 호출한다(탭 선택 자체로는 호출하지 않음, ForecastDetailView의
-// "탭 선택 시 1회"와 다른 트리거). 입력 전(store.expert===null)에는 EmptyDetail3D로 방 모델과
-// 중립색 포인트만 그리고 그 위에 안내 문구를 겹친다(01-functional-spec.md 3장 "데이터가 없을 때").
-// 응답을 받은 뒤에는 ForecastDetailView와 같은 구조(ControlsRow + Detail3DView(포인트+
-// 등치면/실린더 overlay) + Detail2DSection + Timeline)로 145프레임을 재생한다(중복 구현 금지).
+// "탭 선택 시 1회"와 다른 트리거).
+//
+// 2026-10-17 새 시안(docs/design/UI/전문가 모드 새 디자인/) 반영 — **화면이 둘로 나뉜다**:
+//   input  : 패널 전체가 입력 표(ExpertInputForm). 분석 항목·타임라인·3D·2D 없음(시안 01~04-1).
+//   result : 맨 윗줄에 "필수값 설정 … [필수값 수정]" 한 줄만 남고 그 아래 분석 항목 + 타임라인 +
+//            3D + 2D(시안 05). ForecastDetailView와 같은 구조로 145프레임을 재생한다(중복 구현 금지).
+// 전에는 입력 표가 결과 위에 상시 붙어 있었다. 오가는 길은 [필수값 수정] → input, [<] → result.
+// 적용에 성공하면 자동으로 result로 넘어간다(시안 04 → 05 흐름).
+//
+// 입력 전·오류일 때는 result로 가지 않으므로, "데이터 값을 입력해주세요" 안내를 겹친 EmptyDetail3D는
+// 더 이상 쓰지 않는다 — 그 자리에 입력 표 자체가 보이는 것이 시안의 빈 상태다.
 import { useState, type ReactElement } from 'react';
 import { useDetailStore } from '../../store/detailStore.js';
 import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { fetchDetailExpert } from '../../api/endpoints.js';
 import { validateExpertRows, type ExpertInputFieldRange, type ExpertRowDraft } from '../../detail/expertInputValidation.js';
-import { expertExampleDrafts, expertRowTimes } from '../../detail/expertInputRows.js';
+import { expertEmptyDrafts, expertRowLabels } from '../../detail/expertInputRows.js';
 import {
   EXPERT_INPUT_ROW_COUNT,
   EXPERT_RH_MAX,
@@ -26,6 +33,7 @@ import { Detail2DSection } from './Detail2DSection.js';
 import { Detail2DBox, Detail3DSection, DetailScrollBody, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ExpertInputForm } from './ExpertInputForm.js';
+import { ExpertResultHeader } from './ExpertResultHeader.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
 import { FlowVisualization } from '../../scene/FlowVisualization.js';
 
@@ -45,14 +53,12 @@ export function ExpertModeView(): ReactElement {
   const valueField = useDetailStore((s) => s.valueField);
   const timelineFrameIndex = useDetailStore((s) => s.timelineFrameIndex);
 
-  // 행 시각은 탭에 들어온 시점 기준으로 한 번 정한다(첫 행 = 다음 정시). 표는 예시 값
-  // (mock_expert.json 정시 값 24개)으로 채워 둔다(docs/04-tasks.md P2).
-  const [rowTimes] = useState<Date[]>(() => expertRowTimes(new Date(), EXPERT_INPUT_ROW_COUNT));
-  const [drafts, setDrafts] = useState<ExpertRowDraft[]>(expertExampleDrafts);
-  // 마지막으로 "적용"을 눌렀던 입력값 — 지금 drafts와 같은 배열일 때만 "적용 완료" 상태로 본다.
-  // 칸을 고치면 drafts가 새 배열이 되어 버튼이 "적용"으로 돌아간다
-  // (2026-10-10 사용자 요청: "적용완료후 다시 인풋값 입력시 적용으로 버튼 변경되야됨").
-  const [appliedDrafts, setAppliedDrafts] = useState<ExpertRowDraft[] | null>(null);
+  // 행 라벨은 "0시"~"23시" 고정이다(2026-10-17 시안). 표는 빈 칸으로 시작한다.
+  const rowLabels = expertRowLabels(EXPERT_INPUT_ROW_COUNT);
+  const [drafts, setDrafts] = useState<ExpertRowDraft[]>(() => expertEmptyDrafts(EXPERT_INPUT_ROW_COUNT));
+  // 'input' = 입력 표 화면(시안 01~04-1), 'result' = 결과 화면(시안 05).
+  // 처음에는 결과가 없으니 입력 화면으로 시작하고, 적용에 성공하면 결과로 넘어간다.
+  const [screen, setScreen] = useState<'input' | 'result'>('input');
   const [isLoading, setIsLoading] = useState(false);
   const validation = validateExpertRows(drafts, EXPERT_INPUT_RANGE, EXPERT_INPUT_ROW_COUNT);
 
@@ -65,13 +71,20 @@ export function ExpertModeView(): ReactElement {
 
   function handleSubmit(): void {
     if (validation.values === null) return;
-    const submitted = drafts;
     setIsLoading(true);
+    // 계산 중에도 입력 표를 그대로 두고(화면이 비는 것보다 낫다) 결과가 오면 결과 화면으로 넘어간다.
+    // 오류 응답이면 입력 화면에 남아 아래 오류 문구를 띄운다 — 값을 고칠 자리가 그 화면이다.
     fetchDetailExpert(validation.values).then((res) => {
       setExpert(res);
-      setAppliedDrafts(submitted);
       setIsLoading(false);
+      if (res.status !== 'error') setScreen('result');
     });
+  }
+
+  /** "초기화"(시안 02~04-1) — 입력 표를 빈 칸으로 되돌린다. 이미 받은 결과는 지우지 않는다
+   *  (결과 화면으로 돌아갈 수 있어야 하므로). */
+  function handleReset(): void {
+    setDrafts(expertEmptyDrafts(EXPERT_INPUT_ROW_COUNT));
   }
 
   if (!geometry) {
@@ -81,39 +94,45 @@ export function ExpertModeView(): ReactElement {
   const frameIndex = expertFrames ? clampTimelineFrameIndex(timelineFrameIndex, expertFrames.length) : 0;
   const frame = expertFrames ? expertFrames[frameIndex] : null;
 
+  const hasResult = expert !== null && expert.status !== 'error' && frame !== null;
+
+  // ── 입력 화면(시안 01~04-1) ─────────────────────────────────────────────
+  // 패널 전체가 입력 표다. 결과를 이미 받아 둔 경우에만 "<"로 결과 화면에 돌아갈 수 있다.
+  if (screen === 'input') {
+    return (
+      <>
+        <ExpertInputForm
+          rowLabels={rowLabels}
+          drafts={drafts}
+          validation={validation}
+          isLoading={isLoading}
+          onBack={hasResult ? () => setScreen('result') : null}
+          onChange={setDrafts}
+          onReset={handleReset}
+          onSubmit={handleSubmit}
+        />
+        {isLoading && (
+          <span className="shrink-0 pt-3 text-xs text-white/60">전문가 모드 결과를 계산하는 중입니다...</span>
+        )}
+        {!isLoading && expert !== null && expert.status === 'error' && (
+          <span className="shrink-0 pt-3 text-xs text-[#ff695b]">{expert.error.message}</span>
+        )}
+      </>
+    );
+  }
+
+  // ── 결과 화면(시안 05) ──────────────────────────────────────────────────
   return (
     <>
-      <ExpertInputForm
-        rowTimes={rowTimes}
-        drafts={drafts}
-        validation={validation}
-        isLoading={isLoading}
-        isApplied={
-          !isLoading &&
-          expert !== null &&
-          expert.status !== 'error' &&
-          appliedDrafts === drafts
-        }
-        onChange={setDrafts}
-        onSubmit={handleSubmit}
-      />
-      {/* 입력 폼과 분석 항목 사이 구분선 — Figma node 374:11732(03_전문가모드_디자인) 실측,
-          ControlsRow 자체엔 없어서(다른 모드는 탭 바로 아래라 필요 없음) 여기서만 그린다. */}
-      <div className="h-px shrink-0 bg-ondo-border" />
+      <ExpertResultHeader onEdit={() => setScreen('input')} />
       <ControlsRow />
 
       {/* frame이 있을 때만(= 로딩도 오류도 아니고 데이터도 있을 때만) 타임라인을 보여준다
           — expertFrames와 같은 조건이라 그 참 거짓만 보면 된다. */}
-      {expertFrames && frame && <TimelineSection frames={expertFrames} />}
+      {expertFrames && frame && <TimelineSection frames={expertFrames} elapsedLabels />}
 
       <DetailScrollBody>
-        {isLoading ? (
-          <EmptyDetail3D geometry={geometry} text="전문가 모드 결과를 계산하는 중입니다..." isError={false} />
-        ) : expert === null ? (
-          <EmptyDetail3D geometry={geometry} text="데이터 값을 입력해주세요." isError={false} />
-        ) : expert.status === 'error' ? (
-          <EmptyDetail3D geometry={geometry} text={expert.error.message} isError />
-        ) : !frame ? (
+        {!frame || expert === null || expert.status === 'error' ? (
           <EmptyDetail3D geometry={geometry} text="응답에 표시할 프레임이 없습니다." isError />
         ) : (
           <>

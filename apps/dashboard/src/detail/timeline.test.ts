@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceTimelineFrame,
   clampTimelineFrameIndex,
+  formatElapsedFrameTime,
   formatFrameDateTime,
   formatFrameTime,
   hourTickIndices,
@@ -77,5 +78,22 @@ describe('formatFrameDateTime', () => {
 
   it('형식이 아니면 "-"', () => {
     expect(formatFrameDateTime('bad')).toBe('-');
+  });
+});
+
+describe('formatElapsedFrameTime', () => {
+  it('10분 간격 145프레임이면 0 → 00:00, 144 → 24:00 (전문가 모드 라벨, 2026-10-17 시안)', () => {
+    expect(formatElapsedFrameTime(0)).toBe('00:00');
+    expect(formatElapsedFrameTime(144)).toBe('24:00');
+  });
+
+  it('중간 프레임은 경과 시간 HH:mm', () => {
+    expect(formatElapsedFrameTime(1)).toBe('00:10');
+    expect(formatElapsedFrameTime(6)).toBe('01:00');
+    expect(formatElapsedFrameTime(100)).toBe('16:40');
+  });
+
+  it('음수는 0으로 본다', () => {
+    expect(formatElapsedFrameTime(-5)).toBe('00:00');
   });
 });

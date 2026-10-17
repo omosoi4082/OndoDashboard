@@ -9,22 +9,27 @@
 // 색상·점 크기·말풍선·시간 표시 위치는 docs/design/UI/02_예측모드_디자인_04.png(2026-10-10
 // 전달분) 픽셀 실측값 그대로다 — 트랙 #434f62, 채움 #5088d4, 1시간 점 3×3px #7b8391,
 // 말풍선 배경 #363f4d.
-// 양 끝 라벨은 시안의 "00:00"/"24:00"(경과 시간)이 아니라 frames의 실제 시각(날짜 포함)을
-// 쓴다 — 2026-10-13 온도 측 B-7 확정("슬라이더 양 끝을 ... frames[i].time의 실제 시각
-// (날짜 포함)으로 표시하고, 프레임 0에 '현재' 표시를 부탁드립니다"). 05-open-questions.md
-// #37·#38 종결.
+// 양 끝 라벨은 기본적으로 frames의 실제 시각(날짜 포함)을 쓴다 — 2026-10-13 온도 측 B-7 확정
+// ("슬라이더 양 끝을 ... frames[i].time의 실제 시각(날짜 포함)으로 표시하고, 프레임 0에 '현재'
+// 표시를 부탁드립니다"). 05-open-questions.md #37·#38.
+// 예외로 `elapsedLabels`를 켜면 "00:00"~"24:00" 경과 시간으로 찍는다 — **전문가 모드 전용**이다
+// (2026-10-17 시안 05). 전문가 모드는 사용자가 0시~23시 표에 직접 넣은 가상 시나리오라 실제
+// 날짜·시각에 매이지 않고, 입력 표의 시간 축과 결과 타임라인의 축을 같게 맞추는 편이 읽기 쉽다.
+// B-7은 예측 모드 타임라인(#37·#38)에 대한 요청이었으므로 예측·제어는 그대로 실제 시각을 쓴다.
 import { useEffect, useState, type ReactElement } from 'react';
 import { Pause, Play } from 'lucide-react';
 import type { DetailFrame } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { TIMELINE_FRAME_DURATION_MS } from '../../config/constants.js';
-import { formatFrameDateTime, formatFrameTime, hourTickIndices } from '../../detail/timeline.js';
+import { formatElapsedFrameTime, formatFrameDateTime, formatFrameTime, hourTickIndices } from '../../detail/timeline.js';
 
 interface TimelineProps {
   frames: readonly DetailFrame[];
+  /** 양 끝·현재 라벨을 실제 시각 대신 "00:00"~"24:00" 경과 시간으로(전문가 모드 전용). */
+  elapsedLabels?: boolean;
 }
 
-export function Timeline({ frames }: TimelineProps): ReactElement {
+export function Timeline({ frames, elapsedLabels = false }: TimelineProps): ReactElement {
   const frameIndex = useDetailStore((s) => s.timelineFrameIndex);
   const playing = useDetailStore((s) => s.timelinePlaying);
   const setTimelineFrameIndex = useDetailStore((s) => s.setTimelineFrameIndex);
@@ -129,11 +134,12 @@ export function Timeline({ frames }: TimelineProps): ReactElement {
           -mt-1로 당겨 02_예측모드_디자인_04 실측(트랙 바닥~글자 상단 14px)에 맞춘다. */}
       <div className="-mt-1 flex justify-between pl-[54px]">
         <span className="text-xs text-white/60">
-          {firstFrame ? `현재 ${formatFrameDateTime(firstFrame.time)}` : '-'}
+          {elapsedLabels ? formatElapsedFrameTime(0) : firstFrame ? `현재 ${formatFrameDateTime(firstFrame.time)}` : '-'}
         </span>
         <span className="text-sm text-white">
-          {currentFrame ? formatFrameDateTime(currentFrame.time) : '-'}
-          {lastFrame ? ` / ${formatFrameDateTime(lastFrame.time)}` : ''}
+          {elapsedLabels
+            ? `${formatElapsedFrameTime(clampedIndex)} / ${formatElapsedFrameTime(Math.max(frameCount - 1, 0))}`
+            : `${currentFrame ? formatFrameDateTime(currentFrame.time) : '-'}${lastFrame ? ` / ${formatFrameDateTime(lastFrame.time)}` : ''}`}
         </span>
       </div>
     </div>

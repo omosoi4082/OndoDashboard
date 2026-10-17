@@ -57,3 +57,17 @@ export function formatFrameDateTime(iso: string): string {
   const match = /^\d{4}-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(iso);
   return match ? `${match[1]}/${match[2]} ${match[3]}:${match[4]}` : '-';
 }
+
+/**
+ * 프레임 번호 → 경과 시간 "HH:mm"(전문가 모드 타임라인 라벨, 2026-10-17 시안 05).
+ * 프레임 간격은 10분 고정(docs/02-relay-api.md 5장 intervalMin: 10)이라 145프레임이면
+ * 0 → "00:00", 144 → "24:00"이 된다. 24시간을 넘겨도 시를 그대로 늘려 찍는다.
+ */
+export function formatElapsedFrameTime(frameIndex: number, intervalMin = 10): string {
+  const total = Math.max(0, Math.round(frameIndex)) * intervalMin;
+  const hh = Math.floor(total / 60)
+    .toString()
+    .padStart(2, '0');
+  const mm = (total % 60).toString().padStart(2, '0');
+  return `${hh}:${mm}`;
+}

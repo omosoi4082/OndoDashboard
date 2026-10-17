@@ -100,7 +100,14 @@ export function Detail2DBox({ children }: { children: ReactNode }): ReactElement
  * icons/control/info.png 18×18, "호버시 10분 단위 ui 보이게"). "초기화"는 옛 "정지" 버튼이
  * 이름만 바뀐 것(기능은 그대로 stop(): 첫 프레임으로 되돌리고 멈춤). 예측·전문가·제어 세
  * 모드 전부 같은 디자인(사용자 확인). */
-export function TimelineSection({ frames }: { frames: readonly DetailFrame[] }): ReactElement {
+export function TimelineSection({
+  frames,
+  elapsedLabels = false,
+}: {
+  frames: readonly DetailFrame[];
+  /** 전문가 모드 전용 — 양 끝 라벨을 "00:00"~"24:00" 경과 시간으로(Timeline.tsx 주석 참고). */
+  elapsedLabels?: boolean;
+}): ReactElement {
   const stop = useDetailStore((s) => s.stop);
   return (
     <section className="flex shrink-0 flex-col gap-3 border-b border-ondo-border pb-5">
@@ -125,7 +132,7 @@ export function TimelineSection({ frames }: { frames: readonly DetailFrame[] }):
           초기화
         </button>
       </div>
-      <Timeline frames={frames} />
+      <Timeline frames={frames} elapsedLabels={elapsedLabels} />
     </section>
   );
 }

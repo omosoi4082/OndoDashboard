@@ -1,58 +1,25 @@
-// 전문가 모드 입력 표(B-2)의 행 시각과 예시 값.
-// 행 = 1시간 간격 24개, 첫 행 = 현재 시각 다음 정시(docs/04-tasks.md P2).
+// 전문가 모드 입력 표(21, B-2)의 행 라벨과 초기값.
+//
+// 2026-10-17 새 시안(docs/design/UI/전문가 모드 새 디자인/03_전문가모드_디자인_01~05.png) 반영:
+// ① 행 라벨은 "0시 ~ 23시"(하루 절대 시각) 고정이다. 전에는 "현재 시각 다음 정시"부터 1시간
+//    간격으로 Date를 만들어 "16:00"처럼 찍었는데, 시안이 0시부터 23시로 못 박았다(사용자 확인).
+//    라벨이 더 이상 "지금"에 매이지 않으므로 Date를 들고 있을 이유가 없어 문자열로 단순화했다.
+// ② 표는 **빈 칸으로 시작**한다. 전에는 mock_expert.json 정시 값 24개를 예시로 채워 뒀지만,
+//    시안은 전 칸이 placeholder("값을 입력해주세요.")이고 "초기화" 버튼도 값을 하나라도 적어야
+//    나타난다 — 빈 칸 시작이 의도다(05-open-questions.md #44 "시안이 오면 맞춘다" 종결).
 import type { ExpertRowDraft } from './expertInputValidation.js';
 
-/**
- * 예시 값 — 온도 측 mock/mock_expert.json의 input 중 정시 값 24개(2026-10-05 16:00 ~
- * 10-06 15:00)를 순서대로 옮겼다(T_out·RH_out·fan_pct). "예시 값"이라 행 라벨 시각과 원래
- * 시각이 어긋나는 것은 무시한다(docs/04-tasks.md P2).
- */
-const EXAMPLE_VALUES: ReadonlyArray<readonly [number, number, number]> = [
-  [37.17, 59.2, 100],
-  [36.77, 59.7, 100],
-  [36.25, 60.4, 100],
-  [35.65, 61.2, 100],
-  [35.0, 62.0, 100],
-  [34.35, 62.8, 100],
-  [33.75, 63.6, 100],
-  [33.23, 64.3, 100],
-  [32.83, 64.8, 100],
-  [32.59, 65.1, 100],
-  [32.5, 65.2, 100],
-  [32.59, 65.1, 100],
-  [32.83, 64.8, 100],
-  [33.23, 64.3, 100],
-  [33.75, 63.6, 100],
-  [34.35, 62.8, 100],
-  [35.0, 62.0, 100],
-  [35.65, 61.2, 100],
-  [36.25, 60.4, 100],
-  [36.77, 59.7, 100],
-  [37.17, 59.2, 100],
-  [37.41, 58.9, 100],
-  [37.5, 58.8, 100],
-  [37.41, 58.9, 100],
-];
-
-export function expertExampleDrafts(): ExpertRowDraft[] {
-  return EXAMPLE_VALUES.map(([temp, rh, vent]) => ({ temp: String(temp), rh: String(rh), vent: String(vent) }));
+/** 행 라벨 "0시" ~ "(count-1)시". 시안 그대로 하루 절대 시각이다. */
+export function expertRowLabels(count: number): string[] {
+  return Array.from({ length: count }, (_, i) => `${i}시`);
 }
 
-/** now 다음 정시부터 1시간 간격 count개. 정시 정각(예: 15:00:00.000)이면 16:00부터. */
-export function expertRowTimes(now: Date, count: number): Date[] {
-  const first = new Date(now);
-  first.setMinutes(0, 0, 0);
-  first.setHours(first.getHours() + 1);
-  return Array.from({ length: count }, (_, i) => new Date(first.getTime() + i * 3_600_000));
+/** 빈 입력 표 — 모든 칸이 빈 문자열(placeholder가 보이는 상태). */
+export function expertEmptyDrafts(count: number): ExpertRowDraft[] {
+  return Array.from({ length: count }, () => ({ temp: '', rh: '', vent: '' }));
 }
 
-/** 행 라벨 "HH:00". 날짜가 바뀌는 00:00 행만 "MM-DD 00:00"으로 쓴다. */
-export function formatExpertRowTime(date: Date): string {
-  const hh = date.getHours().toString().padStart(2, '0');
-  if (date.getHours() === 0) {
-    const mm = (date.getMonth() + 1).toString().padStart(2, '0');
-    const dd = date.getDate().toString().padStart(2, '0');
-    return `${mm}-${dd} ${hh}:00`;
-  }
-  return `${hh}:00`;
+/** 한 칸이라도 값이 들어갔는지 — "초기화" 버튼 노출 조건(시안 02). */
+export function hasAnyExpertInput(drafts: readonly ExpertRowDraft[]): boolean {
+  return drafts.some((row) => row.temp.trim() !== '' || row.rh.trim() !== '' || row.vent.trim() !== '');
 }

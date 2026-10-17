@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import Fastify from 'fastify';
 import fastifyCompress from '@fastify/compress';
@@ -112,9 +113,17 @@ registerDetailExpertRoute(app, {
 });
 registerDetailControlRoute(app, { geometry });
 
-// 운영 모드: apps/dashboard 빌드 결과를 정적 서빙, /api 외 경로는 index.html (M7에서 완성).
+// 운영 모드: apps/dashboard 빌드 결과를 정적 서빙, /api 외 경로는 index.html.
+// 조건은 "빌드 결과가 있으면"이다 — 전에는 NODE_ENV === 'production'이었는데, `npm start`
+// (`node dist/index.js`)가 NODE_ENV를 세우지 않아 8080에 API만 뜨고 화면이 안 나왔다(M7-1).
+// 환경변수 하나를 빼먹어 화면이 안 뜨는 함정을 없애려고 파일 존재로 판정한다. 개발 모드
+// (`npm run dev`)는 대시보드를 5173에서 띄우고 /api만 프록시하므로, dist가 남아 있어 8080에서도
+// 같이 서빙되더라도 개발에 영향이 없다.
 const dashboardDist = path.resolve(__dirname, '../../dashboard/dist');
-if (env.PORT && process.env.NODE_ENV === 'production') {
+const dashboardIndex = path.join(dashboardDist, 'index.html');
+const servesDashboard = existsSync(dashboardIndex);
+
+if (servesDashboard) {
   await app.register(fastifyStatic, { root: dashboardDist });
   app.setNotFoundHandler((req, reply) => {
     if (!req.url.startsWith('/api')) {
@@ -125,7 +134,27 @@ if (env.PORT && process.env.NODE_ENV === 'production') {
   });
 }
 
-app.listen({ port: env.PORT, host: '0.0.0.0' }).catch((err) => {
+try {
+  await app.listen({ port: env.PORT, host: '0.0.0.0' });
+} catch (err) {
   app.log.error(err);
   process.exit(1);
-});
+}
+
+// 구동 직후 지금 설정을 한 덩어리로 찍는다(M7-2). 온도 측이 로그만 보고 접속 주소와
+// mock/live 여부를 알 수 있어야 한다 — 사용자 없이 테스트하므로 추측할 여지를 남기지 않는다.
+app.log.info('─'.repeat(60));
+app.log.info(
+  servesDashboard
+    ? `대시보드 주소: http://localhost:${env.PORT}  (브라우저에서 열어 주세요)`
+    : `중계 서버만 떴습니다: http://localhost:${env.PORT}/api/health  (대시보드 빌드 결과가 없습니다 — 개발 모드면 http://localhost:5173)`,
+);
+app.log.info(`센서 서버 : ${env.SENSOR_MODE}${env.SENSOR_MODE === 'live' ? ` (${env.SENSOR_BASE_URL})` : ' (픽스처)'}`);
+app.log.info(`기상청    : 격자 nx ${env.KMA_NX} / ny ${env.KMA_NY}${env.KMA_SERVICE_KEY ? '' : '  ⚠ 서비스키가 비어 있어 기상청 조회가 실패합니다'}`);
+app.log.info(
+  env.COMPUTE_MODE === 'http'
+    ? `연산 서버 : http (${env.COMPUTE_BASE_URL})`
+    : '연산 서버 : mock (목업 파일 — 실제 연산 결과가 아닙니다)',
+);
+app.log.info('상태 점검 : check.bat  (또는 npm run doctor)');
+app.log.info('─'.repeat(60));

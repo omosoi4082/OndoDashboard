@@ -77,11 +77,13 @@ export interface DetailState {
 
 /**
  * 모드별 "포인트 표시" 기본값(2026-10-13 온도 측 B-1). 현재 모드는 125개 포인트가 유일한
- * 표현이라 켜 두고, 예측·전문가·제어는 등온면·등습면·화살표가 주 표현이라 꺼 둔다
+ * 표현이라 켜 두고, 예측·제어는 등온면·등습면·화살표가 주 표현이라 꺼 둔다
  * (사용자가 켜면 마우스로 값 확인용으로 쓸 수 있다).
+ * 전문가 모드는 2026-10-17 새 시안(03_전문가모드_디자인_05)에서 토글이 켜진 상태로 와서
+ * 켜 둔다(사용자 확인) — B-1은 "예측·전문가·제어 기본 꺼짐"이었으나 시안을 따른다.
  */
 export function defaultPointsVisible(mode: DetailMode): boolean {
-  return mode === 'current';
+  return mode === 'current' || mode === 'expert';
 }
 
 export const useDetailStore = create<DetailState>((set) => ({

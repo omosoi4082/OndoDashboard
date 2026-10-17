@@ -1,31 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { expertExampleDrafts, expertRowTimes, formatExpertRowTime } from './expertInputRows.js';
+import { expertEmptyDrafts, expertRowLabels, hasAnyExpertInput } from './expertInputRows.js';
 
-describe('expertRowTimes', () => {
-  it('첫 행은 현재 시각 다음 정시, 1시간 간격 24개', () => {
-    const times = expertRowTimes(new Date(2026, 9, 14, 15, 26, 30), 24);
-    expect(times).toHaveLength(24);
-    expect(times[0]).toEqual(new Date(2026, 9, 14, 16, 0, 0));
-    expect(times[23]).toEqual(new Date(2026, 9, 15, 15, 0, 0));
-  });
-
-  it('정시 정각이면 다음 정시부터', () => {
-    expect(expertRowTimes(new Date(2026, 9, 14, 15, 0, 0), 1)[0]).toEqual(new Date(2026, 9, 14, 16, 0, 0));
+describe('expertRowLabels', () => {
+  it('0시부터 1시간 간격 24개(하루 절대 시각, 2026-10-17 시안)', () => {
+    const labels = expertRowLabels(24);
+    expect(labels).toHaveLength(24);
+    expect(labels[0]).toBe('0시');
+    expect(labels[23]).toBe('23시');
   });
 });
 
-describe('formatExpertRowTime', () => {
-  it('HH:00, 자정만 날짜를 붙인다', () => {
-    expect(formatExpertRowTime(new Date(2026, 9, 14, 16, 0))).toBe('16:00');
-    expect(formatExpertRowTime(new Date(2026, 9, 15, 0, 0))).toBe('10-15 00:00');
-  });
-});
-
-describe('expertExampleDrafts', () => {
-  it('mock_expert.json 정시 값 24개(첫 행 16:00 값)', () => {
-    const drafts = expertExampleDrafts();
+describe('expertEmptyDrafts', () => {
+  it('모든 칸이 빈 문자열로 시작한다(시안: placeholder가 보이는 상태)', () => {
+    const drafts = expertEmptyDrafts(24);
     expect(drafts).toHaveLength(24);
-    expect(drafts[0]).toEqual({ temp: '37.17', rh: '59.2', vent: '100' });
-    expect(drafts[23]).toEqual({ temp: '37.41', rh: '58.9', vent: '100' });
+    expect(drafts.every((r) => r.temp === '' && r.rh === '' && r.vent === '')).toBe(true);
+  });
+});
+
+describe('hasAnyExpertInput', () => {
+  it('전부 비어 있으면 false — "초기화" 버튼이 안 보이는 상태', () => {
+    expect(hasAnyExpertInput(expertEmptyDrafts(24))).toBe(false);
+  });
+
+  it('한 칸만 채워도 true', () => {
+    const drafts = expertEmptyDrafts(24);
+    drafts[5] = { temp: '3', rh: '', vent: '' };
+    expect(hasAnyExpertInput(drafts)).toBe(true);
+  });
+
+  it('공백만 적은 건 입력으로 보지 않는다', () => {
+    const drafts = expertEmptyDrafts(3);
+    drafts[0] = { temp: '   ', rh: '', vent: '' };
+    expect(hasAnyExpertInput(drafts)).toBe(false);
   });
 });
