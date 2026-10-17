@@ -77,7 +77,11 @@ const fanAggThreshold: AggregateThresholds = {
 };
 
 registerHealthRoute(app, { sensorClient, kmaClient, computeClient });
-registerMainRoomsRoute(app, { sensorClient });
+registerMainRoomsRoute(app, {
+  sensorClient,
+  // 화면 표시용 환기팬 범위도 .env를 따른다(연산 입력 클램프와 같은 값, A-2).
+  fanRange: { min: env.SENSOR_FAN_MIN, max: env.SENSOR_FAN_MAX },
+});
 registerMainWeatherKmaRoute(app, { kmaClient, farmLat: env.FARM_LAT, farmLon: env.FARM_LON, areaName: env.FARM_AREA_NAME });
 registerMainWeatherStationRoute(app, { sensorClient, farmLat: env.FARM_LAT, farmLon: env.FARM_LON });
 registerDetailGeometryRoute(app, { geometry });

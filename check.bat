@@ -11,6 +11,13 @@ if errorlevel 1 (
   exit /b 1
 )
 
+if not exist "appselay\dist\scripts\doctor.js" (
+  echo [X] 점검 도구가 없습니다. install.bat 을 먼저 실행하세요.
+  echo.
+  pause
+  exit /b 1
+)
+
 echo 점검 중입니다. 연산에 시간이 걸려 1~3분 정도 걸릴 수 있습니다. 기다려 주세요...
 echo.
 

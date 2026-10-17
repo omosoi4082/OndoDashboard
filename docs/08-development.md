@@ -45,25 +45,44 @@ npm run grid -- <lat> <lon>   # 위경도 → 기상청 격자(nx, ny)
 
 ## 전달 패키지 만들기
 
-2026-10-17 사용자 결정에 따라 두 가지를 준비한다(docs/04-tasks.md M7-4).
-
-**① 빌드 포함본**(기본) — 온도 측은 Node 설치 후 `start.bat`만 누르면 된다.
-
 ```
-npm install && npm run build
+powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 -OutDir <경로> [-Zip]
 ```
 
-그 뒤 아래를 **포함**해 압축한다. `.env`는 **반드시 넣는다**(기상청 키 전달 방식 — git에는 계속
-커밋하지 않는다).
+빌드 → 필요한 파일만 staging → staging에서 `npm install --omit=dev` 순서로 돈다.
+2026-10-17 실측 결과 **폴더 51.7 MB / 압축 15.6 MB**.
 
-```
-포함:  apps/ packages/ config/ mock/ docs/ node_modules/
-       .env .env.example package.json package-lock.json
-       *.bat README.md 테스트-체크리스트.md CLAUDE.md
-제외:  technical-review/  .git/  *.log  점검결과.txt  .env.bak
-```
+**패키지를 작게 만든 두 가지**
 
-**② 소스본** — 위에서 `node_modules/`와 빌드 결과를 빼고 압축한다. 온도 측이 `install.bat`을
-먼저 실행한다.
+- `apps/dashboard`를 **워크스페이스에서 뺀다.** 대시보드는 정적 파일(dist)로만 나가고
+  three·react·lucide-react 같은 의존성은 이미 번들에 들어 있다. `package.json`을 같이 넣으면
+  npm이 그 의존성까지 설치해 **약 220 MB**가 더 붙는다(248 MB → 51.7 MB 차이의 대부분).
+  중계 서버는 `apps/dashboard/dist` **폴더만** 보므로 `package.json`이 필요 없다.
+- `public/assets/models`의 **구버전 glb 3개를 뺀다**(약 40 MB). 실제로 쓰는 것은
+  `OVERVIEW_MODEL_URL`·`DETAIL_MODEL_URL`이 가리키는 둘뿐이다.
 
-전달 전 확인: 다른 폴더에 압축을 풀고 `start.bat` → `check.bat`이 모두 통과하는지 본다.
+**경로가 깨지지 않는 이유**: 중계 서버는 `.env`·`config/geometry.json`·`mock/*.json`을
+cwd가 아니라 **실행 파일 위치 기준**(`apps/relay/dist/config`에서 `../../../../`)으로 찾는다.
+그래서 `apps/relay/dist` 깊이만 유지되면 어디에 풀어도 동작한다.
+
+**`.env`는 반드시 포함한다**(2026-10-17 결정 — 기상청 키를 전달 패키지로 넘긴다).
+git에는 계속 커밋하지 않는다.
+
+**`install.bat`은 빌드 포함본에 넣지 않는다** — 소스가 없어 `npm run build`가 실패한다.
+소스본(②)을 만들 때만 넣는다.
+
+### 소스본(②) 만들기
+
+`node_modules/`와 각 `dist/`를 뺀 저장소를 압축하고 `install.bat`을 넣는다. 받는 쪽이
+`install.bat`으로 설치·빌드한다.
+
+### 전달 전 확인 (2026-10-17 실행함)
+
+1. 다른 폴더에 패키지를 만든다
+2. 그 폴더에서 `start.bat`(또는 `npm start`) → 로그에 접속 주소가 뜨는지
+3. `check.bat`(또는 `npm run doctor`) → 7개 항목이 모두 ✅ 인지
+4. 브라우저로 접속해 화면이 뜨는지
+
+> ★ `doctor`·`setup`은 **빌드 결과(`dist/scripts/*.js`)를 실행**한다. 전에는 `tsx src/...`였는데
+> 전달 패키지에는 `tsx`(개발 의존성)도 `src/`도 없어서 **`check.bat`이 통째로 실패했다**
+> (2026-10-17 이 점검에서 발견). 스크립트를 소스에서 돌리게 되돌리지 말 것.

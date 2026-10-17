@@ -11,8 +11,8 @@
     "test": "vitest run",
     "mock:generate": "tsx src/scripts/mockGenerate.ts",
     "grid": "tsx src/scripts/latlonToGrid.ts",
-    "doctor": "tsx src/scripts/doctor.ts",
-    "setup": "tsx src/scripts/setup.ts"
+    "doctor": "node dist/scripts/doctor.js",
+    "setup": "node dist/scripts/setup.js"
   },
   "dependencies": {
     "@fastify/compress": "^8.0.1",

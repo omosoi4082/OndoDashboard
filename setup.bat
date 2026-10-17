@@ -11,8 +11,8 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "node_modules" (
-  echo [!] 라이브러리가 설치되어 있지 않습니다. install.bat 을 먼저 실행하세요.
+if not exist "appselay\dist\scripts\setup.js" (
+  echo [!] 설정 도구가 없습니다. install.bat 을 먼저 실행하세요.
   echo.
   pause
   exit /b 1

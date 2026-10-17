@@ -2,7 +2,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { ApiOk, RoomId, RoomSummary, RoomsResponse } from '@ondo/shared';
 import type { SensorClient } from '../clients/sensorClient.js';
-import { buildRoomSummary } from '../transforms/roomBuilder.js';
+import { buildRoomSummary, type FanRateRange } from '../transforms/roomBuilder.js';
 import { nowKstIso } from '../utils/time.js';
 
 interface RoomDef {
@@ -17,7 +17,10 @@ const ROOM_DEFS: RoomDef[] = [
   { id: 'FH', name: '비육돈방', path: 'JE/EX/FH' },
 ];
 
-export function registerMainRoomsRoute(app: FastifyInstance, deps: { sensorClient: SensorClient }): void {
+export function registerMainRoomsRoute(
+  app: FastifyInstance,
+  deps: { sensorClient: SensorClient; fanRange?: FanRateRange },
+): void {
   app.get('/api/main/rooms', async (): Promise<ApiOk<RoomsResponse>> => {
     const requestedAt = nowKstIso();
 
@@ -38,7 +41,7 @@ export function registerMainRoomsRoute(app: FastifyInstance, deps: { sensorClien
       const en1 = en1Result?.status === 'fulfilled' ? en1Result.value : null;
       const fn1 = fn1Result?.status === 'fulfilled' ? fn1Result.value : null;
 
-      const summary = buildRoomSummary(room.name, en1, fn1);
+      const summary = buildRoomSummary(room.name, en1, fn1, deps.fanRange);
       if (summary.sourceStatus === 'disconnected') anyDisconnected = true;
       data[room.id] = summary;
     });

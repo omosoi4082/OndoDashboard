@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRoomSummary } from './roomBuilder.js';
+import { buildRoomSummary, clampFanRate } from './roomBuilder.js';
 import type { SensorDevice } from '../clients/sensorParse.js';
 
 const EN1: SensorDevice = {
@@ -71,5 +71,41 @@ describe('buildRoomSummary', () => {
     expect(summary.rh).toBeNull();
     expect(summary.nh3).toBeNull();
     expect(summary.co2).toBeNull();
+  });
+});
+
+// 2026-10-17 전달 패키지 점검에서 메인 화면 자돈방 환기량이 128%로 나와 찾은 누락.
+// 연산 입력(aggregate5min)에는 A-2 클램프를 넣었는데 화면 표시 경로에는 빠져 있었다.
+describe('clampFanRate — 환기팬 범위 밖 값(A-2)', () => {
+  it('100을 넘으면 100으로 자른다 — 가동률은 100%를 넘을 수 없다', () => {
+    expect(clampFanRate(128)).toBe(100);
+    expect(clampFanRate(172.5)).toBe(100);
+  });
+
+  it('음수는 0으로 자른다', () => {
+    expect(clampFanRate(-3)).toBe(0);
+  });
+
+  it('범위 안 값은 그대로 둔다(반올림하지 않는다)', () => {
+    expect(clampFanRate(46)).toBe(46);
+    expect(clampFanRate(64.3)).toBe(64.3);
+    expect(clampFanRate(0)).toBe(0);
+    expect(clampFanRate(100)).toBe(100);
+  });
+
+  it('결측은 결측으로 둔다 — 0으로 채우지 않는다', () => {
+    expect(clampFanRate(null)).toBeNull();
+  });
+
+  it('범위를 직접 줄 수 있다(.env SENSOR_FAN_MIN/MAX)', () => {
+    expect(clampFanRate(90, { min: 20, max: 80 })).toBe(80);
+    expect(clampFanRate(10, { min: 20, max: 80 })).toBe(20);
+  });
+});
+
+describe('buildRoomSummary — 환기팬 클램프 연결', () => {
+  it('FAN1이 범위를 벗어나면 잘린 값이 RoomSummary에 들어간다', () => {
+    const fn1 = { FAN1: { timestamp: '2026-10-17T15:00:00', value: 128 } };
+    expect(buildRoomSummary('자돈방', null, fn1).fanRate).toBe(100);
   });
 });
