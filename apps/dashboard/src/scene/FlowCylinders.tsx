@@ -11,7 +11,7 @@
 // 프레임(타임라인) 전환 시 instanceMatrix·instanceColor 버퍼만 갱신하고 지오메트리·
 // InstancedMesh 자체는 재생성하지 않는다(docs/04-tasks.md M5 성능 요구).
 //
-// 파일 이름은 'FlowCylinders'로 두고 있다 — scene/FlowStreamlines.tsx 삭제 여부와 함께
+// 파일 이름은 'FlowCylinders'로 두고 있다 —
 // 정리할 예정이라 그때 같이 바꾼다(docs/04-tasks.md "보류" 항목).
 import { useLayoutEffect, useMemo, useRef, type ReactElement } from 'react';
 import * as THREE from 'three';

@@ -1,6 +1,6 @@
 // InstancedMesh + meshBasicMaterial(vertexColors) 조합에서, geometry에 일반 정점
 // color 속성이 하나도 없으면 instanceColor가 전혀 안 먹고 전부 검게 렌더링되는 환경이
-// 있었다(2026-10-10 확인 — PointsInstanced/FlowStreamlines/FlowCylinders 전부 동일 증상).
+// 있었다(2026-10-10 확인 — PointsInstanced/FlowCylinders 전부 동일 증상).
 // instanceColor 버퍼 값 자체는 정상이었고(setColorAt 직후 읽어보면 올바른 RGB), material.
 // needsUpdate만으로는 고쳐지지 않았으며, geometry에 중립(흰색) 정점 color 속성을 함께 두면
 // (USE_COLOR + USE_INSTANCING_COLOR 둘 다 정의) 정상적으로 보였다 — GPU/드라이버의

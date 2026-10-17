@@ -122,13 +122,6 @@ export const FLOW_CYLINDER_MAX_LENGTH_M = 0.42;
 export const FLOW_ARROW_HEAD_RADIUS_M = FLOW_CYLINDER_RADIUS_M * 3;
 export const FLOW_ARROW_HEAD_LENGTH_M = FLOW_CYLINDER_MIN_LENGTH_M / 2;
 
-// 유동 표현 방식 — 05-open-questions.md #40. ✅ 2026-10-13 온도 측 A-3 확정:
-// "288개 점의 화살표로 표현해 주시면 됩니다. 참고 HTML 같은 흐름선(스트림튜브) 추적은
-// 필요하지 않습니다." → 'grid-cylinders'(flowGrid 노드마다 화살표 1개)가 확정값이다.
-// 'streamlines'(scene/FlowStreamlines.tsx) 구현은 쓰이지 않으며, 삭제 여부는 확인 후 정한다
-// (docs/04-tasks.md "보류" 항목).
-export const FLOW_VISUALIZATION_MODE: 'streamlines' | 'grid-cylinders' = 'grid-cylinders';
-
 // 전문가 모드 입력 필드(21) 유효 범위 — apps/relay/src/config/env.ts의 EXPERT_TEMP_MIN 등
 // 기본값과 반드시 같은 값을 유지한다(detail/expertInputValidation.ts가 이 값으로 검사해
 // 통과한 값만 POST /api/detail/expert로 보내므로, 중계 서버 400과 어긋나면 안 된다).

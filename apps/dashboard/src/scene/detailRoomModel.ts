@@ -12,10 +12,10 @@ import * as THREE from 'three';
 // 2026-10-17 교체본(weaner_room_single.glb, 이전 p1.glb) — 메인 모델과 같은 텍스처가 구워져
 // 들어온 자돈방 단독 모델(사용자 제공). 달라진 점:
 //   ① 바닥·벽·칸막이 텍스처가 모델에 포함됐다(`GLTF_Slat`·`GLTF_Wall`·`GLTF_Partition`).
-//      코드에서 입히던 텍스처(scene/detailRoomTextures.ts)는 더 이상 쓰지 않는다.
+//      코드에서 텍스처를 입히던 모듈은 2026-10-17 삭제했다.
 //   ② 급기구가 **이미 천장면의 얇은 판**이다(`Inlet_Weaner_1~3`, 0.320 × 0.012 × 0.687 m,
 //      y 2.788~2.800). 매달린 팬 하우징(`IN*_FanSimple`)은 사라졌다 — B-6이 모델에서 해결돼
-//      scene/inletPanels.ts로 판을 만들 필요가 없다.
+//      코드로 판을 만들던 모듈은 2026-10-17 삭제했다.
 //   ③ ★ `PigRoom_Walls_Flat`의 머티리얼이 `Plastic010` → **`GLTF_Wall`** 로 바뀌었다.
 //      컷어웨이는 이름이 `Plastic010`인 것만 잡으므로 그대로 두면 **지붕만 잘리고 앞벽은
 //      막힌 채**가 된다. CUTAWAY_MATERIAL_PREFIXES에 `GLTF_Wall`을 더했다(그 주석 참고 —
