@@ -16,7 +16,10 @@
 param(
   [string]$OutDir = "",
   [switch]$Zip,
-  [switch]$SkipBuild
+  [switch]$SkipBuild,
+  # 소스본(②) — 빌드 결과와 node_modules 없이 소스만 담는다. 받는 쪽이 install.bat으로
+  # 설치·빌드한다(docs/08-development.md). 빌드 포함본(①)이 기본이다.
+  [switch]$Source
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,15 +28,20 @@ Set-Location $repo
 
 if ($OutDir -eq "") {
   $stamp = Get-Date -Format 'yyyyMMdd'
-  $OutDir = Join-Path (Split-Path -Parent $repo) "ondo-dashboard-$stamp"
+  $suffix = if ($Source) { "-src" } else { "" }
+  $OutDir = Join-Path (Split-Path -Parent $repo) "ondo-dashboard-$stamp$suffix"
 }
+$kind = if ($Source) { "소스본(install.bat으로 설치·빌드)" } else { "빌드 포함본(start.bat만 누르면 됨)" }
 
 Write-Host "저장소 : $repo"
 Write-Host "패키지 : $OutDir"
+Write-Host "종류   : $kind"
 Write-Host ""
 
 # ── 1. 빌드 ────────────────────────────────────────────────────────────────
-if (-not $SkipBuild) {
+if ($Source) {
+  Write-Host "[1/4] 소스본이라 빌드하지 않습니다(받는 쪽이 install.bat으로 빌드)." -ForegroundColor DarkGray
+} elseif (-not $SkipBuild) {
   Write-Host "[1/4] 빌드 중..." -ForegroundColor Cyan
   & npm run build
   if ($LASTEXITCODE -ne 0) { throw "빌드 실패" }
@@ -46,71 +54,118 @@ Write-Host "[2/4] 파일 복사 중..." -ForegroundColor Cyan
 if (Test-Path $OutDir) { Remove-Item $OutDir -Recurse -Force }
 New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
 
-# 루트 파일 — .env를 **반드시 포함**한다(2026-10-17 결정: 기상청 키를 전달 패키지로 넘긴다).
-# install.bat은 넣지 않는다: 이 패키지에는 소스가 없어 `npm run build`가 실패한다.
-# (소스본을 따로 만들 때만 넣는다 — docs/08-development.md)
-$rootFiles = @(
-  'package.json', 'package-lock.json',
-  '.env', '.env.example',
-  'start.bat', 'check.bat', 'setup.bat',
-  'README.md', '테스트-체크리스트.md', 'CLAUDE-구동안내.md'
-)
-foreach ($f in $rootFiles) {
-  if (Test-Path $f) { Copy-Item $f -Destination $OutDir }
-  else { Write-Host "    ! 없음: $f" -ForegroundColor Yellow }
-}
+if ($Source) {
+  # ── 소스본(②) ──────────────────────────────────────────────────────────
+  # 빌드에 필요한 소스·설정을 담는다. node_modules·dist·git·개발 참고 자료는 뺀다.
+  # install.bat을 **넣는다**(빌드 포함본과 반대).
+  $srcRoot = @(
+    'package.json', 'package-lock.json', 'tsconfig.base.json', 'vitest.config.ts',
+    'eslint.config.js', '.prettierrc.json',
+    '.env', '.env.example',
+    'start.bat', 'check.bat', 'setup.bat', 'install.bat',
+    'README.md', '테스트-체크리스트.md', 'CLAUDE-구동안내.md'
+  )
+  foreach ($f in $srcRoot) {
+    if (Test-Path $f) { Copy-Item $f -Destination $OutDir }
+    else { Write-Host "    ! 없음: $f" -ForegroundColor Yellow }
+  }
+  foreach ($d in @('config', 'mock')) { Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse }
 
-# 런타임에 읽는 데이터
-foreach ($d in @('config', 'mock')) {
-  Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse
-}
+  # 워크스페이스 소스 — dist와 node_modules는 제외하고 통째로 복사
+  foreach ($ws in @('apps\relay', 'apps\dashboard', 'packages\shared')) {
+    $dst = Join-Path $OutDir $ws
+    New-Item -ItemType Directory -Path $dst -Force | Out-Null
+    Get-ChildItem $ws -Force | Where-Object { $_.Name -notin @('dist', 'node_modules') } | ForEach-Object {
+      Copy-Item $_.FullName -Destination $dst -Recurse -Force
+    }
+  }
 
-# 워크스페이스 — package.json과 빌드 결과만(소스는 넣지 않는다).
-# ★ apps\dashboard는 **워크스페이스에서 뺀다**. 대시보드는 정적 파일(dist)로만 나가고
-#   three·react·lucide-react 같은 의존성은 이미 번들(dist/assets/index-*.js)에 들어 있다.
-#   package.json을 넣으면 npm이 그 의존성(약 220 MB)까지 설치해 패키지가 쓸데없이 커진다.
-#   중계 서버는 apps/dashboard/dist **폴더만** 보므로 package.json이 필요 없다.
-foreach ($ws in @('apps\relay', 'packages\shared')) {
-  $dst = Join-Path $OutDir $ws
-  New-Item -ItemType Directory -Path $dst -Force | Out-Null
-  Copy-Item (Join-Path $ws 'package.json') -Destination $dst
-  $dist = Join-Path $ws 'dist'
-  if (Test-Path $dist) { Copy-Item $dist -Destination (Join-Path $dst 'dist') -Recurse }
-  else { throw "빌드 결과가 없습니다: $dist  (npm run build를 먼저 실행하세요)" }
-}
-
-# 대시보드는 빌드 결과만 복사한다.
-$dashDist = 'apps\dashboard\dist'
-if (-not (Test-Path $dashDist)) { throw "빌드 결과가 없습니다: $dashDist" }
-New-Item -ItemType Directory -Path (Join-Path $OutDir 'apps\dashboard') -Force | Out-Null
-Copy-Item $dashDist -Destination (Join-Path $OutDir $dashDist) -Recurse
-
-# staging의 루트 package.json에서 대시보드를 워크스페이스에서 빼고 개발 의존성을 지운다.
-$pkgPath = Join-Path $OutDir 'package.json'
-$pkg = Get-Content $pkgPath -Raw -Encoding UTF8 | ConvertFrom-Json
-$pkg.workspaces = @('apps/relay', 'packages/shared')
-if ($pkg.PSObject.Properties['devDependencies']) { $pkg.PSObject.Properties.Remove('devDependencies') }
-$pkg | ConvertTo-Json -Depth 20 | Set-Content $pkgPath -Encoding UTF8
-
-# 쓰지 않는 구버전 모델 제거 — public/ 전체가 dist로 복사되면서 따라 들어온다.
-# 실제로 쓰는 것은 scene/barnModel.ts의 OVERVIEW_MODEL_URL과
-# scene/detailRoomModel.ts의 DETAIL_MODEL_URL 둘뿐이다.
-$keepModels = @('weaner_barn.glb', 'weaner_room_single.glb')
-$modelDir = Join-Path $OutDir 'apps\dashboard\dist\assets\models'
-if (Test-Path $modelDir) {
-  Get-ChildItem $modelDir -File | Where-Object { $keepModels -notcontains $_.Name } | ForEach-Object {
-    Write-Host ("    - 구버전 모델 제외: {0} ({1:N1} MB)" -f $_.Name, ($_.Length / 1MB))
-    Remove-Item $_.FullName -Force
+  # 쓰지 않는 구버전 모델은 소스본에서도 뺀다(public에 있어 빌드 때 dist로 따라간다).
+  $keepModels = @('weaner_barn.glb', 'weaner_room_single.glb')
+  $pubModels = Join-Path $OutDir 'apps\dashboard\public\assets\models'
+  if (Test-Path $pubModels) {
+    Get-ChildItem $pubModels -File | Where-Object { $keepModels -notcontains $_.Name } | ForEach-Object {
+      Write-Host ("    - 구버전 모델 제외: {0} ({1:N1} MB)" -f $_.Name, ($_.Length / 1MB))
+      Remove-Item $_.FullName -Force
+    }
   }
 }
+else {
 
-# ── 3. 운영 의존성만 설치 ──────────────────────────────────────────────────
-Write-Host "[3/4] 운영 의존성 설치 중(개발 의존성 제외)..." -ForegroundColor Cyan
-Push-Location $OutDir
-try {
-  & npm install --omit=dev --ignore-scripts --no-audit --no-fund
-  if ($LASTEXITCODE -ne 0) { throw "npm install 실패" }
-} finally { Pop-Location }
+  if (Test-Path $OutDir) { Remove-Item $OutDir -Recurse -Force }
+  New-Item -ItemType Directory -Path $OutDir -Force | Out-Null
+
+  # 루트 파일 — .env를 **반드시 포함**한다(2026-10-17 결정: 기상청 키를 전달 패키지로 넘긴다).
+  # install.bat은 넣지 않는다: 이 패키지에는 소스가 없어 `npm run build`가 실패한다.
+  # (소스본을 따로 만들 때만 넣는다 — docs/08-development.md)
+  $rootFiles = @(
+    'package.json', 'package-lock.json',
+    '.env', '.env.example',
+    'start.bat', 'check.bat', 'setup.bat',
+    'README.md', '테스트-체크리스트.md', 'CLAUDE-구동안내.md'
+  )
+  foreach ($f in $rootFiles) {
+    if (Test-Path $f) { Copy-Item $f -Destination $OutDir }
+    else { Write-Host "    ! 없음: $f" -ForegroundColor Yellow }
+  }
+
+  # 런타임에 읽는 데이터
+  foreach ($d in @('config', 'mock')) {
+    Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse
+  }
+
+  # 워크스페이스 — package.json과 빌드 결과만(소스는 넣지 않는다).
+  # ★ apps\dashboard는 **워크스페이스에서 뺀다**. 대시보드는 정적 파일(dist)로만 나가고
+  #   three·react·lucide-react 같은 의존성은 이미 번들(dist/assets/index-*.js)에 들어 있다.
+  #   package.json을 넣으면 npm이 그 의존성(약 220 MB)까지 설치해 패키지가 쓸데없이 커진다.
+  #   중계 서버는 apps/dashboard/dist **폴더만** 보므로 package.json이 필요 없다.
+  foreach ($ws in @('apps\relay', 'packages\shared')) {
+    $dst = Join-Path $OutDir $ws
+    New-Item -ItemType Directory -Path $dst -Force | Out-Null
+    Copy-Item (Join-Path $ws 'package.json') -Destination $dst
+    $dist = Join-Path $ws 'dist'
+    if (Test-Path $dist) { Copy-Item $dist -Destination (Join-Path $dst 'dist') -Recurse }
+    else { throw "빌드 결과가 없습니다: $dist  (npm run build를 먼저 실행하세요)" }
+  }
+
+  # 대시보드는 빌드 결과만 복사한다.
+  $dashDist = 'apps\dashboard\dist'
+  if (-not (Test-Path $dashDist)) { throw "빌드 결과가 없습니다: $dashDist" }
+  New-Item -ItemType Directory -Path (Join-Path $OutDir 'apps\dashboard') -Force | Out-Null
+  Copy-Item $dashDist -Destination (Join-Path $OutDir $dashDist) -Recurse
+
+  # staging의 루트 package.json에서 대시보드를 워크스페이스에서 빼고 개발 의존성을 지운다.
+  $pkgPath = Join-Path $OutDir 'package.json'
+  $pkg = Get-Content $pkgPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  $pkg.workspaces = @('apps/relay', 'packages/shared')
+  if ($pkg.PSObject.Properties['devDependencies']) { $pkg.PSObject.Properties.Remove('devDependencies') }
+  $pkg | ConvertTo-Json -Depth 20 | Set-Content $pkgPath -Encoding UTF8
+
+  # 쓰지 않는 구버전 모델 제거 — public/ 전체가 dist로 복사되면서 따라 들어온다.
+  # 실제로 쓰는 것은 scene/barnModel.ts의 OVERVIEW_MODEL_URL과
+  # scene/detailRoomModel.ts의 DETAIL_MODEL_URL 둘뿐이다.
+  $keepModels = @('weaner_barn.glb', 'weaner_room_single.glb')
+  $modelDir = Join-Path $OutDir 'apps\dashboard\dist\assets\models'
+  if (Test-Path $modelDir) {
+    Get-ChildItem $modelDir -File | Where-Object { $keepModels -notcontains $_.Name } | ForEach-Object {
+      Write-Host ("    - 구버전 모델 제외: {0} ({1:N1} MB)" -f $_.Name, ($_.Length / 1MB))
+      Remove-Item $_.FullName -Force
+    }
+  }
+
+  # ── 3. 운영 의존성만 설치 ──────────────────────────────────────────────────
+}
+
+if ($Source) {
+  Write-Host "[3/4] 소스본이라 의존성을 설치하지 않습니다(받는 쪽이 install.bat으로 설치)." -ForegroundColor DarkGray
+} else {
+  Write-Host "[3/4] 운영 의존성 설치 중(개발 의존성 제외)..." -ForegroundColor Cyan
+  Push-Location $OutDir
+  try {
+    & npm install --omit=dev --ignore-scripts --no-audit --no-fund
+    if ($LASTEXITCODE -ne 0) { throw "npm install 실패" }
+  } finally { Pop-Location }
+}
 
 # ── 4. 결과 ────────────────────────────────────────────────────────────────
 Write-Host "[4/4] 정리" -ForegroundColor Cyan
@@ -128,4 +183,8 @@ if ($Zip) {
 }
 
 Write-Host ""
-Write-Host "다음: 그 폴더에서 start.bat → check.bat 으로 확인하세요."
+if ($Source) {
+  Write-Host "다음: 그 폴더에서 install.bat → start.bat → check.bat 순서로 확인하세요."
+} else {
+  Write-Host "다음: 그 폴더에서 start.bat → check.bat 으로 확인하세요."
+}

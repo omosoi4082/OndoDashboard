@@ -46,11 +46,23 @@ npm run grid -- <lat> <lon>   # 위경도 → 기상청 격자(nx, ny)
 ## 전달 패키지 만들기
 
 ```
-powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 -OutDir <경로> [-Zip]
+# ① 빌드 포함본 — Node만 설치하면 start.bat만 누르면 된다
+powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 -OutDir <경로> -Zip
+
+# ② 소스본 — 받는 쪽이 install.bat으로 설치·빌드한다
+powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 -OutDir <경로> -Source -Zip
 ```
 
-빌드 → 필요한 파일만 staging → staging에서 `npm install --omit=dev` 순서로 돈다.
-2026-10-17 실측 결과 **폴더 51.7 MB / 압축 15.6 MB**.
+| | ① 빌드 포함본 | ② 소스본 |
+|---|---|---|
+| 폴더 / 압축 | **51.7 MB / 15.6 MB** | **27.5 MB / 8.4 MB** |
+| 받는 쪽 순서 | `start.bat` → `check.bat` | `install.bat` → `start.bat` → `check.bat` |
+| 포함 | 빌드 결과 + 운영 의존성 | 소스 + 설정(빌드 결과·node_modules 없음) |
+| `install.bat` | **없음**(소스가 없어 빌드가 실패한다) | 있음 |
+| 인터넷 | 기상청 조회에만 필요 | **설치에도 필요**(npm) |
+
+①은 빌드 → staging → `npm install --omit=dev`, ②는 소스만 복사한다(빌드·설치 안 함).
+둘 다 2026-10-17에 실제로 만들어 `check.bat` 7개 항목 통과까지 확인했다.
 
 **패키지를 작게 만든 두 가지**
 
@@ -71,17 +83,23 @@ git에는 계속 커밋하지 않는다.
 **`install.bat`은 빌드 포함본에 넣지 않는다** — 소스가 없어 `npm run build`가 실패한다.
 소스본(②)을 만들 때만 넣는다.
 
-### 소스본(②) 만들기
+### 소스본(②) 메모
 
-`node_modules/`와 각 `dist/`를 뺀 저장소를 압축하고 `install.bat`을 넣는다. 받는 쪽이
-`install.bat`으로 설치·빌드한다.
+`-Source`를 주면 `dist/`·`node_modules/`를 빼고 소스·설정만 복사한다. 빼는 것:
+`docs/`(설계 자료 ~20 MB, 구동에 불필요) · `technical-review/` · `.git/` · `CLAUDE.md`
+(개발용 지시서 — 구동용은 `CLAUDE-구동안내.md`).
+구버전 glb 3개는 `public/assets/models`에서 미리 빼 둔다(소스본에서도 빌드 결과가 가벼워진다).
 
 ### 전달 전 확인 (2026-10-17 실행함)
 
 1. 다른 폴더에 패키지를 만든다
-2. 그 폴더에서 `start.bat`(또는 `npm start`) → 로그에 접속 주소가 뜨는지
-3. `check.bat`(또는 `npm run doctor`) → 7개 항목이 모두 ✅ 인지
-4. 브라우저로 접속해 화면이 뜨는지
+2. 소스본이면 먼저 `install.bat`(또는 `npm install && npm run build`)
+3. `start.bat`(또는 `npm start`) → 로그에 접속 주소가 뜨는지
+4. `check.bat`(또는 `npm run doctor`) → 7개 항목이 모두 ✅ 인지
+5. 브라우저로 접속해 화면이 뜨는지
+
+> 패키지 폴더에서 서버를 띄워 둔 채로 패키지를 다시 만들면 `Remove-Item`이 실패한다
+> (node가 폴더를 잡고 있다). 다시 만들기 전에 서버 창을 닫는다.
 
 > ★ `doctor`·`setup`은 **빌드 결과(`dist/scripts/*.js`)를 실행**한다. 전에는 `tsx src/...`였는데
 > 전달 패키지에는 `tsx`(개발 의존성)도 `src/`도 없어서 **`check.bat`이 통째로 실패했다**
