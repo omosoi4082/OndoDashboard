@@ -72,7 +72,9 @@
 - [x] **D-4 오류 코드별 처리** (2026-10-14 완료 — relay `clients/computeRetry.ts`, 대시보드 현재 모드는 연산 실패 시 마지막 정상 결과 유지 + 상단 안내(`detail/keepLastGood.ts`). 예측 모드는 탭 선택 시 1회 호출이라 유지할 이전 결과가 없어 해당 없음. BUSY 재시도 횟수는 05 #45) — `clients/computeClient.ts`의 `computeErrSchema`가 `message`만 읽고 `code`가 없다. 재시도 로직도 전혀 없다. `code`(`BAD_REQUEST`/`SERVER`/`BUSY`)·`field`를 파싱하고 회신대로 처리: `BAD_REQUEST`는 표시만, `SERVER`는 1분 뒤 1회 재시도 후 '예측 서버 오류', `BUSY`는 1분 뒤 재시도, 타임아웃은 '예측 서버 연결 안 됨' + 마지막 정상 결과 유지.
 - [x] **D-5 `/v1/health` 핑** (2026-10-14 완료 — `ComputeClient.ping()`, mock은 항상 ok, 핑 타임아웃은 `UPSTREAM_TIMEOUT_MS`) — `routes/health.ts`가 `compute: 'disconnected'` 고정값이다(2026-10-07 섹션의 미완 항목). `GET /v1/health` 결과를 `GET /api/health`의 compute 상태에 반영.
 
-### P6. 온도 측에 알릴 것 (다음 회신에 포함)
+### P6. 온도 측에 알릴 것 — **회신문 초안 작성 완료(2026-10-17), 발송 대기**
+
+초안: `docs/replies/20261017-확인요청.md`. 아래 3건이 들어 있다.
 
 - [ ] **기상대 풍속 `CURWIND` 단위를 km/h로 보고 환산 적용** — 2026-10-15 온도 측 답변("m/s가
   맞습니다, 지금처럼 m/s로 표시해 주세요")과 **어긋나는 변경**이라 반드시 알리고 재확인받는다.
