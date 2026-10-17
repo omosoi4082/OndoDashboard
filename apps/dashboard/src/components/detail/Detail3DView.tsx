@@ -19,6 +19,7 @@ import { useDetailStore } from '../../store/detailStore.js';
 import { getFieldUnit, getPointFlow, getPointScalar } from '../../detail/pointSelection.js';
 import { formatValueOrDash } from '../../utils/formatValue.js';
 import { DETAIL_MODEL_URL, getOrPrepareDetailRoomModel } from '../../scene/detailRoomModel.js';
+import { getOrBuildInletPanels } from '../../scene/inletPanels.js';
 import { PointsInstanced } from './PointsInstanced.js';
 import { FlowArrow } from './FlowArrow.js';
 import { Detail3DSection } from './DetailSections.js';
@@ -172,6 +173,14 @@ function DetailRoomModel({ roomSizeYUp }: { roomSizeYUp: readonly [number, numbe
   return <primitive object={model} />;
 }
 
+// 급기구 판(B-6) — p1.glb의 입체 팬 하우징 대신 천장면에 붙이는 얇은 판 3개.
+// 모델과 달리 geometry 좌표를 그대로 쓰므로(스케일 보정 불필요) 형제로 둔다.
+function DetailInletPanels({ inlets }: { inlets: Geometry['room']['inlets'] }): ReactElement | null {
+  const panels = useMemo(() => getOrBuildInletPanels(inlets), [inlets]);
+  if (panels.children.length === 0) return null;
+  return <primitive object={panels} />;
+}
+
 export function Detail3DView({
   geometry,
   frame,
@@ -212,6 +221,7 @@ export function Detail3DView({
             기준 박스 위에 겹쳐 그려진다(coords.ts 변환 공유). */}
         <Suspense fallback={null}>
           <DetailRoomModel roomSizeYUp={roomSizeYUp} />
+          <DetailInletPanels inlets={geometry.room.inlets} />
         </Suspense>
 
         {pointsVisible && (
