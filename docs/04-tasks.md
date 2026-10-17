@@ -72,6 +72,18 @@
 - [x] **D-4 오류 코드별 처리** (2026-10-14 완료 — relay `clients/computeRetry.ts`, 대시보드 현재 모드는 연산 실패 시 마지막 정상 결과 유지 + 상단 안내(`detail/keepLastGood.ts`). 예측 모드는 탭 선택 시 1회 호출이라 유지할 이전 결과가 없어 해당 없음. BUSY 재시도 횟수는 05 #45) — `clients/computeClient.ts`의 `computeErrSchema`가 `message`만 읽고 `code`가 없다. 재시도 로직도 전혀 없다. `code`(`BAD_REQUEST`/`SERVER`/`BUSY`)·`field`를 파싱하고 회신대로 처리: `BAD_REQUEST`는 표시만, `SERVER`는 1분 뒤 1회 재시도 후 '예측 서버 오류', `BUSY`는 1분 뒤 재시도, 타임아웃은 '예측 서버 연결 안 됨' + 마지막 정상 결과 유지.
 - [x] **D-5 `/v1/health` 핑** (2026-10-14 완료 — `ComputeClient.ping()`, mock은 항상 ok, 핑 타임아웃은 `UPSTREAM_TIMEOUT_MS`) — `routes/health.ts`가 `compute: 'disconnected'` 고정값이다(2026-10-07 섹션의 미완 항목). `GET /v1/health` 결과를 `GET /api/health`의 compute 상태에 반영.
 
+### P6. 온도 측에 알릴 것 (다음 회신에 포함)
+
+- [ ] **기상대 풍속 `CURWIND` 단위를 km/h로 보고 환산 적용** — 2026-10-15 온도 측 답변("m/s가
+  맞습니다, 지금처럼 m/s로 표시해 주세요")과 **어긋나는 변경**이라 반드시 알리고 재확인받는다.
+  근거: 2026-10-17 10:52 실측에서 같은 시각 기상청 `WSD` 3.7 m/s인데 센서는 `CURWIND` 14.0 ·
+  **`MAXWIND` 32.0**이었고, 그날은 `RAIN 0`·`SOLAR 897`·판정 `CLEAR`로 맑았다. 32를 m/s로 읽으면
+  보퍼트 12(태풍급) 순간풍속이라 성립하지 않는다. km/h로 읽으면 14 → 3.9 m/s(기상청 3.7과 일치),
+  32 → 8.9 m/s(자연스러운 돌풍)로 전부 맞는다. 구현은 `transforms/stationWind.ts`(순수 함수 +
+  테스트 5건)이고, m/s가 정말 맞다면 이 함수 하나만 되돌리면 된다. 05-open-questions.md #43.
+- [ ] **전문가 모드 입력 표 행 라벨 `0시~23시`가 맞는지** — 2026-10-17 시안대로 구현했으나 온도
+  측이 시안을 보낼 때 이 부분을 설명한 바가 없다. 05-open-questions.md #51.
+
 ### P5. 전문가 모드 디자인 시안 반영 (2026-10-17 사용자 지적 — 남은 작업)
 
 - [x] **새 시안 6장 반영 완료**(2026-10-17, `docs/design/UI/전문가 모드 새 디자인/03_전문가모드_디자인_01~05.png`).

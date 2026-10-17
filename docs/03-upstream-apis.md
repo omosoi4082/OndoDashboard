@@ -14,8 +14,12 @@
 | 외부 OU | 기상대 | `/sensors/JE/OU/WS/WS1` | TEMP, RH, WIND, CURWIND, RAIN, SOLAR |
 
 환기팬은 FAN1만 사용(확정). H2S, MAXWIND, VOLT, FAN2·3은 무시.
-`CURWIND`(현재 풍속, 단위 **m/s** — 2026-10-15 온도 측 확정)는 미세기후 패널 풍속 타일에 쓴다
-(05-open-questions.md #36·#43). 기상청 `WSD`와 같은 단위라 중계 서버에서 환산하지 않는다.
+`CURWIND`(현재 풍속)는 미세기후 패널 풍속 타일에 쓴다(05-open-questions.md #36·#43).
+단위는 **km/h**로 보고 중계 서버가 m/s로 환산한다(`transforms/stationWind.ts`, 화면 표기는
+기상청 `WSD`와 맞춘 m/s). 2026-10-15에 온도 측은 "m/s가 맞다"고 답했으나, 2026-10-17 실측에서
+맑은 날(`RAIN 0`·`SOLAR 897`·`CLEAR`) `CURWIND` 14 · `MAXWIND` 32가 나왔고 32 m/s는 태풍급이라
+성립하지 않는다 — km/h로 읽으면 3.9 m/s·8.9 m/s로 같은 시각 기상청 3.7 m/s와 맞는다.
+**온도 측 재확인 대기 중**이다(#43).
 
 > **WS1은 최신값만 제공되고 이력(range) 조회는 빈 배열이다** (2026-10-13 실측 확인:
 > 최신값은 `TEMP 17.3`·`RH 92.3`·`CURWIND 6.0` 등 정상, 같은 항목의 range 조회는 어제

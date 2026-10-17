@@ -17,7 +17,7 @@ describe('GET /api/main/weather/station', () => {
           RAIN: { timestamp: '2026-10-07T12:00:00', value: 0 },
           SOLAR: { timestamp: '2026-10-07T12:00:00', value: 800 },
           WIND: { timestamp: '2026-10-07T12:00:00', value: 227 },
-          CURWIND: { timestamp: '2026-10-07T12:00:00', value: 2.1 },
+          CURWIND: { timestamp: '2026-10-07T12:00:00', value: 14 },
           MAXWIND: { timestamp: '2026-10-07T12:00:00', value: 4.5 },
         };
       },
@@ -34,7 +34,9 @@ describe('GET /api/main/weather/station', () => {
     expect(body.data.weatherCode).toBe('CLEAR');
     expect(body.data.windDir).toBe('남서');
     expect(body.data.windDeg).toBe(227);
-    expect(body.data.windSpeed).toBe(2.1); // CURWIND, MAXWIND 아님
+    // CURWIND(km/h)를 m/s로 환산해 내보낸다 — 14 km/h = 3.9 m/s(transforms/stationWind.ts).
+    // MAXWIND는 쓰지 않는다(05-open-questions #36).
+    expect(body.data.windSpeed).toBe(3.9);
     expect(body.data.rain).toBe(0);
     expect(body.data.measuredAt).toBe('2026-10-07T12:00:00+09:00');
 
