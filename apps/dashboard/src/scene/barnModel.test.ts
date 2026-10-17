@@ -47,6 +47,20 @@ describe('findBarnNodes', () => {
     expect(nodes.map((n) => n.name)).toEqual(['P1']);
   });
 
+  it('modelNodeName에 배열을 주면 전부 찾는다 — 2026-10-17 교체본의 육성·비육 돼지 그룹', () => {
+    const root = buildFakeModel();
+    root.add(boxMesh('Pigs_Grower', [1, 1, 1], [5, 0.5, 0]));
+    root.updateMatrixWorld(true);
+    const nodes = findBarnNodes(root, { roomId: 'GH', modelNodeName: ['P1', 'Pigs_Grower'] });
+    expect(nodes.map((n) => n.name)).toEqual(['P1', 'Pigs_Grower']);
+  });
+
+  it('배열 중 없는 이름은 조용히 건너뛴다 — 모델이 바뀌어도 방이 통째로 사라지지 않게', () => {
+    const root = buildFakeModel();
+    const nodes = findBarnNodes(root, { roomId: 'GH', modelNodeName: ['P1', 'Pigs_Grower'] });
+    expect(nodes.map((n) => n.name)).toEqual(['P1']);
+  });
+
   it('modelNodePrefix는 그 접두사로 시작하는 노드를 전부 찾는다', () => {
     const root = buildFakeModel();
     const nodes = findBarnNodes(root, { roomId: 'GH', modelNodePrefix: 'Grower_' });

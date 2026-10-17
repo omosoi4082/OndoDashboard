@@ -6,30 +6,42 @@
 import * as THREE from 'three';
 import type { RoomId } from '@ondo/shared';
 
-// 2026-10-15 교체본(weaner_room_test.glb, 이전 weaner_room_test_op.glb) — 자돈(P1 단일 노드)·
+// 2026-10-17 교체본(weaner_barn.glb, 이전 weaner_room_test.glb) — 자돈(P1 단일 노드)·
 // 육성(P1.005 + Grower_ 접두사)·비육(P1.006 + Finisher_ 접두사) 3방이 하나로 붙은 실측 모델.
 // public/assets/models에 복사해 Vite가 정적으로 서빙한다. 머티리얼은 glb에 들어 있는 것을
 // 그대로 쓴다(육성·비육 회색 PigRoom_Gray 포함) — 코드에서 덮어쓰지 않는다.
 //
-// 교체본에서 달라진 점(glb 직접 파싱 확인): ① 자돈방 서쪽 벽 노드 이름이 `PigRoom_Wall_W` →
-// `PigRoom_Wall_W_Fan`(크기·위치는 같다 — 아래 ROOM_LABEL_WALL_NODES가 두 이름을 모두 받는다),
-// ② 자돈방 `PigRoom_Wall_E`·`PigRoom_Wall_S`와 육성·비육의 패널 한 장씩(`Cube.019`·`Cube.024`)이
-// 빠졌다, ③ 육성·비육 천정 급기팬 노드(`Grower_USE_IN_FAN*`·`Finisher_USE_IN_FANA/B*`)와 `IN2`가
-// 없다(자돈방 `USE_IN_FAN.001~003`은 그대로), ④ 모델 높이가 3.45 m → 2.95 m로 낮아졌다.
-// 방 평면(4.7·7.5·12.0 m)과 위치, 방 노드 이름 규칙은 그대로라 데이터 연결 로직은 변경 없다.
-// 파일 크기는 29 MB → 7 MB.
+// 2026-10-17 교체본에서 달라진 점(glb 직접 파싱 확인):
+//   ① **육성·비육 돼지가 모델에 들어왔다** — `Pigs_Grower`(PigG_01~19)·`Pigs_Finisher`(PigF_01~19),
+//      전용 머티리얼 `GLTF_PigSkin_Grower`·`GLTF_PigSkin_Finisher`. 대기 중이던 성돈 모델이라
+//      05-open-questions.md #48이 해소됐다. ★ `scene/roomPigs.ts`의 `buildRoomPigs()`를
+//      **되살리면 안 된다** — 모델에 이미 있어서 돼지가 두 벌 생긴다.
+//   ② 전 교체본에서 빠졌던 `PigRoom_Wall_E`·`PigRoom_Wall_S`와 `Cube.019`·`Cube.024`가 돌아왔다
+//      (육성·비육 패널이 다시 방마다 4장).
+//   ③ 육성·비육 천정 급기팬(`Grower_USE_IN_FAN*`·`Finisher_USE_IN_FANA/B*`)과 `IN2`가 돌아왔고,
+//      방별 급기구 노드(`Inlet_Weaner_1~3`·`Inlet_Grower_1~4`·`Inlet_Finisher_1~4`)가 새로 생겼다.
+//   ④ 텍스처가 구워져 들어왔다(이미지 6장 — 슬랏 바닥·벽 패널·급기구 필터의 basecolor/ORM).
+//      머티리얼이 `GLTF_Slat`·`GLTF_Wall`·`GLTF_Partition`·`GLTF_InletFrame`·`GLTF_InletThroat`·
+//      `GLTF_WallCap`으로 바뀌었다. 상세보기(p1.glb)는 별도 모델이라 영향 없다.
+//   ⑤ `P1.001~003`·`Cube.001~013`이 사라졌다(쓰지 않던 노드라 영향 없음).
+// 방 노드 이름 규칙(P1 / P1.005+Grower_ / P1.006+Finisher_)은 그대로라 데이터 연결은 유지된다.
+// 파일 크기는 7 MB → 3.6 MB.
 //
 // ②③④는 **의도된 변경이다**(2026-10-15 사용자 확인: "이거 맞아") — 빠진 벽·팬을 버그로 보고
 // 되살리려 하지 말 것. 그리고 **메인 모델은 계속 교체된다**: 노드 이름이 바뀌거나 노드가
 // 사라지는 일이 반복되므로, 특정 노드 이름에 기대는 코드는 ROOM_LABEL_WALL_NODES처럼 후보를
 // 여러 개 두고 못 찾으면 조용히 대체 동작으로 떨어지게 둔다(computeBarnSections는 노드를 못
 // 찾은 방을 건너뛰고, FLAT_WALL_NODE_NAMES도 없으면 무시한다).
-export const OVERVIEW_MODEL_URL = '/assets/models/weaner_room_test.glb';
+export const OVERVIEW_MODEL_URL = '/assets/models/weaner_barn.glb';
 
 export interface BarnNodeConfig {
   roomId: RoomId;
-  /** 노드 이름 "정확히 일치"(자돈/P1처럼 방 전체가 노드 하나). */
-  modelNodeName?: string;
+  /**
+   * 노드 이름 "정확히 일치"(자돈/P1처럼 방 전체가 노드 하나).
+   * 여러 개를 주면 전부 이 방으로 묶는다 — 방 껍데기와 돼지 그룹이 형제로 떨어져 있는
+   * 육성·비육이 그런 경우다(2026-10-17 교체본).
+   */
+  modelNodeName?: string | readonly string[];
   /** 이 접두사로 시작하는 노드를 전부 묶는다(육성/비육처럼 낱개 노드로만 구성된 경우). */
   modelNodePrefix?: string;
 }
@@ -42,10 +54,15 @@ export interface BarnNodeConfig {
 // 두 방의 바닥·벽에는 roomId가 안 붙어 호버해도 정보 판넬이 안 떴고, 방 바운딩박스도
 // 실제 방(7.5 m·12 m)이 아니라 2.9 m·6.8 m로 작게 잡혀 이름표·돼지 배치 기준이 어긋났다.
 // 이름이 Cube.0XX로 남아 접두사에 안 걸린 것뿐이고 실제로는 방 모델이다(아래 2026-10-09 주석).
+//
+// 2026-10-17: 육성·비육 돼지 그룹(`Pigs_Grower`·`Pigs_Finisher`)을 같이 묶는다. 자돈 돼지는
+// `Pigs`가 `P1`의 자식이라 저절로 포함되지만, 육성·비육 돼지는 **루트에 형제로** 들어와서
+// 그냥 두면 돼지를 호버해도 방으로 인식되지 않는다. 돼지는 방 안에 있으므로 바운딩박스에는
+// 영향이 거의 없다.
 export const BARN_NODE_CONFIG: readonly BarnNodeConfig[] = [
   { roomId: 'NH', modelNodeName: 'P1' },
-  { roomId: 'GH', modelNodeName: 'P1.005', modelNodePrefix: 'Grower_' },
-  { roomId: 'FH', modelNodeName: 'P1.006', modelNodePrefix: 'Finisher_' },
+  { roomId: 'GH', modelNodeName: ['P1.005', 'Pigs_Grower'], modelNodePrefix: 'Grower_' },
+  { roomId: 'FH', modelNodeName: ['P1.006', 'Pigs_Finisher'], modelNodePrefix: 'Finisher_' },
 ];
 
 // 상세보기(컷어웨이) 전용 "판(두께 없음)" 대체 벽 노드 — 메인 화면은 두꺼운 벽을 그대로
@@ -72,8 +89,14 @@ export function sanitizeNodeName(name: string): string {
  */
 export function findBarnNodes(modelRoot: THREE.Object3D, config: BarnNodeConfig): THREE.Object3D[] {
   const matched: THREE.Object3D[] = [];
-  if (config.modelNodeName) {
-    const node = modelRoot.getObjectByName(sanitizeNodeName(config.modelNodeName));
+  const exactNames =
+    config.modelNodeName === undefined
+      ? []
+      : typeof config.modelNodeName === 'string'
+        ? [config.modelNodeName]
+        : config.modelNodeName;
+  for (const name of exactNames) {
+    const node = modelRoot.getObjectByName(sanitizeNodeName(name));
     if (node) matched.push(node);
   }
   if (config.modelNodePrefix) {

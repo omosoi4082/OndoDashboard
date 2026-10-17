@@ -4,8 +4,8 @@
 // docs/07-starter-kit-assets.md)에 둔 순수 함수를 쓴다. 정보 판넬(5-1~5-3)은 호버한 방에만
 // 표시(01-functional-spec.md 2장, 05-open-questions.md #29 — 2026-10-09 호버 전용으로 확정). 클릭은
 // 자돈방(NH)만 반응한다(회색 방은 클릭 핸들러 자체를 달지 않는다 — 05-open-questions.md #22).
-import { useMemo, type ReactElement } from 'react';
-import type { ThreeEvent } from '@react-three/fiber';
+import { useEffect, useMemo, type ReactElement } from 'react';
+import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import type { RoomId } from '@ondo/shared';
@@ -19,6 +19,7 @@ import {
   unionSectionsBox,
 } from './barnModel.js';
 import { CameraRig } from './CameraRig.js';
+import { createWallFade } from './wallFade.js';
 import { SceneLighting } from './SceneLighting.js';
 import { useMainStore } from '../store/mainStore.js';
 import { okData } from '../api/client.js';
@@ -45,14 +46,21 @@ export function OverviewScene(): ReactElement {
 
   // scene은 useGLTF 캐시로 로드마다 같은 인스턴스를 반환하므로(drei), 정렬·태깅은
   // scene 참조가 바뀌지 않는 한 한 번만 계산된다(groundAndCenterModel은 멱등 처리됨).
-  // 육성·비육방 돼지(19두씩, 온도 측 2026-10-14 회신)는 아직 붙이지 않는다 — 자돈 모델을
-  // 비율만 키워 쓰는 임시 대체는 2026-10-14 사용자 지시로 보류했다("돼지 모델링은 하지마
-  // 내가 찾아서 돼지 모델링 줄꺼니깐"). 성돈 모델을 받으면 scene/roomPigs.ts의
-  // buildRoomPigs(scene, computed)를 여기서 부르면 된다(05-open-questions.md #48).
+  // 육성·비육방 돼지는 2026-10-17 교체본(weaner_barn.glb)에 `Pigs_Grower`·`Pigs_Finisher`로
+  // 들어 있다 — scene/roomPigs.ts의 buildRoomPigs()를 부르면 돼지가 두 벌이 되므로
+  // **되살리지 않는다**(05-open-questions.md #48 해소).
   const sections = useMemo(() => {
     computeShadowFlags(scene);
     return computeBarnSections(scene, BARN_NODE_CONFIG);
   }, [scene]);
+
+  // 앞벽 페이드(scene/wallFade.ts) — 카메라와 실내 사이를 가로막는 외벽만 매 프레임 투명해진다.
+  // 머티리얼을 복제해 벽마다 따로 투명도를 주므로, scene이 바뀌면 반드시 dispose로 원복한다
+  // (useGLTF 캐시는 같은 scene 인스턴스를 공유해서, 안 되돌리면 복제본이 쌓인다).
+  const wallFade = useMemo(() => createWallFade(scene), [scene]);
+  useEffect(() => () => wallFade.dispose(), [wallFade]);
+  // 카메라를 움직인 뒤·렌더 직전에 불러야 한다. useFrame 기본 우선순위면 렌더 전에 돈다.
+  useFrame(({ camera }) => wallFade.update(camera));
 
   const frameBox = useMemo(() => unionSectionsBox(sections), [sections]);
   const rotationCenter = useMemo(
