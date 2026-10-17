@@ -152,6 +152,41 @@ describe('createWallFade', () => {
     fade.dispose();
   });
 
+  // 2026-10-17 실제로 겪은 버그: StrictMode의 마운트→언마운트→재마운트에서 dispose()가
+  // walls를 비우는데, useMemo가 같은 객체를 재사용해 update()가 조용히 아무 일도 안 했다.
+  // 고친 쪽은 OverviewScene(생성·정리를 같은 effect에 묶음)이지만, "dispose 뒤에는 죽은
+  // 객체"라는 성질을 여기 못 박아 둔다 — 재사용하면 안 된다는 근거가 된다.
+  it('dispose한 객체는 update해도 아무 일도 하지 않는다 — 재사용 금지', () => {
+    const root = buildFakeBarn();
+    const fade = createWallFade(root);
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(40, 2, 0);
+
+    fade.dispose();
+    expect(fade.count).toBe(0);
+
+    fade.update(camera); // 죽은 객체 — 던지지 않고 조용히 아무 일도 안 한다
+    const mesh = root.getObjectByName('Wall_Xmax') as THREE.Mesh;
+    const mat = mesh.material as THREE.Material & { opacity: number };
+    expect(mat.opacity).toBe(1);
+  });
+
+  it('dispose 뒤 다시 만들면 정상 동작한다 — 재마운트 경로', () => {
+    const root = buildFakeBarn();
+    createWallFade(root).dispose();
+
+    const again = createWallFade(root);
+    expect(again.count).toBe(4);
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(40, 2, 0);
+    again.update(camera);
+
+    const mesh = root.getObjectByName('Wall_Xmax') as THREE.Mesh;
+    const mat = mesh.material as THREE.Material & { opacity: number };
+    expect(mat.opacity).toBeLessThan(0.3);
+    again.dispose();
+  });
+
   it('dispose하면 원본 머티리얼로 되돌아가고 전부 보인다', () => {
     const root = buildFakeBarn();
     const before = (root.getObjectByName('Wall_Xmax') as THREE.Mesh).material;

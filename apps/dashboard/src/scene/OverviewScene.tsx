@@ -4,7 +4,7 @@
 // docs/07-starter-kit-assets.md)에 둔 순수 함수를 쓴다. 정보 판넬(5-1~5-3)은 호버한 방에만
 // 표시(01-functional-spec.md 2장, 05-open-questions.md #29 — 2026-10-09 호버 전용으로 확정). 클릭은
 // 자돈방(NH)만 반응한다(회색 방은 클릭 핸들러 자체를 달지 않는다 — 05-open-questions.md #22).
-import { useEffect, useMemo, type ReactElement } from 'react';
+import { useEffect, useMemo, useRef, type ReactElement } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import { Html, useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
@@ -19,7 +19,7 @@ import {
   unionSectionsBox,
 } from './barnModel.js';
 import { CameraRig } from './CameraRig.js';
-import { createWallFade } from './wallFade.js';
+import { createWallFade, type WallFade } from './wallFade.js';
 import { SceneLighting } from './SceneLighting.js';
 import { useMainStore } from '../store/mainStore.js';
 import { okData } from '../api/client.js';
@@ -55,12 +55,25 @@ export function OverviewScene(): ReactElement {
   }, [scene]);
 
   // 앞벽 페이드(scene/wallFade.ts) — 카메라와 실내 사이를 가로막는 외벽만 매 프레임 투명해진다.
-  // 머티리얼을 복제해 벽마다 따로 투명도를 주므로, scene이 바뀌면 반드시 dispose로 원복한다
+  // 머티리얼을 복제해 벽마다 따로 투명도를 주므로, 정리할 때 반드시 dispose로 원복한다
   // (useGLTF 캐시는 같은 scene 인스턴스를 공유해서, 안 되돌리면 복제본이 쌓인다).
-  const wallFade = useMemo(() => createWallFade(scene), [scene]);
-  useEffect(() => () => wallFade.dispose(), [wallFade]);
+  //
+  // ★ 생성과 정리를 **같은 effect 안에** 둔다. useMemo로 만들고 effect에서 정리하면
+  //   StrictMode(개발 모드의 마운트→언마운트→재마운트)에서 페이드가 조용히 죽는다:
+  //   언마운트 때 dispose()가 walls 배열을 비우는데, 재마운트 때 useMemo는 deps가 같아
+  //   **다시 계산하지 않고 비워진 객체를 그대로 재사용**하므로 update()가 아무 일도 하지
+  //   않는다. 오류도 안 나서 "페이드가 안 걸린다"로만 보인다(2026-10-17 실제로 겪음).
+  const wallFadeRef = useRef<WallFade | null>(null);
+  useEffect(() => {
+    const fade = createWallFade(scene);
+    wallFadeRef.current = fade;
+    return () => {
+      fade.dispose();
+      wallFadeRef.current = null;
+    };
+  }, [scene]);
   // 카메라를 움직인 뒤·렌더 직전에 불러야 한다. useFrame 기본 우선순위면 렌더 전에 돈다.
-  useFrame(({ camera }) => wallFade.update(camera));
+  useFrame(({ camera }) => wallFadeRef.current?.update(camera));
 
   const frameBox = useMemo(() => unionSectionsBox(sections), [sections]);
   const rotationCenter = useMemo(
