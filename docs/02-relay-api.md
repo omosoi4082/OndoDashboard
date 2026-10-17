@@ -126,6 +126,7 @@ export interface StationWeather {
 - 격자 1차원 인덱스: `i + nx * (j + ny * k)`.
 - 유동 값: `[vx, vy, vz, value]`, value = 유속 크기(m/s).
 - current: 프레임 1개. forecast·expert·control: 10분 간격 145개(0~1,440분).
+- `range`·`geometryId`는 **연산 서버 응답 값을 그대로 통과시킨다**(v3부터 제공, 2026-10-13). 중계 서버가 프레임을 훑어 다시 계산하지 않는다 — `range.flow`의 max는 급기구 극값을 뺀 95퍼센타일이라 우리가 계산한 실제 최댓값을 쓰면 유동 색이 거의 단색으로 뭉개진다. 응답에 `range`가 없을 때만 전 프레임 min·max 계산으로 폴백한다(`transforms/detailTransform.ts`). `geometryId`가 보관한 형상 id와 다르면 `UPSTREAM_ERROR`.
 
 ```ts
 export interface GridDef { origin: [number, number, number]; spacing: [number, number, number]; size: [number, number, number] }
@@ -151,7 +152,7 @@ export interface DetailBase {
   baseAt: Iso8601;
   intervalMin: 10;
   geometryId: string;                  // 보관한 Geometry와 다르면 geometry 재요청
-  range: { temp: MinMax; rh: MinMax; flow: MinMax };  // 전체 프레임 기준
+  range: { temp: MinMax; rh: MinMax; flow: MinMax };  // 전체 프레임 기준. 연산 서버 응답 값 그대로(아래 주의)
   frames: DetailFrame[];
 }
 export interface CurrentDetail extends DetailBase { mode: 'current' }
@@ -192,7 +193,7 @@ export interface ControlDetail extends DetailBase { mode: 'control'; target: 'en
 - grid: 수평 0.25 m, 높이 0.4 m로 고정. 자돈방 4.5×4.0×2.8 m(PINN 모델 v17.0 형상) 기준 19×17×8 = 2,584 노드, 모든 응답 동일. 대시보드는 2배 삼선형 보간 후 메쉬 생성.
 - 온도·습도 메쉬: marching cubes 등치면 3~5단계, 반투명. 프레임별 Web Worker에서 미리 계산·캐시.
 - 2D 수평단면: grid에서 `SECTION_Z_M`에 가장 가까운 z층(x·y) → 2배 보간 → 히트맵.
-- 유동: flowGrid 노드마다 실린더(InstancedMesh). 방향 [vx, vy, vz], 길이·색상 value. 수평 0.5 m·높이 0.7 m 칸 중앙, 9×8×4 = 288개 고정. 표현 방식 자체는 미확정(05-open-questions.md #40) — 급기구(`room.inlets`)에서 시작해 속도장을 따라 실린더를 이어붙이는 흐름선 방식도 같이 구현해뒀다(`FLOW_VISUALIZATION_MODE` 상수로 전환).
+- 유동: flowGrid 노드마다 화살표(실린더 + 화살촉, InstancedMesh). 방향 [vx, vy, vz], 길이·색상 value. 수평 0.5 m·높이 0.7 m 칸 중앙, 9×8×4 = 288개 고정. **288개 화살표 방식으로 확정**(2026-10-13 온도 측 A-3, 05-open-questions.md #40) — 급기구에서 속도장을 따라 추적하는 흐름선(스트림튜브)은 필요하지 않다. 흐름선 구현도 `FLOW_VISUALIZATION_MODE` 상수 뒤에 남아 있다.
 - 응답 크기: 예측 ~100만 개 숫자, ~7 MB JSON → gzip ~2~3 MB. 형상 정보는 응답에 포함하지 않는다.
 
 ## 6. 상세 API
