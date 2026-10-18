@@ -26,6 +26,10 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
+# 화면 자동 점검 도구 버전 — 저장소 devDependencies와 같은 것을 패키지에 넣는다.
+$PlaywrightVersion = (Get-Content (Join-Path $repo 'package.json') -Raw -Encoding UTF8 |
+  ConvertFrom-Json).devDependencies.'@playwright/test' -replace '^[\^~]', ''
+
 if ($OutDir -eq "") {
   $stamp = Get-Date -Format 'yyyyMMdd'
   $suffix = if ($Source) { "-src" } else { "" }
@@ -62,14 +66,15 @@ if ($Source) {
     'package.json', 'package-lock.json', 'tsconfig.base.json', 'vitest.config.ts',
     'eslint.config.js', '.prettierrc.json',
     '.env', '.env.example',
-    'start.bat', 'check.bat', 'setup.bat', 'install.bat',
+    'start.bat', 'check.bat', 'setup.bat', 'install.bat', 'test-ui.bat',
+    'playwright.config.ts',
     'README.md', '테스트-체크리스트.md', 'CLAUDE-구동안내.md'
   )
   foreach ($f in $srcRoot) {
     if (Test-Path $f) { Copy-Item $f -Destination $OutDir }
     else { Write-Host "    ! 없음: $f" -ForegroundColor Yellow }
   }
-  foreach ($d in @('config', 'mock')) { Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse }
+  foreach ($d in @('config', 'mock', 'tests')) { Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse }
 
   # 워크스페이스 소스 — dist와 node_modules는 제외하고 통째로 복사
   foreach ($ws in @('apps\relay', 'apps\dashboard', 'packages\shared')) {
@@ -101,7 +106,8 @@ else {
   $rootFiles = @(
     'package.json', 'package-lock.json',
     '.env', '.env.example',
-    'start.bat', 'check.bat', 'setup.bat',
+    'start.bat', 'check.bat', 'setup.bat', 'test-ui.bat',
+    'playwright.config.ts',
     'README.md', '테스트-체크리스트.md', 'CLAUDE-구동안내.md'
   )
   foreach ($f in $rootFiles) {
@@ -109,8 +115,8 @@ else {
     else { Write-Host "    ! 없음: $f" -ForegroundColor Yellow }
   }
 
-  # 런타임에 읽는 데이터
-  foreach ($d in @('config', 'mock')) {
+  # 런타임에 읽는 데이터 + 화면 자동 점검 스크립트(tests/ui — test-ui.bat이 쓴다)
+  foreach ($d in @('config', 'mock', 'tests')) {
     Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse
   }
 
@@ -164,6 +170,15 @@ if ($Source) {
   try {
     & npm install --omit=dev --ignore-scripts --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw "npm install 실패" }
+
+    # 화면 자동 점검 도구(test-ui.bat이 쓴다). --no-save라 package.json은 그대로 두고
+    # node_modules에만 들어간다 — 받는 쪽이 설치를 더 하지 않아도, 인터넷이 없어도 점검이 돈다.
+    # 브라우저는 따로 받지 않는다(설치된 Chrome/Edge를 쓴다 — playwright.config.ts 참고).
+    Write-Host "      + 화면 자동 점검 도구 @playwright/test@$PlaywrightVersion" -ForegroundColor DarkGray
+    # --omit=dev를 빼면 안 된다 — package-lock에 적힌 개발 의존성(typescript·vitest·esbuild 등
+    #  약 90 MB)까지 다시 깔려 패키지가 세 배가 된다(2026-10-18 실측 51.7 → 155.7 MB).
+    & npm install --omit=dev --no-save --ignore-scripts --no-audit --no-fund "@playwright/test@$PlaywrightVersion"
+    if ($LASTEXITCODE -ne 0) { throw "@playwright/test 설치 실패" }
   } finally { Pop-Location }
 }
 
@@ -184,7 +199,7 @@ if ($Zip) {
 
 Write-Host ""
 if ($Source) {
-  Write-Host "다음: 그 폴더에서 install.bat → start.bat → check.bat 순서로 확인하세요."
+  Write-Host "다음: 그 폴더에서 install.bat → start.bat → check.bat → test-ui.bat 순서로 확인하세요."
 } else {
-  Write-Host "다음: 그 폴더에서 start.bat → check.bat 으로 확인하세요."
+  Write-Host "다음: 그 폴더에서 start.bat → check.bat → test-ui.bat 으로 확인하세요."
 }

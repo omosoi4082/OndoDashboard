@@ -20,3 +20,8 @@ dist-ssr/
 
 # check.bat 실행 결과 — 온도 측 PC에서 생기는 산출물이라 저장소에 넣지 않는다
 점검결과.txt
+
+# test-ui.bat(화면 자동 점검) 실행 결과 — 실행할 때마다 새로 생긴다
+화면점검결과.txt
+ui-test-results/
+ui-test-report/

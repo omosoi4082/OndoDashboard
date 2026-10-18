@@ -283,6 +283,7 @@ export function Detail3DView({
           그리지 않는다. */}
       {range && (
         <div
+          data-testid="detail-legend"
           className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-stretch rounded bg-[#141414]/50 p-1"
           style={{ width: LEGEND_WIDTH_PX, height: LEGEND_HEIGHT_PX }}
         >

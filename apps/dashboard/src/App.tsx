@@ -57,7 +57,10 @@ function App(): ReactElement {
             가둔다 — drei <Html>(방 이름표·정보 판넬)이 z-index 16777271을 달고 나와서 헤더와
             상세 패널까지 덮었다(2026-10-14 사용자: "ui 순번 아래로 상세패널이 먼저 보여야 돼").
             이 레이어가 DOM에서 헤더·상세 패널보다 앞이라, 가둬 두면 그 둘이 항상 위에 온다. */}
+        {/* data-testid는 화면 자동 점검(tests/ui)이 이 레이어 안의 방 이름표·정보 카드를
+            찾는 고정 손잡이다 — 클래스 이름에 기대면 스타일을 손볼 때마다 테스트가 깨진다. */}
         <div
+          data-testid="main-scene"
           className="absolute left-0 top-0 isolate"
           style={{ width: MAIN_SCENE_WIDTH_PX, height: MAIN_SCENE_HEIGHT_PX }}
         >

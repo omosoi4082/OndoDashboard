@@ -8,7 +8,7 @@ export function ScaleBar(): ReactElement {
   const scaleBar = useMainStore((s) => s.scaleBar);
 
   return (
-    <div className="flex items-end gap-2 text-[11px] text-white/80">
+    <div data-testid="scale-bar" className="flex items-end gap-2 text-[11px] text-white/80">
       <span className="leading-none">{scaleBar ? `${scaleBar.meters}m` : '-'}</span>
       <div
         className="h-1.5 border-x border-b border-white/80"

@@ -36,6 +36,8 @@ function num(value: number | null, digits: number): string | null {
 }
 
 interface WeatherBlockProps {
+  /** 화면 자동 점검(tests/ui)이 두 블록을 구분하는 손잡이 — 제목 문구는 서버 응답이라 쓰기 어렵다. */
+  testId: string;
   title: string;
   disconnected: boolean;
   weatherCode: WeatherCode | null;
@@ -49,9 +51,9 @@ interface WeatherBlockProps {
 }
 
 function WeatherBlock(props: WeatherBlockProps): ReactElement {
-  const { title, disconnected, weatherCode, isNight, temp, rh, windDir, windDeg, windSpeed, rain } = props;
+  const { testId, title, disconnected, weatherCode, isNight, temp, rh, windDir, windDeg, windSpeed, rain } = props;
   return (
-    <div className="flex w-[338px] flex-col gap-[17px]">
+    <div data-testid={testId} className="flex w-[338px] flex-col gap-[17px]">
       <div className="flex h-5 items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="h-3.5 w-[3px] bg-ondo-accent-bar" />
@@ -88,6 +90,7 @@ export function OutdoorPanel(): ReactElement {
   return (
     <div className="flex flex-col gap-[37px]">
       <WeatherBlock
+        testId="weather-kma"
         title={kma?.label ?? '기상청 실황'}
         disconnected={kma?.sourceStatus === 'disconnected'}
         weatherCode={kma?.weatherCode ?? null}
@@ -100,6 +103,7 @@ export function OutdoorPanel(): ReactElement {
         rain={kma?.rain ?? null}
       />
       <WeatherBlock
+        testId="weather-station"
         title={station?.label ?? '미세기후'}
         disconnected={station?.sourceStatus === 'disconnected'}
         weatherCode={station?.weatherCode ?? null}

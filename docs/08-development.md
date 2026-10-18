@@ -55,14 +55,22 @@ powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 -OutDir <경�
 
 | | ① 빌드 포함본 | ② 소스본 |
 |---|---|---|
-| 폴더 / 압축 | **51.7 MB / 15.6 MB** | **27.5 MB / 8.4 MB** |
-| 받는 쪽 순서 | `start.bat` → `check.bat` | `install.bat` → `start.bat` → `check.bat` |
-| 포함 | 빌드 결과 + 운영 의존성 | 소스 + 설정(빌드 결과·node_modules 없음) |
+| 폴더 / 압축 | **69.6 MB / 19.6 MB** | **27.6 MB / 8.5 MB** |
+| 받는 쪽 순서 | `start.bat` → `check.bat` → `test-ui.bat` | `install.bat` → `start.bat` → `check.bat` → `test-ui.bat` |
+| 포함 | 빌드 결과 + 운영 의존성 + 화면 점검 도구 | 소스 + 설정(빌드 결과·node_modules 없음) |
 | `install.bat` | **없음**(소스가 없어 빌드가 실패한다) | 있음 |
 | 인터넷 | 기상청 조회에만 필요 | **설치에도 필요**(npm) |
 
 ①은 빌드 → staging → `npm install --omit=dev`, ②는 소스만 복사한다(빌드·설치 안 함).
-둘 다 2026-10-17에 실제로 만들어 `check.bat` 7개 항목 통과까지 확인했다.
+둘 다 2026-10-17에 실제로 만들어 `check.bat` 7개 항목 통과까지 확인했고, 2026-10-18에
+①에서 `test-ui.bat`(화면 자동 점검)까지 돌려 55항목 통과를 확인했다(1분 51초).
+①이 51.7 → 69.6 MB로 커진 것은 화면 점검 도구(`@playwright/test`, 약 18 MB) 때문이다.
+
+**화면 자동 점검(`test-ui.bat`)도 같이 나간다** — `tests/`·`playwright.config.ts`를 복사하고,
+①에는 `@playwright/test`를 `--no-save`로 **미리 설치해 둔다**(약 19 MB). 받는 쪽이 설치를
+더 하지 않아도, 인터넷이 없어도 점검이 돈다. 브라우저는 내려받지 않는다 — 설치된
+Chrome/Edge를 그대로 쓴다(`playwright.config.ts`의 `pickChannel()`). 둘 다 없으면
+`test-ui.bat`이 안내만 하고 멈추고, 그때는 체크리스트 B부를 손으로 진행하면 된다.
 
 **패키지를 작게 만든 두 가지**
 
@@ -96,7 +104,8 @@ git에는 계속 커밋하지 않는다.
 2. 소스본이면 먼저 `install.bat`(또는 `npm install && npm run build`)
 3. `start.bat`(또는 `npm start`) → 로그에 접속 주소가 뜨는지
 4. `check.bat`(또는 `npm run doctor`) → 7개 항목이 모두 ✅ 인지
-5. 브라우저로 접속해 화면이 뜨는지
+5. `test-ui.bat`(또는 `npm run test:ui`) → `화면점검결과.txt`에 실패 0인지
+6. 브라우저로 접속해 화면이 뜨는지
 
 > 패키지 폴더에서 서버를 띄워 둔 채로 패키지를 다시 만들면 `Remove-Item`이 실패한다
 > (node가 폴더를 잡고 있다). 다시 만들기 전에 서버 창을 닫는다.

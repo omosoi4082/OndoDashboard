@@ -42,6 +42,7 @@ npm run dev        # relay(8080) + dashboard(5173, /api는 relay로 프록시) �
 npm run build       # shared → relay → dashboard 순서로 빌드
 npm start           # relay가 dashboard 빌드 결과를 정적 서빙 (운영 모드, 단일 포트 8080)
 npm test            # vitest
+npm run test:ui     # 화면 자동 점검(Playwright, 체크리스트 B부) — 설치된 Chrome/Edge로 돈다
 npm run lint
 npm run typecheck
 npm run mock:generate   # mock/ 목업 데이터 생성
