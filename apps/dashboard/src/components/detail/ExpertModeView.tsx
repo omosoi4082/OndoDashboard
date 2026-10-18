@@ -8,6 +8,10 @@
 //            3D + 2D(시안 05). ForecastDetailView와 같은 구조로 145프레임을 재생한다(중복 구현 금지).
 // 전에는 입력 표가 결과 위에 상시 붙어 있었다. 오가는 길은 [필수값 수정] → input, [<] → result.
 // 적용에 성공하면 자동으로 result로 넘어간다(시안 04 → 05 흐름).
+// [<]는 "취소"다 — 적용하지 않은 편집(초기화로 비운 칸 포함)은 버리고 마지막으로 적용한 값으로
+// 표를 되돌린다(2026-10-18 사용자 보고). 그러지 않으면 빈 표인 채로 결과 화면에 돌아가고,
+// 다시 [필수값 수정]을 눌렀을 때 보이는 결과와 표가 어긋난다. 뒤로 가기를 막는 쪽(빈 칸이면
+// 비활성)은 전부 비운 사용자가 결과로 돌아갈 길을 잃으므로 택하지 않았다.
 //
 // 입력 전·오류일 때는 result로 가지 않으므로, "데이터 값을 입력해주세요" 안내를 겹친 EmptyDetail3D는
 // 더 이상 쓰지 않는다 — 그 자리에 입력 표 자체가 보이는 것이 시안의 빈 상태다.
@@ -56,6 +60,9 @@ export function ExpertModeView(): ReactElement {
   // 행 라벨은 "0시"~"23시" 고정이다(2026-10-17 시안). 표는 빈 칸으로 시작한다.
   const rowLabels = expertRowLabels(EXPERT_INPUT_ROW_COUNT);
   const [drafts, setDrafts] = useState<ExpertRowDraft[]>(() => expertEmptyDrafts(EXPERT_INPUT_ROW_COUNT));
+  // 마지막으로 적용에 성공한 입력값. 결과 화면이 보여주는 것이 이 값의 결과이므로, [<]로 돌아갈 때
+  // 표를 이 값으로 되돌린다. 아직 적용한 적이 없으면 null(= 뒤로 갈 결과도 없다).
+  const [appliedDrafts, setAppliedDrafts] = useState<ExpertRowDraft[] | null>(null);
   // 'input' = 입력 표 화면(시안 01~04-1), 'result' = 결과 화면(시안 05).
   // 처음에는 결과가 없으니 입력 화면으로 시작하고, 적용에 성공하면 결과로 넘어간다.
   const [screen, setScreen] = useState<'input' | 'result'>('input');
@@ -72,13 +79,26 @@ export function ExpertModeView(): ReactElement {
   function handleSubmit(): void {
     if (validation.values === null) return;
     setIsLoading(true);
+    // 응답이 오기까지 사용자가 칸을 더 고칠 수 있으니, 보낸 시점의 표를 복사해 둔다.
+    const submitted = drafts.map((row) => ({ ...row }));
     // 계산 중에도 입력 표를 그대로 두고(화면이 비는 것보다 낫다) 결과가 오면 결과 화면으로 넘어간다.
     // 오류 응답이면 입력 화면에 남아 아래 오류 문구를 띄운다 — 값을 고칠 자리가 그 화면이다.
     fetchDetailExpert(validation.values).then((res) => {
       setExpert(res);
       setIsLoading(false);
-      if (res.status !== 'error') setScreen('result');
+      if (res.status !== 'error') {
+        setAppliedDrafts(submitted);
+        setScreen('result');
+      }
     });
+  }
+
+  /** [<] 뒤로 가기(시안 04-1) — 적용하지 않은 편집을 버리고 마지막으로 적용한 값으로 표를
+   *  되돌린 뒤 결과 화면으로 간다. */
+  function handleBack(): void {
+    if (appliedDrafts === null) return;
+    setDrafts(appliedDrafts.map((row) => ({ ...row })));
+    setScreen('result');
   }
 
   /** "초기화"(시안 02~04-1) — 입력 표를 빈 칸으로 되돌린다. 이미 받은 결과는 지우지 않는다
@@ -106,7 +126,7 @@ export function ExpertModeView(): ReactElement {
           drafts={drafts}
           validation={validation}
           isLoading={isLoading}
-          onBack={hasResult ? () => setScreen('result') : null}
+          onBack={hasResult && appliedDrafts !== null ? handleBack : null}
           onChange={setDrafts}
           onReset={handleReset}
           onSubmit={handleSubmit}
