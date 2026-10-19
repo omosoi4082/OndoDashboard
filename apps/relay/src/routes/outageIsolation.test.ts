@@ -162,8 +162,8 @@ describe('영역별 끊김 격리 (M7-5)', () => {
     }
     expect(station.data.sourceStatus).toBe('ok');
     expect(station.data.temp).toBe(22.3);
-    // 기상대 풍속은 km/h → m/s 환산분(14 → 3.9, transforms/stationWind.ts, 05 #43).
-    expect(station.data.windSpeed).toBe(3.9);
+    // 기상대 풍속(CURWIND)은 m/s라 환산 없이 그대로다(2026-10-19 재확인, 05 #43).
+    expect(station.data.windSpeed).toBe(14);
 
     const health = await getJson<Health>(app, '/api/health');
     expect(health).toEqual({ relay: 'ok', sensor: 'ok', kma: 'disconnected', compute: 'ok' });

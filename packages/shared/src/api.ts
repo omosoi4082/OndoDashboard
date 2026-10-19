@@ -80,7 +80,7 @@ export interface StationWeather {
   isNight: boolean;
   windDir: string | null;
   windDeg: number | null;
-  /** CURWIND(현재 풍속, m/s — 2026-10-15 온도 측 확정) — MAXWIND는 쓰지 않는다. */
+  /** CURWIND(현재 풍속, m/s — 2026-10-19 온도 측 재확인, 환산 없음) — MAXWIND는 쓰지 않는다. */
   windSpeed: number | null;
   temp: number | null;
   rh: number | null;

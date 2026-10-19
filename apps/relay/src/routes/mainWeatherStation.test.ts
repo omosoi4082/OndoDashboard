@@ -34,9 +34,9 @@ describe('GET /api/main/weather/station', () => {
     expect(body.data.weatherCode).toBe('CLEAR');
     expect(body.data.windDir).toBe('남서');
     expect(body.data.windDeg).toBe(227);
-    // CURWIND(km/h)를 m/s로 환산해 내보낸다 — 14 km/h = 3.9 m/s(transforms/stationWind.ts).
+    // CURWIND는 m/s라 환산하지 않고 그대로 내보낸다(2026-10-19 온도 측 재확인, #43).
     // MAXWIND는 쓰지 않는다(05-open-questions #36).
-    expect(body.data.windSpeed).toBe(3.9);
+    expect(body.data.windSpeed).toBe(14);
     expect(body.data.rain).toBe(0);
     expect(body.data.measuredAt).toBe('2026-10-07T12:00:00+09:00');
 
