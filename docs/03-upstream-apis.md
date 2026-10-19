@@ -15,11 +15,11 @@
 
 환기팬은 FAN1만 사용(확정). H2S, MAXWIND, VOLT, FAN2·3은 무시.
 `CURWIND`(현재 풍속)는 미세기후 패널 풍속 타일에 쓴다(05-open-questions.md #36·#43).
-단위는 **km/h**로 보고 중계 서버가 m/s로 환산한다(`transforms/stationWind.ts`, 화면 표기는
-기상청 `WSD`와 맞춘 m/s). 2026-10-15에 온도 측은 "m/s가 맞다"고 답했으나, 2026-10-17 실측에서
-맑은 날(`RAIN 0`·`SOLAR 897`·`CLEAR`) `CURWIND` 14 · `MAXWIND` 32가 나왔고 32 m/s는 태풍급이라
-성립하지 않는다 — km/h로 읽으면 3.9 m/s·8.9 m/s로 같은 시각 기상청 3.7 m/s와 맞는다.
-**온도 측 재확인 대기 중**이다(#43).
+단위는 **m/s**다 — 환산하지 않고 받은 값을 그대로 쓰고, 소수 첫째 자리까지만 반올림한다
+(`transforms/stationWind.ts`, 화면 표기도 기상청 `WSD`와 같은 m/s). **2026-10-19 온도 측
+재확인**: "ETRI 측 대시보드에 표시되는 값과 서버에서 들어오는 값이 같고 m/s로 표시하고 있다.
+3.6으로 나누지 말고 받은 값을 그대로 쓰라". 2026-10-17 실측의 맑은 날 `MAXWIND` 32(m/s면
+태풍급)는 이 답으로도 설명되지 않지만 `MAXWIND`는 쓰지 않으므로 표시에 영향이 없다(#43).
 
 > **WS1은 최신값만 제공되고 이력(range) 조회는 빈 배열이다** (2026-10-13 실측 확인:
 > 최신값은 `TEMP 17.3`·`RH 92.3`·`CURWIND 6.0` 등 정상, 같은 항목의 range 조회는 어제
@@ -154,9 +154,29 @@
 
 ## 4. 연산 서버
 
-- 회의 결정대로 로컬 구동, HTTP + JSON. 같은 PC(localhost)/같은 공유기 내 다른 PC 미정이라 IP·포트를 `COMPUTE_BASE_URL`에서 수정할 수 있게 한다(공유기면 연산 서버 PC 내부 IP 고정).
+기준 문서: 온도 측 **`연산서버_API_안내_v1.3.2_20261019.docx`**(2026-10-19 수령). 형식은 10/14에
+확정한 D-1~D-5와 같고, 아래는 그 문서로 확정·추가된 사항이다.
+
+- **1차 버전 가동 중**: `http://192.168.10.91:9000`(온도 사무실 내부망, 2026-10-19 ~ 10-23 상시).
+  통합 테스트는 **2026-10-23(금)**. 주소·포트는 `COMPUTE_BASE_URL`에서 바꾼다(코드에 넣지 않는다).
+  저장소 기본값은 `COMPUTE_MODE=mock`이며, 실연산은 `.env`에서 `http`로 바꿔 쓴다.
+- **인증 없음.** 대신 **중계 서버 PC의 IP만 허용**하도록 설정할 수 있다 → 허용 목록 밖이면
+  HTTP 403(`COMPUTE_FORBIDDEN_MESSAGE`). 내부망에서는 DHCP로 주소를 받으므로, 연결 전에
+  그 PC의 실제 내부 IP를 온도 측에 알려야 한다. `COMPUTE_API_KEY`는 기본 비움(비어 있으면 헤더 생략).
+- **한 번에 요청 하나**만 처리한다. 처리 중에 들어온 요청은 바로 `503 BUSY`.
+- 요청 헤더는 `Content-Type: application/json; charset=utf-8`. `Accept-Encoding: gzip`을 함께
+  보내면 예측 응답이 약 6 MB → 0.4 MB로 줄어든다(둘 다 `clients/computeClient.ts`에 반영).
+- 소요 시간(온도 측 시험): 현재 약 0.1초, 예측 약 4초. 타임아웃은 합의값 `COMPUTE_TIMEOUT_MS=60000` 그대로.
+- `GET /v1/health` 응답에 `status`·`model_version`·`geometryId`·`server_version`·`busy`·`stats`가
+  담긴다. 우리는 **HTTP 2xx만** 본다(D-5) — 본문은 사람이 확인할 때 쓴다.
+- 처음 연결 시험 순서(문서 7장): ① 브라우저로 `/v1/health`에서 `"status":"ok"` 확인 →
+  ② `mock/sample_request_current.json`을 `POST /v1/current`로 보내 `frames` 1개 확인 →
+  ③ `mock/sample_request_forecast.json`을 `POST /v1/forecast`로 보내 145개 확인(예시의 시각이
+  과거여도 계산된다) → ④ 실제 데이터로 현재 모드 10분 주기 연결. 문제가 생기면 `request_id`와
+  시각을 온도 측에 알리면 서버 기록에서 확인해 준다.
+- 전문가·제어 경로(`POST /v1/expert`·`/v1/control`)는 올해 계산하지 않는다 — 호출하면 503이고,
+  목업 파일을 쓴다(4.4).
 - 온도 연동명세서 v1.0은 회의 이전 참고 자료. 회의 결정과 다르면 회의 결정을 따른다. 응답 구조는 우리 쪽이 정한다.
-- `COMPUTE_API_KEY`는 기본 비움(로컬 구동). 비어 있으면 헤더를 보내지 않는다.
 
 ### 4.1 요청 `POST /v1/current`, `POST /v1/forecast`
 
@@ -165,9 +185,14 @@
   { "time": "2026-10-05T12:20:00", "T_out": 21.5, "RH_out": 89.7, "fan_pct": 65.0 } ] }
 ```
 
-- current: 5분 간격 정각 기준 37건(15:26 → 12:20~15:20, 5분 집계).
+- current: 5분 간격 정각 기준 37건(15:26 → 12:20~15:20, 5분 집계). 연산 서버가 받는 실측 구간은
+  **31~43행(2.5~3.5시간)**이면 되고, 짧으면 `BAD_REQUEST`·길면 앞쪽을 버린다(v1.3.2 2장) —
+  우리는 항상 37행을 보낸다.
 - forecast(회의 결정, series): 실측 37건 + 예보 288건(5분 간격 보간, fan_pct는 외기 기온 규칙으로 계산) = 325건.
 - 연동명세서 v1.0 요약 형식(summary: outdoor T_max·T_min·RH_mean + fan T_100·T_50·T_20)은 폐기(2026-10-07 확정, 05-open-questions.md #4) — series 빌더만 만든다. `FORECAST_INPUT_FORMAT` 분기는 제거해도 된다.
+- `inputs[].time`은 5분 마크(00·05·…·55분)·오름차순·빈칸과 중복 없음, `T_out` −30~50 ℃,
+  `RH_out`·`fan_pct` 0~100 %. 습도·환기량이 범위를 0.5 이내로 벗어나면 연산 서버가 잘라서
+  계산하고, 그보다 크게 벗어나면 `BAD_REQUEST`다(v1.3.2 2장).
 - 센서 원자료는 반올림·보간 금지, 빈 분은 null. 결측 보간·센서 오류 판정은 1.2의 집계 규칙에서 끝내고, 연산 서버에는 null이 없는 입력만 보낸다(null 있으면 연산 서버가 BAD_REQUEST).
 
 ### 4.2 응답 (우리 쪽 정의)
@@ -196,10 +221,14 @@
   - `BAD_REQUEST`: 재시도하지 않는다. 메시지는 `예측 서버 요청 거부: <message> (항목: <field>)`(field 없으면 괄호 생략).
   - `SERVER`: `COMPUTE_RETRY_DELAY_MS`(기본 60000 = 1분) 뒤 1회 재시도. 그래도 실패하면 `예측 서버 오류`.
   - `BUSY`: 같은 대기 뒤 재시도. 횟수는 온도 측이 정하지 않아 1회로 둔다. 그래도 실패하면 `예측 서버가 다른 계산 중이라 응답하지 못했습니다. 잠시 후 다시 시도해 주세요.`
+  - `403 FORBIDDEN`(v1.3.2 5장): 허용 목록에 없는 IP에서 접속한 경우다. 재시도하지 않고
+    `연산 서버가 이 PC의 접속을 허용하지 않습니다(IP 허용 목록 확인 필요)`로 표시한다 —
+    온도 측에 중계 서버 PC의 내부 IP를 알려야 풀린다.
   - 타임아웃(`COMPUTE_TIMEOUT_MS`)·연결 실패: 재시도하지 않는다. `UPSTREAM_TIMEOUT`/`UPSTREAM_UNREACHABLE`, 메시지 `예측 서버 연결 안 됨`. 마지막 정상 결과 유지는 대시보드가 맡는다.
   - 재시도는 `COMPUTE_MODE=http`에만 적용한다(`withComputeRetry`, mock은 code를 내지 않음). 재시도가 걸리면 relay 응답까지 최대 약 `2 × COMPUTE_TIMEOUT_MS + COMPUTE_RETRY_DELAY_MS`가 걸린다.
 - 상태 확인(2026-10-13 D-5): `GET /v1/health`, HTTP 2xx면 살아 있음. `/api/health`의 `compute`에 쓴다(타임아웃 `UPSTREAM_TIMEOUT_MS`). mock 모드는 항상 `ok`.
-- 연산 30초 초과 시 작업 등록/조회 방식 제안 예정.
+- 검증 범위 밖(외삽) 조건은 **오류가 아니라** 정상 응답의 `quality.in_range = false`로 온다
+  (화면에 '참고용' 표시, 문장은 `warnings`).
 
 ### 4.3 Mock
 
@@ -207,4 +236,7 @@
 
 ### 4.4 전문가·제어 목업
 
-`mock/mock_expert.json`, `mock/mock_control.json`(2026-10-08 온도 측 v2 제공, 서브폴더 아님)을 "연산 서버 원응답 + 목업 전용 필드"로 두고 relay가 현재/예측과 같은 변환기(offsetMin·+09:00·range·geometryId 부착)로 감싸 읽는다. `mock_control.json`은 `target:"energy"` 시나리오 하나뿐 — `environment` 요청도 같은 파일을 쓰고 응답 `target` 필드만 요청값으로 덮어쓴다(05-open-questions.md #27). 온도 측 파일이 없을 때만 `npm run mock:generate`(합성 폴백)를 쓴다.
+`mock/mock_expert.json`(**2026-10-19 v4**: 제주 농장 실측 폭염일 2026-08-03~04 입력 + 실제 모델이
+계산한 145프레임. 구조는 v3과 같고 전 프레임이 검증 범위 안이라 '참고용' 표시가 나오지 않는다.
+`input`의 정시 값 24개가 전문가 모드 **예시값 버튼**의 숫자이며, 같은 값이
+`mock/전문가모드_예시값_24행x3열.csv`로도 왔다), `mock/mock_control.json`(2026-10-08 온도 측 v2 제공, 서브폴더 아님)을 "연산 서버 원응답 + 목업 전용 필드"로 두고 relay가 현재/예측과 같은 변환기(offsetMin·+09:00·range·geometryId 부착)로 감싸 읽는다. `mock_control.json`은 `target:"energy"` 시나리오 하나뿐 — `environment` 요청도 같은 파일을 쓰고 응답 `target` 필드만 요청값으로 덮어쓴다(05-open-questions.md #27). 온도 측 파일이 없을 때만 `npm run mock:generate`(합성 폴백)를 쓴다.

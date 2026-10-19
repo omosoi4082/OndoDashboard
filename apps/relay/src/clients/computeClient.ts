@@ -240,6 +240,14 @@ export interface HttpComputeClientOpts {
 /** 타임아웃·연결 실패 공통 문구(D-4). 마지막 정상 결과 유지는 대시보드 몫이다. */
 export const COMPUTE_UNREACHABLE_MESSAGE = '예측 서버 연결 안 됨';
 
+/**
+ * HTTP 403 전용 문구(연산 서버 API 안내 v1.3.2 5장). 연산 서버는 중계 서버 PC의 IP만 허용하도록
+ * 설정할 수 있어서, 네트워크가 바뀌거나 DHCP로 주소가 달라지면 403이 온다. 재시도해도 소용없고
+ * 온도 측에 IP를 다시 알려야 풀리는 상황이라 원인을 그대로 보여 준다.
+ */
+export const COMPUTE_FORBIDDEN_MESSAGE =
+  '연산 서버가 이 PC의 접속을 허용하지 않습니다(IP 허용 목록 확인 필요)';
+
 function authHeaders(opts: HttpComputeClientOpts): Record<string, string> {
   return opts.apiKey.length > 0 ? { [opts.apiKeyHeader]: opts.apiKey } : {};
 }
@@ -282,7 +290,14 @@ async function postCompute(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
   try {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...authHeaders(opts) };
+    // charset=utf-8까지 명시(안내 문서 v1.3.2 1장). Accept-Encoding: gzip은 예측 응답
+    // 약 6 MB를 0.4 MB로 줄인다 — undici fetch는 이 헤더를 자동으로 붙이지 않지만, 받은
+    // 응답의 content-encoding은 스스로 풀어 주므로 본문 파싱은 그대로다.
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Accept-Encoding': 'gzip',
+      ...authHeaders(opts),
+    };
 
     const res = await fetch(`${opts.baseUrl}${path}`, {
       method: 'POST',
@@ -293,6 +308,11 @@ async function postCompute(
     const text = await res.text();
 
     if (!res.ok) {
+      // 403은 IP 허용 목록 문제다(v1.3.2 5장) — 본문 code가 우리 enum에 없으므로 먼저 걸러
+      // 원인을 알려 준다. 재시도 대상도 아니다(upstreamCode를 비워 두면 재시도하지 않는다).
+      if (res.status === 403) {
+        return { ok: false, code: 'UPSTREAM_ERROR', message: COMPUTE_FORBIDDEN_MESSAGE };
+      }
       // 오류 응답 본문이 { status: "error", code, field?, message }(D-4) 형식이면 code를 살린다.
       try {
         const json: unknown = JSON.parse(text);

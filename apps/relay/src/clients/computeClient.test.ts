@@ -7,11 +7,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   buildComputeRequestBody,
   buildForecastRequestBody,
+  COMPUTE_FORBIDDEN_MESSAGE,
   COMPUTE_UNREACHABLE_MESSAGE,
   createHttpComputeClient,
   parseComputeResponse,
   type ComputeRequestInput,
 } from './computeClient.js';
+import { shouldRetryCompute } from './computeRetry.js';
 
 const OPTS = { baseUrl: 'http://compute.test', apiKey: '', apiKeyHeader: 'X-API-Key', timeoutMs: 1000, pingTimeoutMs: 1000 };
 
@@ -134,6 +136,28 @@ describe('createHttpComputeClient — 오류·연결 실패', () => {
     );
     const r = await createHttpComputeClient(OPTS).requestCurrent(INPUTS);
     expect(r).toEqual({ ok: false, code: 'UPSTREAM_ERROR', message: 'oom', upstreamCode: 'SERVER' });
+  });
+
+  // 안내 문서 v1.3.2 5장: 403은 허용 목록에 없는 IP에서 접속한 경우다.
+  it('HTTP 403 → IP 허용 목록 안내 문구, 재시도 대상 아님', async () => {
+    vi.stubGlobal('fetch', async () =>
+      new Response(JSON.stringify({ status: 'error', code: 'FORBIDDEN', message: 'not allowed' }), { status: 403 }),
+    );
+    const r = await createHttpComputeClient(OPTS).requestCurrent(INPUTS);
+    expect(r).toEqual({ ok: false, code: 'UPSTREAM_ERROR', message: COMPUTE_FORBIDDEN_MESSAGE });
+    expect(shouldRetryCompute(r)).toBe(false);
+  });
+
+  // 안내 문서 v1.3.2 1장: charset 명시 + gzip 요청(예측 응답 약 6 MB → 0.4 MB).
+  it('요청 헤더에 charset=utf-8과 Accept-Encoding: gzip을 붙인다', async () => {
+    let sent: Record<string, string> = {};
+    vi.stubGlobal('fetch', async (_url: string, init: { headers: Record<string, string> }) => {
+      sent = init.headers;
+      return new Response('{}', { status: 500 });
+    });
+    await createHttpComputeClient(OPTS).requestCurrent(INPUTS);
+    expect(sent['Content-Type']).toBe('application/json; charset=utf-8');
+    expect(sent['Accept-Encoding']).toBe('gzip');
   });
 
   it('HTTP 500 + JSON 아닌 본문 → code 없는 UPSTREAM_ERROR', async () => {
