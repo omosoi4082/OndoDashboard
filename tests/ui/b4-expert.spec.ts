@@ -8,6 +8,7 @@ import {
   expertBackButton,
   expertCell,
   expertEditButton,
+  expertExampleButton,
   expertResetButton,
   expertTableValues,
   fillExpertTable,
@@ -24,9 +25,10 @@ test.beforeEach(async ({ page }) => {
   await openExpertInput(page);
 });
 
-/** 72칸을 채우고 적용해 결과 화면까지 간다(B-4-9 이후 항목의 공통 준비). */
+/** 72칸을 채우고 적용해 결과 화면까지 간다(B-4-9 이후 항목의 공통 준비).
+ *  채우기는 2026-10-19에 생긴 "예시값" 버튼을 쓴다 — 손으로 치는 경로는 B-4-5~8에서 따로 본다. */
 async function applyAndWaitResult(page: Parameters<typeof fillExpertTable>[0]): Promise<void> {
-  await fillExpertTable(page);
+  await expertExampleButton(page).click();
   await expect(expertApplyButton(page)).toBeEnabled();
   await expertApplyButton(page).click();
   await expect(expertEditButton(page)).toBeVisible({ timeout: 120_000 });
@@ -52,14 +54,16 @@ test('B-4-3 열 제목이 시간·온도·습도·환기량이다', async ({ pag
   }
 });
 
-test('B-4-4 처음에는 적용이 비활성이고 초기화 버튼이 없다', async ({ page }) => {
+test('B-4-4 처음에는 적용이 비활성이고 초기화 대신 예시값 버튼이 있다', async ({ page }) => {
   await expect(expertApplyButton(page)).toBeDisabled();
   await expect(expertResetButton(page)).toHaveCount(0);
+  await expect(expertExampleButton(page), '빈 표에 예시값 버튼이 없습니다').toBeVisible();
 });
 
-test('B-4-5 값을 하나 넣으면 초기화 버튼이 나타난다', async ({ page }) => {
+test('B-4-5 값을 하나 넣으면 예시값이 초기화 버튼으로 바뀐다', async ({ page }) => {
   await expertCell(page, '0시', '온도').fill('25');
   await expect(expertResetButton(page)).toBeVisible();
+  await expect(expertExampleButton(page), '값을 넣었는데 예시값 버튼이 남아 있습니다').toHaveCount(0);
 });
 
 test('B-4-6 범위를 벗어난 값은 칸이 빨개지고 아래에 안내가 뜬다', async ({ page }) => {
@@ -78,7 +82,19 @@ test('B-4-7 올바른 값으로 고치면 빨간 표시가 사라진다', async 
   await expect(page.getByText(/의 값을 입력해 주세요\./)).toHaveCount(0);
 });
 
-test('B-4-8 72칸을 모두 채우면 적용 버튼이 활성화된다', async ({ page }) => {
+test('B-4-8 예시값을 누르면 72칸이 한 번에 채워지고 적용이 활성화된다', async ({ page }) => {
+  await expect(expertApplyButton(page)).toBeDisabled();
+  await expertExampleButton(page).click();
+  const values = await expertTableValues(page);
+  expect(values.filter((v) => v !== '').length, '예시값을 눌렀는데 빈 칸이 남았습니다').toBe(72);
+  expect(values[0], '1행 온도가 온도 측 예시값(32.4)이 아닙니다').toBe('32.4');
+  await expect(expertApplyButton(page), '예시값을 채웠는데 적용이 눌리지 않습니다').toBeEnabled();
+  // 채운 뒤에는 그 자리가 시안대로 "초기화"다.
+  await expect(expertResetButton(page)).toBeVisible();
+  await expect(expertExampleButton(page)).toHaveCount(0);
+});
+
+test('B-4-8b 손으로 72칸을 모두 채워도 적용 버튼이 활성화된다', async ({ page }) => {
   await expect(expertApplyButton(page)).toBeDisabled();
   await fillExpertTable(page);
   await expect(expertApplyButton(page), '72칸을 채웠는데 적용이 눌리지 않습니다').toBeEnabled();
@@ -126,6 +142,7 @@ test('B-4-14 초기화를 누르면 표가 전부 빈 칸이 된다', async ({ p
   await expertResetButton(page).click();
   const values = await expertTableValues(page);
   expect(values.every((v) => v === ''), '초기화했는데 값이 남아 있는 칸이 있습니다').toBe(true);
+  await expect(expertExampleButton(page), '빈 표로 돌아왔는데 예시값 버튼이 없습니다').toBeVisible();
 });
 
 test('B-4-15 빈 상태에서도 뒤로 가기로 결과 화면에 돌아간다', async ({ page }) => {

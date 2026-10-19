@@ -295,6 +295,11 @@ export function expertResetButton(page: Page): Locator {
   return page.getByRole('button', { name: '초기화', exact: true });
 }
 
+/** "예시값"(2026-10-19 추가) — 표가 비어 있을 때만 "초기화" 자리에 보인다. */
+export function expertExampleButton(page: Page): Locator {
+  return page.getByRole('button', { name: '예시값', exact: true });
+}
+
 export function expertEditButton(page: Page): Locator {
   return page.getByRole('button', { name: '필수값 수정', exact: true });
 }

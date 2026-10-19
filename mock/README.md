@@ -2,9 +2,20 @@
 
 전문가·제어 모드 목업 데이터(`docs/03-upstream-apis.md` 4.4). relay가 이 폴더의 JSON 파일을 그대로 읽어서 응답한다 — 파일만 교체하면 코드 수정 없이 내용이 바뀐다.
 
-## 현재 파일: 온도 측 제공 v3 (2026-10-13, (주)온도 예측 모델 담당)
+## 현재 파일: 온도 측 제공 v3 (2026-10-13) + `mock_expert.json`만 v4 (2026-10-19)
 
-※ v2(2026-10-08) 묶음은 이것으로 교체됨. 모든 응답 파일에 `"mock_version": "v3 (2026-10-13)"`가 들어 있다.
+※ v2(2026-10-08) 묶음은 v3으로 교체됨. 응답 파일의 `"mock_version"`을 보면 어느 묶음인지 알 수 있다
+(`mock_expert.json`은 `"v4 (2026-10-19)"`, 나머지는 `"v3 (2026-10-13)"`).
+
+**v4에서 바뀐 것 (`mock_expert.json`만)**
+- **합성값 → 실제 값**: 입력은 제주 농장 실측 폭염일(2026-08-03~04) 기상대·환기팬 측정값이고,
+  결과 145프레임은 그 입력으로 **실제 모델이 계산한 값**이다(v3까지는 형식 확인용 합성 데이터).
+- **구조는 v3과 완전히 같다**(키 이름·배열 개수·순서). 달라지는 것은 시각(10-05~06 → 08-03~04),
+  `range`, `request_id`(`mock-expert-heatwave`), 그리고 **전 프레임 `quality.in_range: true`**다 —
+  v3에서는 38프레임이 `false`라 '참고용' 표시가 나왔지만 v4에서는 나오지 않는 것이 정상이다.
+- `input`의 **정시 값 24개**가 전문가 모드 `예시값` 버튼이 채우는 숫자다. 같은 값이
+  `전문가모드_예시값_24행x3열.csv`로도 왔고, 코드에는 `apps/dashboard/src/detail/expertInputRows.ts`의
+  `EXPERT_EXAMPLE_ROWS`로 들어가 있다(05-open-questions.md #52).
 
 **v3에서 바뀐 것**
 - 모든 응답 파일에 **`range`(색 범위)·`geometryId`** 추가. `range`는 `{temp:[min,max], rh:[min,max], flow:[0,max]}` **배열** 형식이라 relay가 우리 `MinMax`(`{min,max}`)로 바꿔 담는다(`clients/computeClient.ts`의 `toComputeRange`).
@@ -18,7 +29,8 @@
 | `sample_request_forecast.json` | `POST /v1/forecast` 요청 예시. 실측 37건 + 예보 288건 = 325건. `forecast_from`/`forecast_issued_at` 포함. 예보 구간의 `fan_pct`는 외기 기온 **5단 구간 규칙**(<22℃ 20%, 22~24 40%, 24~26 60%, 26~28 80%, ≥28 100%, 경계는 아래쪽 포함)으로 중계 서버가 채운 값 — v2까지 쓰던 직선 보간식은 2026-10-13 B-4로 폐기됐다 |
 | `sample_response_current.json` | 현재 모드 **연산 서버 원응답** 예시(1프레임) — 중계 서버 변환(시각 +09:00·offsetMin 부착) 전 단계임에 주의 |
 | `sample_response_forecast.json` | 예측 모드 **연산 서버 원응답** 예시(10분 간격 145프레임) — 위와 동일하게 변환 전 |
-| `mock_expert.json` | 전문가 모드 목업. 극한 환경(외기 32.5~37.5℃, 환기 100%) 24시간 입력(`input`)과 결과 145프레임 |
+| `mock_expert.json` | 전문가 모드 목업(**v4**). 실측 폭염일(외기 26.2~33.0℃, 습도 59~88%, 환기 65~100%) 24시간 입력(`input`)과 실제 모델 결과 145프레임 |
+| `전문가모드_예시값_24행x3열.csv` | 전문가 모드 `예시값` 버튼용 24행(= 위 `input`의 정시 값). 온도 측 2026-10-19 제공 원본 |
 | `mock_control.json` | 제어 모드 목업(에너지 최적화 개념, `target:"energy"`). 24시간 입력(`input`), `control` 블록, 결과 145프레임 |
 
 ### 읽는 법 — 대시보드 화면 기준
@@ -32,7 +44,7 @@
 - `mock_control.json`의 `control` 블록은 `snake_case`(`baseline_fan_pct` 등 + `fan_rated_kw`·`power_model`)다 — `packages/shared`의 `ControlBlock`(`baselineFanPct` 등 camelCase, `fan_rated_kw`/`power_model` 없음)으로 매핑해야 한다.
 - `mock_control.json`은 `target:"energy"` 시나리오 하나만 있다(`environment`는 아직 없음, 05-open-questions.md #27: 목업 단계는 하나만 있어도 충분). `target=environment` 요청도 지금은 같은 파일로 응답하되, 응답의 `target` 필드는 요청받은 값으로 채운다.
 - `mock_control.json`: `frames`와 `frames[].outdoor.fan_pct`는 "최적화 후" 값이다. "최적화 전" 환기량·실내 온도는 `control.baseline_fan_pct`/`baseline_T_mean`에 있다. `control`의 배열은 모두 145개로 `frames`와 같은 순서이며, 시간축은 `frames[i].time`을 그대로 쓰면 된다. 두 곡선을 겹쳐 그리고 `saving_pct`를 함께 표시하면 개념이 전달된다. 최적화 후 실내 평균 온도는 모두 상한(30℃) 이하다.
-- `mock_expert.json`: 극한 조건이라 `quality.in_range`가 전 프레임 `false`다. "참고용" 표시가 전 구간에 나오는 것이 의도된 동작이다.
+- `mock_expert.json`(v4): 실측 범위 안이라 `quality.in_range`가 전 프레임 `true`다 — "참고용" 표시가 나오지 않는 것이 정상이다(v3에서는 38프레임이 `false`였다).
 - 요청의 `inputs`에는 null이 없어야 한다. 결측 보간과 센서 오류 판정은 중계 서버가 하며, 연산 서버는 null이 있으면 `BAD_REQUEST`를 돌려준다.
 - 배열 개수: points 125, grid 2,584, flow 288. 인덱스 규칙 `i + nx×(j + ny×k)`.
 - 유동 `[vx, vy, vz, value]`는 m/s, 소수 셋째 자리. 온도 ℃·습도 %는 소수 둘째 자리.

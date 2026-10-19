@@ -21,7 +21,8 @@ import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { fetchDetailExpert } from '../../api/endpoints.js';
 import { validateExpertRows, type ExpertInputFieldRange, type ExpertRowDraft } from '../../detail/expertInputValidation.js';
-import { expertEmptyDrafts, expertRowLabels } from '../../detail/expertInputRows.js';
+import { expertEmptyDrafts, expertExampleDrafts, expertRowLabels } from '../../detail/expertInputRows.js';
+import { qualityNotice } from '../../detail/qualityNotice.js';
 import {
   EXPERT_INPUT_ROW_COUNT,
   EXPERT_RH_MAX,
@@ -107,6 +108,12 @@ export function ExpertModeView(): ReactElement {
     setDrafts(expertEmptyDrafts(EXPERT_INPUT_ROW_COUNT));
   }
 
+  /** "예시값"(2026-10-19 온도 측 승인, 05-open-questions.md #52) — 표가 비어 있을 때만 보이는
+   *  버튼이라 덮어쓸 입력이 없다. 채운 뒤에는 그 자리가 시안대로 "초기화"로 바뀐다. */
+  function handleFillExample(): void {
+    setDrafts(expertExampleDrafts(EXPERT_INPUT_ROW_COUNT));
+  }
+
   if (!geometry) {
     return <DetailAreaMessage text="형상 데이터를 불러오는 중입니다..." isError={false} />;
   }
@@ -129,6 +136,7 @@ export function ExpertModeView(): ReactElement {
           onBack={hasResult && appliedDrafts !== null ? handleBack : null}
           onChange={setDrafts}
           onReset={handleReset}
+          onFillExample={handleFillExample}
           onSubmit={handleSubmit}
         />
         {isLoading && (
@@ -161,6 +169,7 @@ export function ExpertModeView(): ReactElement {
                 geometry={geometry}
                 frame={frame}
                 range={expert.data.range}
+                notice={qualityNotice(frame)}
                 overlay={
                   valueField === 'flow' ? (
                     <FlowVisualization geometry={geometry} frame={frame} range={expert.data.range.flow} />

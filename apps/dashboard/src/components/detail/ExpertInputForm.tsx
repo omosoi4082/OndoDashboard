@@ -8,6 +8,7 @@
 // 시안에서 읽은 것:
 // - 제목 "필수값 설정". 결과 화면에서 되돌아온 경우에만 제목 왼쪽에 "<" 뒤로 가기(시안 04-1).
 // - 우상단 버튼 두 개. "초기화"는 **값을 하나라도 적어야 나타나고**(시안 01에는 없고 02부터 보인다),
+//   표가 비어 있는 동안에는 그 빈 자리에 "예시값"이 들어간다(2026-10-19 온도 측 승인, #52).
 //   "적용"은 전 칸이 유효할 때만 파란색으로 활성(시안 04), 그 전에는 회색 비활성(시안 01~03).
 // - 칸은 빈 상태로 시작하고 placeholder는 "값을 입력해주세요."
 // - 오류는 **문제가 있는 칸 바로 아래 인라인 문구**로 붙고 그 행만 높이가 늘어난다(시안 03).
@@ -32,6 +33,8 @@ interface ExpertInputFormProps {
   onBack: (() => void) | null;
   onChange: (next: ExpertRowDraft[]) => void;
   onReset: () => void;
+  /** 표가 비어 있을 때만 보이는 "예시값" — 24행을 온도 측 예시값으로 채운다(#52). */
+  onFillExample: () => void;
   onSubmit: () => void;
 }
 
@@ -49,6 +52,10 @@ const GRID_COLS = 'grid grid-cols-[48px_198px_198px_198px] gap-3';
 /** 표 한 줄의 전체 폭(패딩 포함). 열 제목 줄과 입력 줄이 같은 폭을 쓰게 묶어 둔다. */
 const ROW_CLASS = `${GRID_COLS} w-[704px] pl-[26px]`;
 
+/** 우상단 보조 버튼(92×40, 시안 #44 치수) — "초기화"와 "예시값"이 같은 자리를 번갈아 쓴다. */
+const SECONDARY_BUTTON_CLASS =
+  'h-[40px] w-[92px] shrink-0 rounded-lg border border-[rgba(85,85,85,0.5)] bg-[rgba(71,73,81,0.45)] text-[15px] font-medium text-white transition-colors hover:bg-[rgba(71,73,81,0.7)]';
+
 export function ExpertInputForm({
   rowLabels,
   drafts,
@@ -57,13 +64,17 @@ export function ExpertInputForm({
   onBack,
   onChange,
   onReset,
+  onFillExample,
   onSubmit,
 }: ExpertInputFormProps): ReactElement {
   function updateCell(rowIndex: number, key: keyof ExpertRowDraft, value: string): void {
     onChange(drafts.map((row, i) => (i === rowIndex ? { ...row, [key]: value } : row)));
   }
 
-  const canReset = hasAnyExpertInput(drafts) && !isLoading;
+  // 같은 자리에 둘 중 하나만 보인다 — 빈 표에는 "예시값", 값이 들어가면 시안대로 "초기화".
+  const hasInput = hasAnyExpertInput(drafts);
+  const canReset = hasInput && !isLoading;
+  const canFillExample = !hasInput && !isLoading;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
@@ -83,12 +94,13 @@ export function ExpertInputForm({
 
         <div className="ml-auto flex items-center gap-[12px]">
           {canReset && (
-            <button
-              type="button"
-              onClick={onReset}
-              className="h-[40px] w-[92px] shrink-0 rounded-lg border border-[rgba(85,85,85,0.5)] bg-[rgba(71,73,81,0.45)] text-[15px] font-medium text-white transition-colors hover:bg-[rgba(71,73,81,0.7)]"
-            >
+            <button type="button" onClick={onReset} className={SECONDARY_BUTTON_CLASS}>
               초기화
+            </button>
+          )}
+          {canFillExample && (
+            <button type="button" onClick={onFillExample} className={SECONDARY_BUTTON_CLASS}>
+              예시값
             </button>
           )}
           <button
