@@ -7,6 +7,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import type { ControlDetail } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
+import { qualityNotice } from '../../detail/qualityNotice.js';
 import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { fetchDetailControl } from '../../api/endpoints.js';
@@ -153,6 +154,7 @@ export function ControlModeView(): ReactElement {
                 geometry={geometry}
                 frame={frame}
                 range={control.data.range}
+                notice={qualityNotice(frame)}
                 overlay={
                   valueField === 'flow' ? (
                     <FlowVisualization geometry={geometry} frame={frame} range={control.data.range.flow} />

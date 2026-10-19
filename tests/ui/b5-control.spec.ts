@@ -1,7 +1,9 @@
-// B-5. 제어 모드 — 테스트-체크리스트.md B-5의 6개 항목.
+// B-5. 제어 모드 — 테스트-체크리스트.md B-5의 7개 항목.
+// 7번은 2026-10-19에 붙인 '참고용' 알림이다 — 목업의 quality.in_range가 false인 구간에서만 뜬다.
 import { expect, test } from '@playwright/test';
 import {
   detail3dCanvas,
+  dragTimeline,
   expectCanvasNotBlank,
   modeTab,
   openDashboard,
@@ -70,4 +72,13 @@ test('B-5-6 재생하면 그래프의 세로선도 같이 움직인다', async (
   await expect(async () => {
     expect(await line.getAttribute('x1'), '막대는 움직이는데 그래프 세로선이 그대로입니다').not.toBe(before);
   }).toPass({ timeout: 10_000 });
+});
+
+test('B-5-7 검증 범위 밖 구간에서 참고용 문구가 뜬다', async ({ page }) => {
+  await waitForDetail3D(page);
+  // 프레임 0은 범위 안이라 문구가 없다(목업 mock_control.json: 37~91번 프레임이 범위 밖).
+  await expect(page.getByText(/검증 범위를 벗어났습니다/)).toHaveCount(0);
+  const index = await dragTimeline(page, 0.5);
+  expect(index, '막대를 끌었는데 중간으로 가지 않았습니다').toBeGreaterThan(36);
+  await expect(page.getByText(/검증 범위를 벗어났습니다/), '범위 밖 구간인데 참고용 문구가 없습니다').toBeVisible();
 });

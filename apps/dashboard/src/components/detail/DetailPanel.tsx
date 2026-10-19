@@ -9,6 +9,7 @@
 // 최적화 버튼 전환 시마다)로 분리했다(M6).
 import type { ReactElement } from 'react';
 import { useDetailStore } from '../../store/detailStore.js';
+import { qualityNotice } from '../../detail/qualityNotice.js';
 import { SHOW_2D_IN_CURRENT } from '../../config/constants.js';
 import { ModeTabs } from './ModeTabs.js';
 import { ControlsRow } from './ControlsRow.js';
@@ -57,11 +58,13 @@ export function DetailPanel(): ReactElement {
             ) : (
               <>
                 <Detail3DSection>
+                  {/* notice: 연산 실패로 이전 결과를 유지하는 중이면 그 안내가 먼저다(D-4).
+                      그 외에는 검증 범위 밖 '참고용' 안내(v1.3.2 4장, detail/qualityNotice.ts). */}
                   <Detail3DView
                     geometry={geometry}
                     frame={current.data.frames[0]}
                     range={current.data.range}
-                    notice={currentStaleNotice}
+                    notice={currentStaleNotice ?? qualityNotice(current.data.frames[0])}
                   />
                 </Detail3DSection>
                 {SHOW_2D_IN_CURRENT && (

@@ -5,6 +5,7 @@
 // 얹는다(중복 구현 금지).
 import type { ReactElement } from 'react';
 import { useDetailStore } from '../../store/detailStore.js';
+import { qualityNotice } from '../../detail/qualityNotice.js';
 import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { ControlsRow } from './ControlsRow.js';
@@ -85,7 +86,7 @@ export function ForecastDetailView(): ReactElement {
       <TimelineSection frames={frames} />
       <DetailScrollBody>
         <Detail3DSection>
-          <Detail3DView geometry={geometry} frame={frame} range={range} overlay={overlay} />
+          <Detail3DView geometry={geometry} frame={frame} range={range} overlay={overlay} notice={qualityNotice(frame)} />
         </Detail3DSection>
         <Detail2DBox>
           <Detail2DSection geometry={geometry} frame={frame} range={range} />
