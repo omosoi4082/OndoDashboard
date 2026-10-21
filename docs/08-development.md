@@ -66,6 +66,14 @@ powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 -OutDir <경�
 ①에서 `test-ui.bat`(화면 자동 점검)까지 돌려 55항목 통과를 확인했다(1분 51초).
 ①이 51.7 → 69.6 MB로 커진 것은 화면 점검 도구(`@playwright/test`, 약 18 MB) 때문이다.
 
+**전달본의 코드 주석은 스크립트가 뺀다**(2026-10-21). ①은 저장소 `dist`를 복사하지 않고
+relay·shared를 **staging에 다시 컴파일한다**(`--removeComments --declaration false
+--sourceMap false` + `*.test.js` 삭제). 저장소 `dist`에는 주석이 그대로 있어 복사하면
+내부 경위(`docs/` 경로, 미확정 항목 번호 등)가 전달본에 섞여 나간다. 10/19에는 이 정리를
+손으로 했는데 빠뜨리기 쉬워 스크립트에 넣었다. 저장소 `dist`는 건드리지 않는다 —
+개발 중에는 주석·소스맵이 있어야 디버깅이 된다. 결과물은 손으로 정리한 10/21 패키지와
+**바이트 단위로 같다**(relay 53개 / shared 2개 파일 해시 일치).
+
 **화면 자동 점검(`test-ui.bat`)도 같이 나간다** — `tests/`·`playwright.config.ts`를 복사하고,
 ①에는 `@playwright/test`를 `--no-save`로 **미리 설치해 둔다**(약 19 MB). 받는 쪽이 설치를
 더 하지 않아도, 인터넷이 없어도 점검이 돈다. 브라우저는 내려받지 않는다 — 설치된

@@ -120,18 +120,41 @@ else {
     Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse
   }
 
-  # 워크스페이스 — package.json과 빌드 결과만(소스는 넣지 않는다).
+  # 워크스페이스 — package.json과 **주석·소스맵·.d.ts 없는 빌드 결과**(소스는 넣지 않는다).
   # ★ apps\dashboard는 **워크스페이스에서 뺀다**. 대시보드는 정적 파일(dist)로만 나가고
   #   three·react·lucide-react 같은 의존성은 이미 번들(dist/assets/index-*.js)에 들어 있다.
   #   package.json을 넣으면 npm이 그 의존성(약 220 MB)까지 설치해 패키지가 쓸데없이 커진다.
   #   중계 서버는 apps/dashboard/dist **폴더만** 보므로 package.json이 필요 없다.
-  foreach ($ws in @('apps\relay', 'packages\shared')) {
+  #
+  # ★ dist를 복사하지 않고 **staging에 새로 컴파일한다**(2026-10-21 결정). 저장소 dist에는
+  #   코드 주석이 그대로 남아 있어 복사하면 내부 경위(docs 경로, 미확정 항목 번호 등)가 전달본에
+  #   섞여 나간다. 10/19에는 이 정리를 손으로 했는데, 빠뜨리면 그대로 나가므로 스크립트에 넣었다.
+  #   저장소 dist는 건드리지 않는다 — 개발 중에는 주석·소스맵이 있어야 디버깅이 된다.
+  #   함께 빠지는 것: .d.ts·소스맵(실행에 불필요), 테스트 컴파일 결과(*.test.js).
+  #   순서가 중요하다 — relay를 컴파일할 때 @ondo/shared의 .d.ts로 타입을 해석하므로
+  #   shared를 먼저 **저장소에** 평소대로 빌드해 둔다.
+  if (-not (Test-Path 'packages\shared\dist\index.d.ts')) {
+    & npx tsc -p packages\shared\tsconfig.json
+    if ($LASTEXITCODE -ne 0) { throw "packages/shared 타입 선언 빌드 실패" }
+  }
+
+  foreach ($ws in @('packages\shared', 'apps\relay')) {
     $dst = Join-Path $OutDir $ws
     New-Item -ItemType Directory -Path $dst -Force | Out-Null
     Copy-Item (Join-Path $ws 'package.json') -Destination $dst
-    $dist = Join-Path $ws 'dist'
-    if (Test-Path $dist) { Copy-Item $dist -Destination (Join-Path $dst 'dist') -Recurse }
-    else { throw "빌드 결과가 없습니다: $dist  (npm run build를 먼저 실행하세요)" }
+    $outDist = Join-Path $dst 'dist'
+    & npx tsc -p (Join-Path $ws 'tsconfig.json') `
+      --removeComments --declaration false --declarationMap false --sourceMap false `
+      --outDir $outDist
+    if ($LASTEXITCODE -ne 0) { throw "전달본 컴파일 실패: $ws" }
+
+    $testJs = @(Get-ChildItem $outDist -Recurse -File -Filter '*.test.js')
+    if ($testJs.Count -gt 0) {
+      $testJs | Remove-Item -Force
+      Write-Host ("    - $ws 테스트 컴파일 결과 제외: {0}개" -f $testJs.Count)
+    }
+    $kept = @(Get-ChildItem $outDist -Recurse -File).Count
+    Write-Host ("    - $ws 주석·소스맵 없이 컴파일: {0}개" -f $kept)
   }
 
   # 대시보드는 빌드 결과만 복사한다.
