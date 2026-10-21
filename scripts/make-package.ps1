@@ -1,6 +1,7 @@
 ﻿# 온도 측 전달 패키지 만들기 (docs/08-development.md "전달 패키지 만들기")
 #
 # 사용법:  powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 [-OutDir <경로>] [-Zip]
+#          [-ComputeUrl http://192.168.10.91:9000]  ← 패키지 .env를 그 연산 서버로 맞춘다
 #
 # 하는 일
 #   1. 빌드(shared → relay → dashboard)
@@ -19,7 +20,10 @@ param(
   [switch]$SkipBuild,
   # 소스본(②) — 빌드 결과와 node_modules 없이 소스만 담는다. 받는 쪽이 install.bat으로
   # 설치·빌드한다(docs/08-development.md). 빌드 포함본(①)이 기본이다.
-  [switch]$Source
+  [switch]$Source,
+  # 연산 서버 주소 — 주면 **패키지의 .env만** COMPUTE_MODE=http + 이 주소로 바꾼다.
+  # 저장소 .env는 건드리지 않는다. 예: -ComputeUrl http://192.168.10.91:9000
+  [string]$ComputeUrl = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -183,6 +187,38 @@ else {
   }
 
   # ── 3. 운영 의존성만 설치 ──────────────────────────────────────────────────
+}
+
+# ── 2-b. 패키지 .env의 연산 서버 주소 ─────────────────────────────────────
+# -ComputeUrl을 주면 **패키지의 .env만** http 모드 + 그 주소로 바꾼다. 저장소 .env는
+# 건드리지 않는다(개발 중에는 mock으로 둔다 — docs/05-open-questions.md, 2026-10-19 결정).
+# 손으로 고치면 빠뜨리기 쉬워 옵션으로 넣었다(2026-10-21).
+if ($ComputeUrl -ne "") {
+  if ($ComputeUrl -notmatch '^https?://') {
+    throw "연산 서버 주소는 http:// 또는 https:// 로 시작해야 합니다: $ComputeUrl"
+  }
+  $envPath = Join-Path $OutDir '.env'
+  if (-not (Test-Path $envPath)) { throw "패키지에 .env가 없어 연산 서버 주소를 넣을 수 없습니다: $envPath" }
+
+  $url = $ComputeUrl.TrimEnd('/')
+  $text = [System.IO.File]::ReadAllText($envPath)
+  foreach ($key in @('COMPUTE_MODE', 'COMPUTE_BASE_URL')) {
+    if ($text -notmatch "(?m)^$key=") { throw ".env에 $key 줄이 없습니다: $envPath" }
+  }
+  $text = [regex]::Replace($text, '(?m)^COMPUTE_MODE=.*$', 'COMPUTE_MODE=http')
+  $text = [regex]::Replace($text, '(?m)^COMPUTE_BASE_URL=.*$', "COMPUTE_BASE_URL=$url")
+  # BOM 없이 쓴다 — .env 첫 줄에 BOM이 붙으면 그 줄의 키 이름이 깨진다.
+  [System.IO.File]::WriteAllText($envPath, $text, (New-Object System.Text.UTF8Encoding $false))
+  Write-Host "    - 연산 서버: http ($url) — 패키지 .env만 바꿨습니다(저장소 .env는 그대로)"
+}
+else {
+  $envPath = Join-Path $OutDir '.env'
+  if (Test-Path $envPath) {
+    $mode = ([regex]::Match([System.IO.File]::ReadAllText($envPath), '(?m)^COMPUTE_MODE=(.*)$')).Groups[1].Value.Trim()
+    if ($mode -ne 'http') {
+      Write-Host "    ! 패키지 .env의 연산 서버가 '$mode' 모드입니다 — 실제 연산 서버로 테스트할 패키지면 -ComputeUrl <주소>를 주세요." -ForegroundColor Yellow
+    }
+  }
 }
 
 if ($Source) {

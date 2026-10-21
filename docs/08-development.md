@@ -74,6 +74,18 @@ relay·shared를 **staging에 다시 컴파일한다**(`--removeComments --decla
 개발 중에는 주석·소스맵이 있어야 디버깅이 된다. 결과물은 손으로 정리한 10/21 패키지와
 **바이트 단위로 같다**(relay 53개 / shared 2개 파일 해시 일치).
 
+**연산 서버 주소는 `-ComputeUrl`로 넣는다**(2026-10-21). 패키지의 `.env`만
+`COMPUTE_MODE=http` + 그 주소로 바꾸고, **저장소 `.env`는 `mock` 그대로 둔다.**
+
+```
+powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 `
+  -OutDir <경로> -Zip -ComputeUrl http://192.168.10.91:9000
+```
+
+끝의 `/`는 알아서 떼고, `http://`·`https://`로 시작하지 않으면 멈춘다. `.env`에
+`COMPUTE_MODE`·`COMPUTE_BASE_URL` 줄이 없으면 조용히 넘어가지 않고 멈춘다.
+주지 않으면 `mock` 모드라고 **경고만** 찍고 계속한다 — 화면만 볼 패키지는 그대로 쓰면 된다.
+
 **화면 자동 점검(`test-ui.bat`)도 같이 나간다** — `tests/`·`playwright.config.ts`를 복사하고,
 ①에는 `@playwright/test`를 `--no-save`로 **미리 설치해 둔다**(약 19 MB). 받는 쪽이 설치를
 더 하지 않아도, 인터넷이 없어도 점검이 돈다. 브라우저는 내려받지 않는다 — 설치된
