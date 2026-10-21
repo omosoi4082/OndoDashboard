@@ -190,18 +190,22 @@ function apiErrorText(body: unknown): string {
 async function checkRelay(baseUrl: string): Promise<boolean> {
   section('[2/7] 중계 서버');
 
-  const health = await getJson<Health>(baseUrl, '/api/health', CONNECT_TIMEOUT_MS);
-  if (!health.ok || health.body === null) {
+  // 생존 확인은 **정적 화면(/)으로** 한다. /api/health를 쓰면 안 된다 — 그 라우트는 상위 서버
+  // 셋을 함께 찍어서 연산 서버가 꺼져 있거나 주소가 틀리면 UPSTREAM_TIMEOUT_MS(10초)를 다
+  // 기다린다. 5초 타임아웃으로 그것을 생존 확인에 쓰면 서버가 멀쩡히 떠 있는데도
+  // "서버가 안 떠 있습니다"로 잘못 진단하고 남은 점검(3~7)까지 건너뛴다(2026-10-21 실측 12초).
+  // 상위 서버 상태는 [7/7]에서 따로 요약한다.
+  const root = await getJson<unknown>(baseUrl, '/', CONNECT_TIMEOUT_MS);
+  if (root.httpStatus === 0) {
     line('fail', `중계 서버에 연결할 수 없습니다 (${baseUrl})`);
     why(
-      `서버가 떠 있지 않거나 다른 포트를 쓰고 있습니다. (${health.problem ?? `HTTP ${health.httpStatus}`})`,
+      `서버가 떠 있지 않거나 다른 포트를 쓰고 있습니다. (${root.problem ?? '응답 없음'})`,
       'start.bat을 먼저 실행해 서버를 띄우고, 창을 닫지 않은 상태에서 다시 check.bat을 실행하세요.',
     );
     return false;
   }
   line('ok', `중계 서버 응답함 (${baseUrl})`);
 
-  const root = await getJson<unknown>(baseUrl, '/', CONNECT_TIMEOUT_MS);
   // 대시보드 index.html은 JSON이 아니므로 "JSON 파싱 실패 + 2xx"가 정상 신호다.
   if (root.httpStatus >= 200 && root.httpStatus < 300) {
     line('ok', `대시보드 화면 서빙됨 — 브라우저에서 ${baseUrl} 을 열면 화면이 나옵니다`);
@@ -416,7 +420,8 @@ async function checkDetail(baseUrl: string, counts: Counts | null): Promise<void
 async function checkHealthSummary(baseUrl: string): Promise<void> {
   section('[7/7] 상위 서버 연결 상태 요약');
 
-  const res = await getJson<Health>(baseUrl, '/api/health', CONNECT_TIMEOUT_MS * 3);
+  // 연산 서버가 안 뜨면 health가 10초 넘게 걸린다(UPSTREAM_TIMEOUT_MS) — 여유를 둔다.
+  const res = await getJson<Health>(baseUrl, '/api/health', CONNECT_TIMEOUT_MS * 6);
   if (res.body === null) {
     line('fail', '상태 요약을 받지 못했습니다');
     why(res.problem ?? '응답 없음', 'start.bat으로 서버를 다시 띄워 보세요.');
