@@ -18,8 +18,10 @@ if errorlevel 1 (
   exit /b 1
 )
 
+rem 블록 안 echo의 괄호는 ^ 로 감싼다. 안 감싸면 if 블록이 그 자리에서 닫혀
+rem "이은는 예상되지 않았습니다"로 죽고, 두 번 클릭한 창이 번쩍 닫힌다.
 if not exist ".env" (
-  echo [X] 설정 파일(.env)이 없습니다.
+  echo [X] 설정 파일 ^(.env^) 이 없습니다.
   echo.
   echo     setup.bat 을 먼저 실행해 설정을 만드세요.
   echo.

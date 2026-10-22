@@ -11,7 +11,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-if not exist "appselay\dist\scripts\setup.js" (
+if not exist "apps\relay\dist\scripts\setup.js" (
   echo [!] 설정 도구가 없습니다. install.bat 을 먼저 실행하세요.
   echo.
   pause
