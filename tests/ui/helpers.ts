@@ -192,6 +192,69 @@ export async function expectCanvasNotBlank(target: Locator, what: string): Promi
 }
 
 /**
+ * 2D 수평단면이 그려졌는지 — **용량이 아니라 픽셀과 DOM으로** 본다.
+ *
+ * 왜 따로 두는가: 2026-10-22 온도 측 점검에서 B-2-10만 실패했는데 화면은 정상이었다. 0.5 m
+ * 층 온도가 19.79~19.90℃(차이 0.11℃)로 고르게 나와 단면 전체가 한 색으로 칠해졌고, 단색
+ * PNG는 2,778 bytes로 압축돼 expectCanvasNotBlank의 5,000 bytes 기준에 걸렸다. 용량 기준은
+ * "그려졌는가"가 아니라 "색이 여러 개인가"를 보고 있었던 셈이다.
+ *
+ * expectCanvasNotBlank는 3D 점검 여러 곳(b1·b3·b4·b5·b6)이 쓰므로 느슨하게 바꾸지 않고,
+ * 2D 단면만 이 함수로 본다. 히트맵은 2D 컨텍스트라 3D(WebGL)와 달리 픽셀을 그대로 읽을 수
+ * 있어서, 한 색이어도 "칠해졌다"를 정확히 판정할 수 있다.
+ *
+ * 보는 것(Detail2DSection.tsx의 네 부분 전부 — 전에는 히트맵 canvas 하나만 봤다):
+ *  1. 히트맵 canvas — 내부 해상도가 0이 아니고 픽셀이 불투명하게 칠해졌는지.
+ *     buildHeatmapImage가 모든 픽셀의 alpha를 255로 채우므로, 한 번도 그리지 않은 canvas는
+ *     기본 크기(300×150)에 전부 투명으로 남아 여기서 걸린다. 색 개수는 적어 두기만 하고
+ *     판정에 쓰지 않는다 — 그게 이번 오판의 원인이었다.
+ *  2. 칸막이 선(겹친 SVG)  3. X·Y축 눈금(HTML 글자)  4. 색 범례(ColorLegend의 그라데이션 막대)
+ */
+export async function expect2DSectionDrawn(page: Page, what = '2D 수평단면'): Promise<void> {
+  const section = detail2dSection(page);
+  const canvas = detail2dCanvas(page);
+  await canvas.scrollIntoViewIfNeeded();
+  await expect(canvas).toBeVisible();
+
+  const painted = await canvas.evaluate((el) => {
+    const c = el as HTMLCanvasElement;
+    const ctx = c.width > 0 && c.height > 0 ? c.getContext('2d') : null;
+    if (!ctx) return { width: c.width, height: c.height, opaque: 0, total: 0, colors: 0 };
+    const { data } = ctx.getImageData(0, 0, c.width, c.height);
+    const colors = new Set<number>();
+    let opaque = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if ((data[i + 3] ?? 0) < 255) continue;
+      opaque += 1;
+      colors.add(((data[i] ?? 0) << 16) | ((data[i + 1] ?? 0) << 8) | (data[i + 2] ?? 0));
+    }
+    return { width: c.width, height: c.height, opaque, total: data.length / 4, colors: colors.size };
+  });
+
+  const where = `${painted.width}×${painted.height}px, 칠해진 픽셀 ${painted.opaque}/${painted.total}, 색 ${painted.colors}종`;
+  expect(painted.total, `${what} — 히트맵 캔버스에 아무것도 그려지지 않았습니다(${where})`).toBeGreaterThan(0);
+  // 히트맵은 격자 전체를 채우므로 정상이면 1.0이다. 한 색이어도 칠해졌으면 통과다.
+  expect(painted.opaque / painted.total, `${what} — 히트맵이 칠해지지 않았습니다(${where})`).toBeGreaterThanOrEqual(0.99);
+
+  // 칸막이 선은 수평·수직이라 <line> 하나의 bounding box가 0이 된다(Playwright는 그걸
+  // "안 보임"으로 본다). 그래서 겹친 SVG 자체가 보이는지 + 선이 몇 개 있는지로 본다.
+  const overlay = section.locator('svg').first();
+  await expect(overlay, `${what} — 칸막이 오버레이(SVG)가 없습니다`).toBeVisible();
+  const partitions = await overlay.locator('line').count();
+  expect(partitions, `${what} — 칸막이 선이 없습니다`).toBeGreaterThan(0);
+  await expect(
+    section.getByText(/^\d+(\.\d+)?m$/),
+    `${what} — 축 눈금(m)이 보이지 않습니다`,
+  ).not.toHaveCount(0);
+  // 색 범례(ColorLegend)는 글씨가 아니라 그라데이션 막대라 inline style로 찾는다 —
+  // 2D 단면 안에서 linear-gradient를 쓰는 요소는 범례 막대뿐이다.
+  await expect(
+    section.locator('div[style*="linear-gradient"]').first(),
+    `${what} — 색 범례가 보이지 않습니다`,
+  ).toBeVisible();
+}
+
+/**
  * 상세 3D 포인트에 마우스를 올린다.
  *
  * 포인트는 캔버스 안(WebGL)이라 DOM 좌표가 없다. 한 점이 10px 남짓이라 격자로 훑어 찾는다.

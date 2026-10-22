@@ -2,9 +2,9 @@
 import { expect, test } from '@playwright/test';
 import {
   analysisButton,
-  detail2dCanvas,
   detail2dSection,
   detail3dCanvas,
+  expect2DSectionDrawn,
   expectCanvasChanged,
   expectCanvasNotBlank,
   detailTooltip,
@@ -97,7 +97,7 @@ test('B-2-9 다시 켜면 점이 나온다', async ({ page }) => {
 
 test('B-2-10 아래로 스크롤하면 2D 수평단면이 보인다', async ({ page }) => {
   await expect(detail2dSection(page)).toBeVisible();
-  await detail2dCanvas(page).scrollIntoViewIfNeeded();
-  await expect(detail2dCanvas(page)).toBeVisible();
-  await expectCanvasNotBlank(detail2dCanvas(page), '2D 수평단면');
+  // 히트맵 픽셀 + 칸막이·축 눈금·범례로 본다. 용량 기준(expectCanvasNotBlank)은 단면이
+  // 한 색일 때 정상 화면을 빈 화면으로 판정한다(2026-10-22 온도 측 B-2-10, helpers.ts 참고).
+  await expect2DSectionDrawn(page);
 });
