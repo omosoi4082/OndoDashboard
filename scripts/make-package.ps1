@@ -2,6 +2,7 @@
 #
 # 사용법:  powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 [-OutDir <경로>] [-Zip]
 #          [-ComputeUrl http://192.168.10.91:9000]  ← 패키지 .env를 그 연산 서버로 맞춘다
+#          [-Delivery -KmaKeyExpiry 2027-10-31]     ← 납품본(점검 도구·체크리스트 제외)
 #
 # 하는 일
 #   1. 빌드(shared → relay → dashboard)
@@ -23,7 +24,15 @@ param(
   [switch]$Source,
   # 연산 서버 주소 — 주면 **패키지의 .env만** COMPUTE_MODE=http + 이 주소로 바꾼다.
   # 저장소 .env는 건드리지 않는다. 예: -ComputeUrl http://192.168.10.91:9000
-  [string]$ComputeUrl = ""
+  [string]$ComputeUrl = "",
+  # 납품본 — 테스트용이 아니라 "쓰는 법"만 담는다(2026-10-22 사용자 지시).
+  #   빼는 것 : 테스트-체크리스트.md, test-ui.bat, tests/, playwright.config.ts, @playwright/test
+  #   바꾸는 것: README.md·CLAUDE-구동안내.md를 docs/delivery/ 의 사용 안내본으로
+  #   남기는 것: start.bat(실행), check.bat(값이 안 나올 때 진단), setup.bat(설정)
+  [switch]$Delivery,
+  # 납품본에 적을 기상청 서비스키 활용 마감일(yyyy-MM-dd). 개발 측 명의 키를 넣어 보내므로
+  # 그 날짜와 재발급 절차를 사용 안내에 박아 둔다 — -Delivery에서는 필수다.
+  [string]$KmaKeyExpiry = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -34,12 +43,31 @@ Set-Location $repo
 $PlaywrightVersion = (Get-Content (Join-Path $repo 'package.json') -Raw -Encoding UTF8 |
   ConvertFrom-Json).devDependencies.'@playwright/test' -replace '^[\^~]', ''
 
+if ($Delivery) {
+  if ($KmaKeyExpiry -eq "") {
+    throw "납품본에는 -KmaKeyExpiry <yyyy-MM-dd>가 필요합니다 (기상청 서비스키 활용 마감일 — 사용 안내에 적습니다)."
+  }
+  if ($KmaKeyExpiry -notmatch '^\d{4}-\d{2}-\d{2}$') {
+    throw "-KmaKeyExpiry는 yyyy-MM-dd 형식이어야 합니다: $KmaKeyExpiry"
+  }
+} elseif ($KmaKeyExpiry -ne "") {
+  throw "-KmaKeyExpiry는 -Delivery와 함께만 쓸 수 있습니다."
+}
+
 if ($OutDir -eq "") {
   $stamp = Get-Date -Format 'yyyyMMdd'
   $suffix = if ($Source) { "-src" } else { "" }
-  $OutDir = Join-Path (Split-Path -Parent $repo) "ondo-dashboard-$stamp$suffix"
+  $prefix = if ($Delivery) { "ondo-dashboard-납품-" } else { "ondo-dashboard-" }
+  $OutDir = Join-Path (Split-Path -Parent $repo) "$prefix$stamp$suffix"
 }
 $kind = if ($Source) { "소스본(install.bat으로 설치·빌드)" } else { "빌드 포함본(start.bat만 누르면 됨)" }
+if ($Delivery) { $kind = "납품본 / $kind" }
+
+# 납품본의 사용 안내는 저장소 루트가 아니라 docs/delivery/ 에서 가져온다.
+$docDir = if ($Delivery) { 'docs\delivery' } else { '.' }
+# 테스트 전용으로 빠지는 것들
+$testOnlyFiles = @('test-ui.bat', 'playwright.config.ts', '테스트-체크리스트.md')
+$dataDirs = if ($Delivery) { @('config', 'mock') } else { @('config', 'mock', 'tests') }
 
 Write-Host "저장소 : $repo"
 Write-Host "패키지 : $OutDir"
@@ -70,15 +98,17 @@ if ($Source) {
     'package.json', 'package-lock.json', 'tsconfig.base.json', 'vitest.config.ts',
     'eslint.config.js', '.prettierrc.json',
     '.env', '.env.example',
-    'start.bat', 'check.bat', 'setup.bat', 'install.bat', 'test-ui.bat',
-    'playwright.config.ts',
-    'README.md', '테스트-체크리스트.md', 'CLAUDE-구동안내.md'
+    'start.bat', 'check.bat', 'setup.bat', 'install.bat'
   )
+  if (-not $Delivery) { $srcRoot += $testOnlyFiles }
   foreach ($f in $srcRoot) {
     if (Test-Path $f) { Copy-Item $f -Destination $OutDir }
     else { Write-Host "    ! 없음: $f" -ForegroundColor Yellow }
   }
-  foreach ($d in @('config', 'mock', 'tests')) { Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse }
+  foreach ($f in @('README.md', 'CLAUDE-구동안내.md')) {
+    Copy-Item (Join-Path $docDir $f) -Destination $OutDir
+  }
+  foreach ($d in $dataDirs) { Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse }
 
   # 워크스페이스 소스 — dist와 node_modules는 제외하고 통째로 복사
   foreach ($ws in @('apps\relay', 'apps\dashboard', 'packages\shared')) {
@@ -110,17 +140,19 @@ else {
   $rootFiles = @(
     'package.json', 'package-lock.json',
     '.env', '.env.example',
-    'start.bat', 'check.bat', 'setup.bat', 'test-ui.bat',
-    'playwright.config.ts',
-    'README.md', '테스트-체크리스트.md', 'CLAUDE-구동안내.md'
+    'start.bat', 'check.bat', 'setup.bat'
   )
+  if (-not $Delivery) { $rootFiles += $testOnlyFiles }
   foreach ($f in $rootFiles) {
     if (Test-Path $f) { Copy-Item $f -Destination $OutDir }
     else { Write-Host "    ! 없음: $f" -ForegroundColor Yellow }
   }
+  foreach ($f in @('README.md', 'CLAUDE-구동안내.md')) {
+    Copy-Item (Join-Path $docDir $f) -Destination $OutDir
+  }
 
-  # 런타임에 읽는 데이터 + 화면 자동 점검 스크립트(tests/ui — test-ui.bat이 쓴다)
-  foreach ($d in @('config', 'mock', 'tests')) {
+  # 런타임에 읽는 데이터 (+ 테스트본은 화면 자동 점검 스크립트 tests/ui — test-ui.bat이 쓴다)
+  foreach ($d in $dataDirs) {
     Copy-Item $d -Destination (Join-Path $OutDir $d) -Recurse
   }
 
@@ -221,6 +253,49 @@ else {
   }
 }
 
+# ── 2-b2. 납품 빌드본의 bat 안내 문구 ────────────────────────────────────
+# 빌드 포함본에는 install.bat이 없다. 그런데 start.bat·check.bat은 폴더가 망가진 경우에
+# "install.bat 을 먼저 실행하세요"라고 안내한다 — 없는 파일을 찾게 되므로 납품본에서는
+# 압축을 다시 풀도록 바꾼다. 테스트본은 체크리스트가 그 상황을 따로 안내하므로 그대로 둔다.
+# bat 파일은 cp949다(첫 줄 chcp 949) — 같은 인코딩으로 읽고 써야 한글이 깨지지 않는다.
+if ($Delivery -and -not $Source) {
+  $cp949 = [System.Text.Encoding]::GetEncoding(949)
+  foreach ($f in @('start.bat', 'check.bat')) {
+    $path = Join-Path $OutDir $f
+    $text = [System.IO.File]::ReadAllText($path, $cp949)
+    if ($text -notmatch 'install\.bat') { throw "$f 에 install.bat 안내가 없습니다 — 스크립트를 확인하세요." }
+    $text = $text.Replace('install.bat 을 먼저 실행하세요.', '압축을 다시 풀어 주세요. 그래도 안 되면 개발 측에 문의해 주세요.')
+    if ($text -match 'install\.bat') { throw "$f 의 install.bat 안내를 바꾸지 못했습니다(문구가 달라진 것 같습니다)." }
+    [System.IO.File]::WriteAllText($path, $text, $cp949)
+  }
+  Write-Host "    - start.bat·check.bat의 install.bat 안내를 납품본 문구로 바꿨습니다"
+}
+
+# ── 2-c. 사용 안내의 기상청 키 마감일 ────────────────────────────────────
+# 납품본에는 개발 측 명의 키가 들어가므로, 활용 마감일과 재발급 절차를 사용 안내에 박아 둔다.
+# 치환이 빠진 채 나가면 "{{KMA_EXPIRY}} 까지"라고 적힌 문서를 보내게 되므로 남아 있으면 멈춘다.
+if ($Delivery) {
+  $filled = 0
+  foreach ($f in @('README.md', 'CLAUDE-구동안내.md')) {
+    $path = Join-Path $OutDir $f
+    $text = [System.IO.File]::ReadAllText($path)
+    $hits = ([regex]::Matches($text, '\{\{KMA_EXPIRY\}\}')).Count
+    if ($hits -gt 0) {
+      $text = $text.Replace('{{KMA_EXPIRY}}', $KmaKeyExpiry)
+      [System.IO.File]::WriteAllText($path, $text, (New-Object System.Text.UTF8Encoding $false))
+      $filled += $hits
+    }
+  }
+  if ($filled -eq 0) {
+    throw "사용 안내에 {{KMA_EXPIRY}} 자리가 없습니다 — docs/delivery/ 문서를 확인하세요."
+  }
+  Write-Host "    - 기상청 키 활용 마감일 $KmaKeyExpiry 를 사용 안내 ${filled}곳에 적었습니다"
+  foreach ($f in @('README.md', 'CLAUDE-구동안내.md')) {
+    $left = [System.IO.File]::ReadAllText((Join-Path $OutDir $f))
+    if ($left -match '\{\{') { throw "치환되지 않은 자리표시자가 남았습니다: $f" }
+  }
+}
+
 if ($Source) {
   Write-Host "[3/4] 소스본이라 의존성을 설치하지 않습니다(받는 쪽이 install.bat으로 설치)." -ForegroundColor DarkGray
 } else {
@@ -230,14 +305,18 @@ if ($Source) {
     & npm install --omit=dev --ignore-scripts --no-audit --no-fund
     if ($LASTEXITCODE -ne 0) { throw "npm install 실패" }
 
-    # 화면 자동 점검 도구(test-ui.bat이 쓴다). --no-save라 package.json은 그대로 두고
-    # node_modules에만 들어간다 — 받는 쪽이 설치를 더 하지 않아도, 인터넷이 없어도 점검이 돈다.
-    # 브라우저는 따로 받지 않는다(설치된 Chrome/Edge를 쓴다 — playwright.config.ts 참고).
-    Write-Host "      + 화면 자동 점검 도구 @playwright/test@$PlaywrightVersion" -ForegroundColor DarkGray
-    # --omit=dev를 빼면 안 된다 — package-lock에 적힌 개발 의존성(typescript·vitest·esbuild 등
-    #  약 90 MB)까지 다시 깔려 패키지가 세 배가 된다(2026-10-18 실측 51.7 → 155.7 MB).
-    & npm install --omit=dev --no-save --ignore-scripts --no-audit --no-fund "@playwright/test@$PlaywrightVersion"
-    if ($LASTEXITCODE -ne 0) { throw "@playwright/test 설치 실패" }
+    if ($Delivery) {
+      Write-Host "      (납품본이라 화면 자동 점검 도구는 넣지 않습니다)" -ForegroundColor DarkGray
+    } else {
+      # 화면 자동 점검 도구(test-ui.bat이 쓴다). --no-save라 package.json은 그대로 두고
+      # node_modules에만 들어간다 — 받는 쪽이 설치를 더 하지 않아도, 인터넷이 없어도 점검이 돈다.
+      # 브라우저는 따로 받지 않는다(설치된 Chrome/Edge를 쓴다 — playwright.config.ts 참고).
+      Write-Host "      + 화면 자동 점검 도구 @playwright/test@$PlaywrightVersion" -ForegroundColor DarkGray
+      # --omit=dev를 빼면 안 된다 — package-lock에 적힌 개발 의존성(typescript·vitest·esbuild 등
+      #  약 90 MB)까지 다시 깔려 패키지가 세 배가 된다(2026-10-18 실측 51.7 → 155.7 MB).
+      & npm install --omit=dev --no-save --ignore-scripts --no-audit --no-fund "@playwright/test@$PlaywrightVersion"
+      if ($LASTEXITCODE -ne 0) { throw "@playwright/test 설치 실패" }
+    }
   } finally { Pop-Location }
 }
 
@@ -257,7 +336,11 @@ if ($Zip) {
 }
 
 Write-Host ""
-if ($Source) {
+if ($Delivery -and $Source) {
+  Write-Host "다음: 그 폴더에서 install.bat → start.bat 으로 확인하세요(연결 점검은 check.bat)."
+} elseif ($Delivery) {
+  Write-Host "다음: 그 폴더에서 start.bat 으로 확인하세요(연결 점검은 check.bat)."
+} elseif ($Source) {
   Write-Host "다음: 그 폴더에서 install.bat → start.bat → check.bat → test-ui.bat 순서로 확인하세요."
 } else {
   Write-Host "다음: 그 폴더에서 start.bat → check.bat → test-ui.bat 으로 확인하세요."

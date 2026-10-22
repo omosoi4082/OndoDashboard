@@ -108,6 +108,35 @@ cwd가 아니라 **실행 파일 위치 기준**(`apps/relay/dist/config`에서 
 **`.env`는 반드시 포함한다**(2026-10-17 결정 — 기상청 키를 전달 패키지로 넘긴다).
 git에는 계속 커밋하지 않는다.
 
+### 납품본 — `-Delivery`
+
+테스트 패키지가 아니라 **"쓰는 법"만 담은 납품본**이다(2026-10-22 사용자 지시 — "테스트 체크
+이런 거 없이 온도에서 어떻게 사용하면 되는지만 필요하다").
+
+```
+# 납품 빌드 포함본
+powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 `
+  -Delivery -KmaKeyExpiry <yyyy-MM-dd> -OutDir <경로> -Zip -ComputeUrl http://192.168.10.91:9000
+
+# 납품 소스본 (-Source를 더한다)
+```
+
+| | 테스트 패키지 | 납품본 |
+|---|---|---|
+| 문서 | `README.md`(점검 순서) + `테스트-체크리스트.md` | `docs/delivery/README.md`(사용 안내) |
+| bat | start / check / setup / **test-ui** | start / check / setup |
+| 포함 | `tests/`, `playwright.config.ts`, `@playwright/test`(19 MB) | 없음 |
+| 크기(①) | 69.1 MB / 19.7 MB | **51.2 MB** / 약 14 MB |
+
+- 납품본 문서는 `docs/delivery/README.md`·`docs/delivery/CLAUDE-구동안내.md`를 패키지 루트에
+  `README.md`·`CLAUDE-구동안내.md`로 넣는다. 루트의 테스트용 두 문서는 그대로 둔다.
+- **`-KmaKeyExpiry`는 필수다.** 기상청 서비스키가 개발 측 명의 발급분이라, 활용 마감일과
+  재발급 절차(공공데이터포털 → 일반 인증키 **Decoding** → `setup.bat`)를 사용 안내에 박아
+  넣는다. 문서의 `{{KMA_EXPIRY}}` 자리를 치환하고, 치환이 하나도 안 되거나 자리표시자가
+  남으면 **멈춘다**(마감일이 빈 문서를 보내는 사고를 막는다).
+- 빌드 포함본에는 `install.bat`이 없으므로, `start.bat`·`check.bat`의 "install.bat 을 먼저
+  실행하세요" 안내를 "압축을 다시 풀어 주세요"로 바꿔 넣는다(bat은 cp949로 읽고 쓴다).
+
 **`install.bat`은 빌드 포함본에 넣지 않는다** — 소스가 없어 `npm run build`가 실패한다.
 소스본(②)을 만들 때만 넣는다.
 
