@@ -39,6 +39,15 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 
+# package.json을 **BOM 없이** 쓴다. Windows PowerShell 5.1의 `Set-Content -Encoding UTF8`은
+# BOM을 붙이는데, 루트 package.json에 BOM이 붙으면 vite가 PostCSS 설정을 찾느라 그 파일을
+# JSON.parse할 때 깨져서 **소스본의 `npm run build`가 실패한다**(2026-10-22 실측:
+# "Failed to load PostCSS config ... Unexpected token '﻿'").
+function WriteJsonNoBom([string]$path, $obj) {
+  $json = $obj | ConvertTo-Json -Depth 20
+  [System.IO.File]::WriteAllText($path, $json, (New-Object System.Text.UTF8Encoding $false))
+}
+
 # 화면 자동 점검 도구 버전 — 저장소 devDependencies와 같은 것을 패키지에 넣는다.
 $PlaywrightVersion = (Get-Content (Join-Path $repo 'package.json') -Raw -Encoding UTF8 |
   ConvertFrom-Json).devDependencies.'@playwright/test' -replace '^[\^~]', ''
@@ -204,7 +213,7 @@ else {
   $pkg = Get-Content $pkgPath -Raw -Encoding UTF8 | ConvertFrom-Json
   $pkg.workspaces = @('apps/relay', 'packages/shared')
   if ($pkg.PSObject.Properties['devDependencies']) { $pkg.PSObject.Properties.Remove('devDependencies') }
-  $pkg | ConvertTo-Json -Depth 20 | Set-Content $pkgPath -Encoding UTF8
+  WriteJsonNoBom $pkgPath $pkg
 
   # 쓰지 않는 구버전 모델 제거 — public/ 전체가 dist로 복사되면서 따라 들어온다.
   # 실제로 쓰는 것은 scene/barnModel.ts의 OVERVIEW_MODEL_URL과
@@ -269,6 +278,20 @@ if ($Delivery -and -not $Source) {
     [System.IO.File]::WriteAllText($path, $text, $cp949)
   }
   Write-Host "    - start.bat·check.bat의 install.bat 안내를 납품본 문구로 바꿨습니다"
+}
+
+# ── 2-b3. 납품본 package.json에서 점검 도구 흔적 지우기 ──────────────────
+# tests/·playwright.config.ts를 뺐으므로 `npm run test:ui`는 돌 수 없는 명령이 된다.
+# 소스본은 `npm install`로 @playwright/test(약 19 MB)까지 받게 되므로 그것도 지운다.
+if ($Delivery) {
+  $pkgPath = Join-Path $OutDir 'package.json'
+  $pkg = Get-Content $pkgPath -Raw -Encoding UTF8 | ConvertFrom-Json
+  if ($pkg.scripts.PSObject.Properties['test:ui']) { $pkg.scripts.PSObject.Properties.Remove('test:ui') }
+  if ($pkg.PSObject.Properties['devDependencies'] -and $pkg.devDependencies.PSObject.Properties['@playwright/test']) {
+    $pkg.devDependencies.PSObject.Properties.Remove('@playwright/test')
+  }
+  WriteJsonNoBom $pkgPath $pkg
+  Write-Host "    - package.json에서 test:ui·@playwright/test 제거"
 }
 
 # ── 2-c. 사용 안내의 기상청 키 마감일 ────────────────────────────────────
