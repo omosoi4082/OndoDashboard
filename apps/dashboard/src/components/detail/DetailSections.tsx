@@ -63,6 +63,39 @@ function PointsToggle(): ReactElement {
   );
 }
 
+// 유동 입자 색 기준(온도/습도) — 유동을 골랐을 때만 "3D 자돈방" 제목 줄에 보인다
+// (2026-10-26 온도 측 요청 "입자 색을 온도 / 습도 두 가지로 바꿔 볼 수 있는 기능").
+function ParticleColorToggle(): ReactElement | null {
+  const valueField = useDetailStore((s) => s.valueField);
+  const field = useDetailStore((s) => s.particleColorField);
+  const setField = useDetailStore((s) => s.setParticleColorField);
+  if (valueField !== 'flow') return null;
+  const options = [
+    { id: 'temp', label: '온도' },
+    { id: 'rh', label: '습도' },
+  ] as const;
+  return (
+    <div className="flex items-center gap-2 text-xs text-white">
+      입자 색
+      <div className="flex overflow-hidden rounded-md border border-ondo-border">
+        {options.map(({ id, label }) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={field === id}
+            onClick={() => setField(id)}
+            className={`h-6 px-3 text-xs transition-colors ${
+              field === id ? 'bg-[#3b3c42] text-white' : 'bg-ondo-surface-2 text-ondo-muted hover:text-white'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SectionTitle({ title, right }: { title: string; right?: ReactNode }): ReactElement {
   return (
     <div className="flex h-6 shrink-0 items-center justify-between">
@@ -77,7 +110,15 @@ function SectionTitle({ title, right }: { title: string; right?: ReactNode }): R
 export function Detail3DSection({ children }: { children: ReactNode }): ReactElement {
   return (
     <section className="flex shrink-0 flex-col gap-3">
-      <SectionTitle title="3D 자돈방" right={<PointsToggle />} />
+      <SectionTitle
+        title="3D 자돈방"
+        right={
+          <div className="flex items-center gap-5">
+            <ParticleColorToggle />
+            <PointsToggle />
+          </div>
+        }
+      />
       <div className="h-[424px] w-[728px]">{children}</div>
     </section>
   );

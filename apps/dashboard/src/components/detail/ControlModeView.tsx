@@ -157,7 +157,7 @@ export function ControlModeView(): ReactElement {
                 notice={qualityNotice(frame)}
                 overlay={
                   valueField === 'flow' ? (
-                    <FlowVisualization geometry={geometry} frame={frame} range={control.data.range.flow} />
+                    <FlowVisualization geometry={geometry} frame={frame} range={control.data.range} />
                   ) : (
                     <IsosurfaceVolume
                       geometry={geometry}

@@ -152,3 +152,18 @@ if (import.meta.hot) {
     import.meta.hot?.invalidate();
   });
 }
+
+// 유동 입자 애니메이션(scene/FlowParticles.tsx, 2026-10-26 온도 측 요청) — 명세 없음(개발자
+// 결정), 화면 보고 조정한다. 개수·꼬리는 참고 샘플(입자 6,000·꼬리 12)보다 줄였다 — 방이
+// 비슷한 크기라도 유동 격자가 288점이라 입자를 늘려도 흐름이 더 자세해지지 않는다.
+export const FLOW_PARTICLE_COUNT = 2500;
+export const FLOW_PARTICLE_TRAIL = 10;
+/** 다시 태어날 때 급기구에서 나올 비율 — 나머지는 방 안 아무 곳(방 전체 흐름도 보이게). */
+export const FLOW_PARTICLE_INLET_SHARE = 0.5;
+export const FLOW_PARTICLE_LIFE_MIN_S = 4;
+export const FLOW_PARTICLE_LIFE_MAX_S = 10;
+/** 화면 1초 = 실제 몇 초 — 유속이 평균 0.1 m/s 안팎이라 실제 속도로는 거의 멈춰 보인다. */
+export const FLOW_PARTICLE_TIME_SCALE = 6;
+export const FLOW_PARTICLE_STUCK_SPEED = 0.01;
+export const FLOW_PARTICLE_STUCK_S = 1.5;
+export const FLOW_PARTICLE_SIZE_M = 0.05;

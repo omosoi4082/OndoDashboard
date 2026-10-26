@@ -15,10 +15,14 @@ export type DetailMode = 'current' | 'forecast' | 'expert' | 'control';
 // 10·15·22·29 유동/습도/온도 토글 — 기본값 온도(01-functional-spec.md 3장).
 export type ValueField = 'temp' | 'rh' | 'flow';
 
+/** 유동 입자 색 기준(2026-10-26 온도 측 요청 "입자 색을 온도 / 습도 두 가지로") — 기본 온도. */
+export type ParticleColorField = 'temp' | 'rh';
+
 export interface DetailState {
   geometry: Geometry | null;
   mode: DetailMode;
   valueField: ValueField;
+  particleColorField: ParticleColorField;
   /** 11·16·23·30 포인트 on/off — 기본값 on. */
   pointsVisible: boolean;
   /** GET /api/detail/current 응답 — M4. null = 아직 응답을 받지 못함(최초 로딩). */
@@ -60,6 +64,7 @@ export interface DetailState {
   setGeometry: (geometry: Geometry) => void;
   setMode: (mode: DetailMode) => void;
   setValueField: (field: ValueField) => void;
+  setParticleColorField: (field: ParticleColorField) => void;
   setPointsVisible: (visible: boolean) => void;
   setCurrent: (current: ApiResponse<CurrentDetail>) => void;
   setForecast: (forecast: ApiResponse<ForecastDetail>) => void;
@@ -90,6 +95,7 @@ export const useDetailStore = create<DetailState>((set) => ({
   geometry: null,
   mode: 'current',
   valueField: 'temp',
+  particleColorField: 'temp',
   pointsVisible: defaultPointsVisible('current'),
   current: null,
   currentStaleNotice: null,
@@ -120,6 +126,7 @@ export const useDetailStore = create<DetailState>((set) => ({
       expert: null,
     }),
   setValueField: (field) => set({ valueField: field }),
+  setParticleColorField: (field) => set({ particleColorField: field }),
   setPointsVisible: (visible) => set({ pointsVisible: visible }),
   // 연산 서버 실패 시 이전 정상 결과를 유지할지는 순수 함수로 판단한다(D-4).
   setCurrent: (next) =>

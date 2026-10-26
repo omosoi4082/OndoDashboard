@@ -172,7 +172,7 @@ export function ExpertModeView(): ReactElement {
                 notice={qualityNotice(frame)}
                 overlay={
                   valueField === 'flow' ? (
-                    <FlowVisualization geometry={geometry} frame={frame} range={expert.data.range.flow} />
+                    <FlowVisualization geometry={geometry} frame={frame} range={expert.data.range} />
                   ) : (
                     <IsosurfaceVolume
                       geometry={geometry}

@@ -183,6 +183,9 @@ export function Detail3DView({
   notice = null,
 }: Detail3DViewProps): ReactElement {
   const valueField = useDetailStore((s) => s.valueField);
+  const particleColorField = useDetailStore((s) => s.particleColorField);
+  // 유동은 입자 색이 온도·습도라 범례도 그 기준을 따른다(2026-10-26 입자 애니메이션).
+  const legendField = valueField === 'flow' ? particleColorField : valueField;
   const pointsVisible = useDetailStore((s) => s.pointsVisible);
   const [hoveredPointId, setHoveredPointId] = useState<number | null>(null);
 
@@ -287,7 +290,7 @@ export function Detail3DView({
           className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-stretch rounded bg-[#141414]/50 p-1"
           style={{ width: LEGEND_WIDTH_PX, height: LEGEND_HEIGHT_PX }}
         >
-          <ColorLegend range={range} valueField={valueField} barWidthPx={LEGEND_BAR_WIDTH_PX} showUnit={false} />
+          <ColorLegend range={range} valueField={legendField} barWidthPx={LEGEND_BAR_WIDTH_PX} showUnit={false} />
         </div>
       )}
 

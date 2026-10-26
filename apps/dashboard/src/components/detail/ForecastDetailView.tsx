@@ -70,7 +70,7 @@ export function ForecastDetailView(): ReactElement {
 
   const overlay =
     valueField === 'flow' ? (
-      <FlowVisualization geometry={geometry} frame={frame} range={range.flow} />
+      <FlowVisualization geometry={geometry} frame={frame} range={range} />
     ) : (
       <IsosurfaceVolume
         geometry={geometry}
