@@ -14,16 +14,62 @@ export const CURRENT_DETAIL_POLL_INTERVAL_MS = 10 * 60 * 1000;
 export const CLOCK_TICK_INTERVAL_MS = 1000;
 
 // 상세 패널(6) 3D 카메라 초기 프레이밍 여유(배율) — 개발자 결정.
-export const CAMERA_MARGIN_FACTOR = 1.5;
+export const CAMERA_MARGIN_FACTOR = 1.6;
 
 // 메인 화면(4) 3D 카메라 초기 프레이밍 여유(배율) — technical-review/pig-farm-cfd-demo의
-// overviewScene.js OVERVIEW_MARGIN_FACTOR 그대로 포팅(docs/07-starter-kit-assets.md).
-export const OVERVIEW_CAMERA_MARGIN_FACTOR = 1.6;
+// overviewScene.js OVERVIEW_MARGIN_FACTOR 1.6을 그대로 포팅했다가, 2026-10-26 레이아웃 (1)로
+// 2.05로 올렸다. 모델을 왼쪽으로 밀면(OVERVIEW_VIEW_SHIFT_PX) 회전 중심이 자돈방에 고정돼
+// 있어서 축사 꼬리(비육돈방)가 상세 패널 가장자리로 밀려 잘린다 — 같이 축소해야 전체가 들어온다.
+// 이 둘은 짝이다: shift를 바꾸면 이 값도 다시 맞춰야 한다(shift 0·1.6 / 300·1.85는 꼬리가 잘렸고,
+// 500·2.05에서 축사 전체가 x 75~990에 들어왔다 — 1920×1080 크롬 실측).
+export const OVERVIEW_CAMERA_MARGIN_FACTOR = 2.05;
 
 // 메인 화면(4) 3D 카메라 각도(center에서 떠는 축별 비율 [x,y,z]) — 상세 패널 3D 뷰
 // (scene/cameraFraming.ts DEFAULT_CAMERA_DIRECTION, 포팅 원본값)와 분리된 메인 화면 전용 값
 // (2026-10-10 사용자가 메인 화면만 직접 조정 — 수작업으로 바꿀 때는 이 배열만 수정할 것).
-export const OVERVIEW_CAMERA_DIRECTION: Vector3Tuple = [0.2, 0.18, 0.24];
+export const OVERVIEW_CAMERA_DIRECTION: Vector3Tuple = [0.14, 0.1, 0.21];
+
+// 상세 패널(6) 3D 카메라 각도 — 메인 화면과 "처음 보이는 방향"을 맞추기 위한 전용 값
+// (2026-10-26 온도 추가요청 레이아웃 (6): "두 화면에서 자돈사 방의 좌·우 방향이 서로 다르게
+// 보입니다"). 전에는 cameraFraming.ts의 DEFAULT_CAMERA_DIRECTION(목업 포팅 원본값)을 그대로
+// 썼는데, 그 값과 메인 값은 방위각이 거의 같은데도(40° vs 43°) 두 화면의 방 좌표계가 달라
+// 좌·우가 반대로 읽혔다. 메인을 기준으로 삼고(메인에서 방을 클릭해 들어오는 흐름이라 클릭한
+// 모습 그대로 커지는 게 맞다) 이 값만 돌려 맞춘다. 사용자가 드래그로 돌리는 건 그대로다.
+//
+// 값은 포팅 원본값 [0.433, 0.379, 0.462]를 Y축 기준 방위각으로 **+90° 돌린 것**이다(고도각
+// 31°는 그대로). 네 방위를 전부 찍어 메인과 대조해 골랐다 — 메인에서는 급기구 3개가 왼→오로
+// 내려가고 배기팬이 왼쪽 벽, Y자 칸막이가 오른쪽 아래로 뻗는데, 이 값만 셋을 모두 만족한다
+// (180°는 급기구가 거꾸로 올라가고, −90°는 배기팬이 오른쪽에 붙어 거울상이 된다).
+export const DETAIL_CAMERA_DIRECTION: Vector3Tuple = [0.462, 0.12, -0.45];
+
+// 메인 화면(4) 3D 모델을 보이는 영역 중앙에서 더 **왼쪽으로** 밀어내는 양(px) — CameraRig의
+// setViewOffset에 상세 패널 폭과 함께 더해진다. 0이면 "상세 패널에 안 가려지는 영역의 정중앙"
+// 그대로다(2026-10-10 구현).
+// 2026-10-26 온도 추가요청 레이아웃 (1): "전체 축사 3D 모델링 중심을 왼쪽으로 — 오른쪽
+// 결과창이 열리면 자돈방이 가려짐". 상세 패널이 항상 열려 있는 화면이라 이미 패널 폭만큼은
+// 비켜 두지만, 축사가 가로로 길어 오른쪽 끝(비육돈방)이 패널 가장자리에 닿는다.
+// 이 값을 Δ만큼 올리면 모델이 Δ/2 px 왼쪽으로 간다 — 광학 중심이 (w − p)/2 이므로.
+// 곁들여 시야각이 조금 넓어져 모델이 미세하게 작아진다(aspect = (w + p) / h).
+export const OVERVIEW_VIEW_SHIFT_PX = 180;
+
+// 메인 화면(4) 3D 모델을 화면에서 **위로** 올리는 양(px) — 가로(OVERVIEW_VIEW_SHIFT_PX)와 같은
+// setViewOffset 요령을 세로에 쓴다. 캔버스보다 이 값만큼 높은 가상 프레임의 "아래쪽" 구간을
+// 찍는 척하면, 가상 프레임의 광학 중심 (h + q) / 2 가 실제 캔버스에서는 (h − q) / 2 지점에
+// 오므로 모델이 q / 2 px 위로 간다. 0이면 캔버스 세로 정중앙 그대로다.
+// 양수 = 위로, 음수 = 아래로. 2026-10-26 사용자 요청("메인 모델링이 전체적으로 올라가 보이게").
+// aspect는 fullWidth / fullHeight로 둬야 찌그러지지 않는다(CameraRig.tsx 주석 참고).
+export const OVERVIEW_VIEW_SHIFT_Y_PX = 0;
+
+// 상세 패널(6) 3D 조명 세기 배율 — 리그 5개(Hemisphere 0.55 / Ambient 0.18 / Directional 1.1 /
+// Fill 0.12 / Point 0.8, components/detail/Detail3DView.tsx)에 한꺼번에 곱한다. 1이 포팅 원본값.
+// 2026-10-26 사용자: "상세보기 방에 조명이 너무 밝아서 흐름이 잘 안 보일 수 있어" — 유동 입자가
+// 밝은 벽·바닥에 묻히는 문제라 한 손잡이로 조절할 수 있게 뺐다. 0이면 조명과 환경맵 반사광을
+// 모두 끈다(환경맵만 남겨두면 PBR 재질이 그것만으로도 꽤 밝다).
+// 찍어 보고 고른 값: 1(원본)은 입자가 밝은 벽에 묻히고, 0은 방이 완전히 검어져 벽·돼지·
+// 칸막이가 사라진다. 0.15는 방 윤곽이 남으면서 입자 줄기가 또렷하다.
+// 타입을 number로 못박는다 — 리터럴 타입(0.15)으로 좁혀지면 Detail3DView의 `=== 0` 분기가
+// "겹치지 않는 비교"로 타입 오류가 난다. 조절용 손잡이라 값만 바꿔 쓰는 상수다.
+export const DETAIL_LIGHT_SCALE: number = 0.15;
 
 // 스케일 바가 화면에서 겨냥하는 목표 픽셀 길이 — 개발자 결정.
 export const SCALE_BAR_TARGET_PX = 120;
@@ -42,6 +88,23 @@ export const MIN_VIEWPORT_HEIGHT_PX = 540;
 // 바깥쪽 overflow-hidden에 의해 잘리고, 크면 캔버스 바깥은 그냥 페이지 배경색으로 남는다.
 export const MAIN_SCENE_WIDTH_PX = 1920;
 export const MAIN_SCENE_HEIGHT_PX = 1080;
+
+// 메인 3D 배경 레이어를 화면에서 위로 끌어올리는 양(px, 음수가 위로) — App.tsx의 main-scene
+// 레이어 style.top. 2026-10-26 사용자 요청("메인 모델링이 전체적으로 올라가 보이게").
+// OVERVIEW_VIEW_SHIFT_Y_PX(카메라 투영을 트는 방식)와 달리 **순수한 평행 이동**이라 확대·
+// 찌그러짐이 없고 margin·shift 값과 물리지 않는다. 대신 모델 위쪽이 창 밖으로 잘리고,
+// 화면 맨 아래 이 값만큼은 캔버스 바깥이 되어 그 띠에서는 3D 드래그가 먹지 않는다
+// (그 자리엔 좌측 하단 기상 묶음·우측 하단 축척이 있어 실사용에 지장 없음).
+export const MAIN_SCENE_TOP_PX = -20;
+
+// 좌측 하단 오버레이 묶음(위치 이름 + 외부환경(3)) 축소 비율 — App.tsx.
+// 2026-10-26 온도 추가요청 레이아웃 (2): 3D 모델링을 더 크게 보이게 하려고 외부환경 패널을
+// 왼쪽 위에서 왼쪽 아래로 내리고 80%로 줄였다(헤더에 있던 위치 이름도 같이 내려 한 덩어리).
+// 축소는 OutdoorPanel 내부 치수(Figma 실측값)를 건드리지 않도록 바깥 래퍼의 CSS transform으로
+// 한다 — 치수를 하나씩 0.8배 하면 반올림으로 시안이 깨진다. transform은 레이아웃 박스를
+// 바꾸지 않지만, 이 묶음은 좌측 하단 모서리에 홀로 붙어 있어(축척은 우측 하단으로 옮겼다)
+// 다른 요소와의 간격 계산이 필요 없다.
+export const OUTDOOR_CLUSTER_SCALE = 0.8;
 
 // 상세보기 패널(6) 고정 폭 — App.tsx 레이아웃과 scene/CameraRig.tsx(메인 3D 캔버스가 전체
 // 화면 폭이라, 상세 패널에 가려지지 않는 "보이는 영역"의 중앙을 계산할 때)가 공유한다.
@@ -96,7 +159,7 @@ export const TIMELINE_FRAME_DURATION_MS = 500;
 // 생긴다. 단계는 프레임 자체 min~max에서 뽑도록 고쳤다(detail/isosurfaceField.ts
 // fieldValueRange, 05-open-questions.md #47) — 그래서 이 상수(4단계·0.75)는 그대로 둔다.
 export const ISOSURFACE_LEVEL_COUNT = 4;
-export const ISOSURFACE_OPACITY = 0.75;
+export const ISOSURFACE_OPACITY = 0.45;
 
 // three-stdlib MarchingCubes(node_modules/three-stdlib/objects/MarchingCubes.js)는 정육면체
 // 해상도(size=size2=size3)만 지원한다 — 비정육면체 grid(19×17×8 등)는
@@ -157,7 +220,7 @@ if (import.meta.hot) {
 // 결정), 화면 보고 조정한다. 개수·꼬리는 참고 샘플(입자 6,000·꼬리 12)보다 줄였다 — 방이
 // 비슷한 크기라도 유동 격자가 288점이라 입자를 늘려도 흐름이 더 자세해지지 않는다.
 export const FLOW_PARTICLE_COUNT = 2500;
-export const FLOW_PARTICLE_TRAIL = 10;
+export const FLOW_PARTICLE_TRAIL = 18;
 /** 다시 태어날 때 급기구에서 나올 비율 — 나머지는 방 안 아무 곳(방 전체 흐름도 보이게). */
 export const FLOW_PARTICLE_INLET_SHARE = 0.5;
 export const FLOW_PARTICLE_LIFE_MIN_S = 4;

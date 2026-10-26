@@ -49,7 +49,14 @@ function makeLut(field: 'temp' | 'rh'): Float32Array {
   return lut;
 }
 
-/** 둥근 점 모양(가장자리가 흐린 원) — PointsMaterial 기본은 네모라서. */
+/**
+ * 둥근 점 모양 — PointsMaterial 기본은 네모라서 텍스처로 원을 만든다.
+ *
+ * 2026-10-27 사용자 요청("입자 번짐없이 또렷하게"): 전에는 반지름 50 %까지만 불투명하고
+ * 나머지 절반이 서서히 투명해져(0.5 → 1.0) 입자가 뿌옇게 번져 보였다. 지금은 가장자리
+ * 바로 앞(92 %)까지 불투명하게 두고 마지막 8 %만 떨어뜨려 계단 현상만 지운다.
+ * 아래 PointsMaterial의 alphaTest와 짝이다 — 그 값이 남은 반투명 테두리를 잘라낸다.
+ */
 function makeDotTexture(): THREE.Texture {
   const size = 64;
   const canvas = document.createElement('canvas');
@@ -59,12 +66,18 @@ function makeDotTexture(): THREE.Texture {
   if (ctx) {
     const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
     g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.5, 'rgba(255,255,255,1)');
+    g.addColorStop(0.92, 'rgba(255,255,255,1)');
     g.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
   }
-  return new THREE.CanvasTexture(canvas);
+  const tex = new THREE.CanvasTexture(canvas);
+  // 밉맵을 끈다 — 점 스프라이트는 화면에서 몇 px밖에 안 되는데, 밉맵을 쓰면 뭉개진 낮은
+  // 단계를 뽑아 와 alphaTest 경계가 원이 아니라 마름모처럼 잘린다(2026-10-27 실제로 그랬음).
+  tex.generateMipmaps = false;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  return tex;
 }
 
 export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): ReactElement {
@@ -203,7 +216,7 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
           sizeAttenuation
           map={dotTexture}
           transparent
-          alphaTest={0.02}
+          alphaTest={0.25}
           depthWrite={false}
           toneMapped={false}
         />

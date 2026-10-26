@@ -14,6 +14,8 @@ import { metersPerPixel, pickScaleBar } from './scaleBar.js';
 import {
   DETAIL_PANEL_WIDTH_PX,
   OVERVIEW_CAMERA_DIRECTION,
+  OVERVIEW_VIEW_SHIFT_PX,
+  OVERVIEW_VIEW_SHIFT_Y_PX,
   OVERVIEW_CAMERA_MARGIN_FACTOR,
   SCALE_BAR_TARGET_PX,
 } from '../config/constants.js';
@@ -57,10 +59,16 @@ export function CameraRig({ box, rotationCenter }: CameraRigProps): ReactElement
       // 실제 캔버스 비율로 자동으로 되돌리지 못하게 했다 — 안 그러면 다음 프레임에 다시 깨짐.
       const w = size.width;
       const h = size.height;
-      const p = DETAIL_PANEL_WIDTH_PX;
+      // OVERVIEW_VIEW_SHIFT_PX만큼 더 넓은 가상 프레임을 쓰면 모델이 그 절반만큼 왼쪽으로
+      // 간다(2026-10-26 온도 추가요청 (1), config/constants.ts 주석 참고).
+      const p = DETAIL_PANEL_WIDTH_PX + OVERVIEW_VIEW_SHIFT_PX;
       const fullWidth = w + p;
-      camera.aspect = fullWidth / h;
-      camera.setViewOffset(fullWidth, h, p, 0, w, h);
+      // 세로도 같은 요령 — q만큼 높은 가상 프레임의 아래쪽을 찍으면 모델이 q/2만큼 위로 간다
+      // (OVERVIEW_VIEW_SHIFT_Y_PX, 2026-10-26 "메인 모델링이 전체적으로 올라가 보이게").
+      const q = OVERVIEW_VIEW_SHIFT_Y_PX;
+      const fullHeight = h + q;
+      camera.aspect = fullWidth / fullHeight;
+      camera.setViewOffset(fullWidth, fullHeight, p, q, w, h);
       camera.updateProjectionMatrix();
     }
     const controls = controlsRef.current;

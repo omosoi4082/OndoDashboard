@@ -14,7 +14,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { DetailBase, DetailFrame, Geometry } from '@ondo/shared';
 import { sizeZUpToYUp, zUpToYUp } from '../../scene/coords.js';
 import { computeCameraFrame } from '../../scene/cameraFraming.js';
-import { CAMERA_MARGIN_FACTOR } from '../../config/constants.js';
+import { CAMERA_MARGIN_FACTOR, DETAIL_CAMERA_DIRECTION, DETAIL_LIGHT_SCALE } from '../../config/constants.js';
 import { useDetailStore } from '../../store/detailStore.js';
 import { getFieldUnit, getPointFlow, getPointScalar } from '../../detail/pointSelection.js';
 import { formatValueOrDash } from '../../utils/formatValue.js';
@@ -68,7 +68,7 @@ function CameraFraming({ roomSize }: { roomSize: readonly [number, number, numbe
     // 방 박스는 Three.js에서 z −d~0(scene/coords.ts). 카메라는 +z 쪽(배기구 벽 y=0 앞)에 앉는다.
     const [w, h, d] = sizeZUpToYUp(roomSize);
     const box = new THREE.Box3(new THREE.Vector3(0, 0, -d), new THREE.Vector3(w, h, 0));
-    const frame = computeCameraFrame(box, CAMERA_MARGIN_FACTOR);
+    const frame = computeCameraFrame(box, CAMERA_MARGIN_FACTOR, undefined, DETAIL_CAMERA_DIRECTION);
 
     camera.position.copy(frame.position);
     if (camera instanceof THREE.PerspectiveCamera) {
@@ -96,15 +96,24 @@ function DetailRoomEnvironment(): null {
   const { gl, scene } = useThree();
 
   useEffect(() => {
+    // 조명을 완전히 끈 상태(배율 0)에서는 환경맵 반사광도 빼야 실제로 어두워진다 —
+    // scene.environment만 남으면 PBR 재질이 그것만으로도 꽤 밝게 보인다(2026-10-26).
+    if (DETAIL_LIGHT_SCALE === 0) return;
     const pmrem = new THREE.PMREMGenerator(gl);
     const renderTarget = pmrem.fromScene(new RoomEnvironment(), 0.04);
     // detailScene.js의 scene.environment 대입과 동일 — R3F Canvas가 만든 scene에 PMREM
     // 반사광 텍스처를 꽂는 것 자체가 목적이라 이 대입은 의도된 동작이다.
     // oxlint-disable-next-line react/immutability
     scene.environment = renderTarget.texture;
+    // 환경맵 반사광도 조명 배율을 따라간다 — 이걸 안 깎으면 조명을 0.35까지 낮춰도 화면이
+    // 거의 그대로다(2026-10-26 실측: PBR 재질이 환경맵만으로도 충분히 밝았음).
+    // oxlint-disable-next-line react/immutability
+    scene.environmentIntensity = DETAIL_LIGHT_SCALE;
     return () => {
       // oxlint-disable-next-line react/immutability
       scene.environment = null;
+      // oxlint-disable-next-line react/immutability
+      scene.environmentIntensity = 1;
       renderTarget.dispose();
       pmrem.dispose();
     };
@@ -126,10 +135,11 @@ function DetailRoomLighting({ roomSize }: { roomSize: readonly [number, number, 
     const cz = -d / 2;
     const group = new THREE.Group();
 
-    group.add(new THREE.HemisphereLight(0xffffff, 0xd9dfe6, 0.55));
-    group.add(new THREE.AmbientLight(0xffffff, 0.18));
+    const k = DETAIL_LIGHT_SCALE;
+    group.add(new THREE.HemisphereLight(0xffffff, 0xd9dfe6, 0.55 * k));
+    group.add(new THREE.AmbientLight(0xffffff, 0.18 * k));
 
-    const dir = new THREE.DirectionalLight(0xffffff, 1.1);
+    const dir = new THREE.DirectionalLight(0xffffff, 1.1 * k);
     dir.position.set(w / 2 + 2, h + 3, cz + 1.5);
     dir.target.position.set(w / 2, 0, cz);
     dir.castShadow = true;
@@ -145,13 +155,13 @@ function DetailRoomLighting({ roomSize }: { roomSize: readonly [number, number, 
     dir.shadow.camera.updateProjectionMatrix();
     group.add(dir, dir.target);
 
-    const fill = new THREE.DirectionalLight(0xffffff, 0.12);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.12 * k);
     fill.position.set(-6, 4, cz - d / 2 - 5);
     group.add(fill);
 
     // 실내등(포인트 라이트)은 그림자 없이 은은한 채움광으로만 — 천장 근처에서 역제곱
     // 법칙으로 한 지점만 하얗게 뜨는 문제가 있어 세기를 낮추고 천장에서 띄운다.
-    const roomLight = new THREE.PointLight(0xfff2e0, 0.8, 0, 2);
+    const roomLight = new THREE.PointLight(0xfff2e0, 0.8 * k, 0, 2);
     roomLight.position.set(w / 2, h - 0.7, cz);
     group.add(roomLight);
 
