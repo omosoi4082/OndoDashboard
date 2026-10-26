@@ -56,6 +56,14 @@ export function useIsosurfaceCache(
 
     return () => {
       worker.terminate();
+      // ★ 가드 ref를 반드시 되돌린다. StrictMode(개발 모드의 마운트→언마운트→재마운트)는
+      //   효과를 두 번 돌리는데, 1회차가 ref를 채우고 정리에서 Worker를 죽인 뒤 2회차가
+      //   `sourceRef.current === frames`로 그냥 return 해 버리면 Worker가 영영 안 돌아
+      //   cache가 null로 남는다 — 오류도 안 나서 "등치면이 조용히 사라진다"로만 보인다
+      //   (2026-10-27 사용자: "현재모드 갔다가 다시 예측모드 가면 안보여").
+      //   모드 전환으로 ForecastDetailView가 언마운트·재마운트될 때마다 재현된다.
+      //   같은 함정을 scene/OverviewScene.tsx 앞벽 페이드에서도 겪었다(2026-10-17).
+      sourceRef.current = null;
     };
   }, [geometry, frames]);
 

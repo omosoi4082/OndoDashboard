@@ -36,7 +36,16 @@ export function SceneLighting({ box }: SceneLightingProps): ReactElement {
     const target = targetRef.current;
     if (!light || !target) return;
     light.target = target;
-  }, []);
+    // ★ shadow-camera-* 를 JSX로 넘기는 것만으로는 **투영 행렬이 다시 계산되지 않는다.**
+    // three의 DirectionalLightShadow.updateMatrices()는 뷰 행렬만 갱신하고 기존
+    // projectionMatrix를 그대로 쓰므로, 여기서 직접 불러줘야 프러스텀이 실제로 적용된다.
+    // 이게 빠져 있어서 그림자 카메라가 기본값(±5)에 머물렀고, 통합 모델(가로로 긴 3방)의
+    // 양 끝 — 특히 자돈방 — 에는 그림자가 전혀 지지 않았다(2026-10-27 사용자: "메인에
+    // 돼지 그림자가 없네?"). 2026-10-09에 프러스텀 계산을 넣으면서 이 호출을 빠뜨렸다.
+    // 상세 패널 쪽(Detail3DView.tsx의 DetailRoomLighting)은 처음부터 호출하고 있었고,
+    // 그래서 상세 3D에만 그림자가 보였다.
+    light.shadow.camera.updateProjectionMatrix();
+  }, [shadowHalf, shadowFar, lightPosition, targetPosition]);
 
   return (
     <>
