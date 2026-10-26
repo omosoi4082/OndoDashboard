@@ -35,7 +35,7 @@ export function DetailPanel(): ReactElement {
 
       {/* 탭 아래 카드 하나에 모드별 내용을 담는다(docs/06-design-guide.md). 스크롤은
           DetailScrollBody(3D~2D)만 — 분석 항목 같은 위쪽 버튼류는 고정. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-5 rounded-xl bg-ondo-surface p-5">
+      <div className="flex min-h-0 flex-1 flex-col gap-2.5 rounded-xl bg-ondo-surface p-2.5">
 
       {mode === 'forecast' && <ForecastDetailView />}
 

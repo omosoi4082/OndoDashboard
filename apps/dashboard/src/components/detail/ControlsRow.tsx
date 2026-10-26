@@ -23,15 +23,21 @@ export function ControlsRow(): ReactElement {
   const setValueField = useDetailStore((s) => s.setValueField);
 
   return (
-    <div className="flex shrink-0 items-center justify-between border-b border-ondo-border pb-5">
+    // 버튼 높이 29px = 기존 42px에서 30% 축소(2026-10-26 온도 추가요청 레이아웃 (4) — 버튼
+    // 같은 UI가 3D보다 커 보인다는 지적에 세로 공간을 줄여 3D를 더 보이게 한다). 가로 108px·
+    // 아이콘 18px·글자 15px은 그대로 둔다 — 가로를 줄이면 아이콘+글자만 좁아져 읽기가
+    // 나빠지고, 목적은 세로 공간 확보다.
+    // 구분선 아래 여백(pb)과 버튼 사이 간격(gap)은 상세 패널 공통 2.5(10px) — 2026-10-26
+    // 사용자 지시로 상세 패널의 모든 패딩·간격을 10px로 통일했다.
+    <div className="flex shrink-0 items-center justify-between border-b border-ondo-border pb-2.5">
       <span className="text-[16px] font-semibold text-[#ccc]">분석 항목</span>
-      <div className="flex gap-2">
+      <div className="flex gap-2.5">
         {VALUE_FIELDS.map(({ id, label, Icon }) => (
           <button
             key={id}
             type="button"
             onClick={() => setValueField(id)}
-            className={`flex h-[42px] w-[108px] items-center justify-center gap-1.5 rounded-md border text-[15px] transition-colors ${
+            className={`flex h-[29px] w-[108px] items-center justify-center gap-1.5 rounded-md border text-[15px] transition-colors ${
               valueField === id
                 ? 'border-white/50 bg-[#3b3c42] text-white'
                 : 'border-ondo-border bg-ondo-surface-2 text-ondo-muted hover:text-white'

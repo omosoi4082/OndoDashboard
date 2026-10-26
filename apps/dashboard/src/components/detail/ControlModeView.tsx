@@ -29,9 +29,12 @@ const TARGETS: ReadonlyArray<{ id: ControlTarget; label: string; icon: string }>
   { id: 'environment', label: '환경 최적화', icon: '/assets/icons/control/environment.png' },
 ];
 
-// 버튼 728×56, radius 8, 글씨 16px, 선택 #ffffff·비선택 #a4abb5(2026-10-11 사용자 실측
-// 지시). 컨테이너를 w-full·버튼을 flex-1로 둬 폭을 하드코딩하지 않고 카드 폭(패널 기준
-// 728px)에 맞춘다 — gap-2(8px)까지 합치면 실측값과 같다. 배경색은 04_제어모드_디자인_01
+// 버튼 728×56, radius 8, 글씨 16px, 아이콘 26px, 선택 #ffffff·비선택 #a4abb5(2026-10-11
+// 사용자 실측 지시). **높이는 2026-10-26 사용자 지시로 반(56 → 28px)으로 줄였고 아이콘도
+// 26 → 18px로 맞췄다**(더 나중 지시가 우선. 시안으로 되돌릴 땐 위 실측값 56/26으로).
+// 글씨 16px·radius 8·색은 그대로. 컨테이너를 w-full·버튼을 flex-1로 둬 폭을 하드코딩하지 않고 카드 폭(패널 기준
+// 728px)에 맞춘다 — 두 버튼 사이 간격은 시안 실측 8px이었으나 2026-10-26 사용자 지시
+// ("상세에 모든 패딩과 캡을 2.5로")로 10px이 됐다(버튼이 flex-1이라 합계 폭은 그대로). 배경색은 04_제어모드_디자인_01
 // 픽셀 실측(선택 rgb(60,88,128), 비선택 rgb(48,50,55)). 선택 버튼엔 채움보다 밝은 파란
 // 테두리(실측 rgb(42,100,156))가 있다(2026-10-11 사용자: "선택 버튼에 테두리 있어").
 function ControlTargetToggle({
@@ -44,7 +47,7 @@ function ControlTargetToggle({
   onChange: (next: ControlTarget) => void;
 }): ReactElement {
   return (
-    <div className="flex h-14 w-full shrink-0 gap-2">
+    <div className="flex h-7 w-full shrink-0 gap-2.5">
       {TARGETS.map(({ id, label, icon }) => (
         <button
           key={id}
@@ -62,7 +65,7 @@ function ControlTargetToggle({
               사용자: "아이콘도 선택 비선택 색상이 글씨와 같아야지"). */}
           <span
             aria-hidden="true"
-            className="h-[26px] w-[26px] shrink-0 bg-current"
+            className="h-[18px] w-[18px] shrink-0 bg-current"
             style={{
               WebkitMaskImage: `url(${icon})`,
               maskImage: `url(${icon})`,

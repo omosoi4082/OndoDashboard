@@ -124,7 +124,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   const fittedCanvasW = fittedCanvasH * (viewW / viewH);
 
   return (
-    <div className="flex h-full gap-3 rounded-lg border border-ondo-border bg-ondo-surface p-2">
+    <div className="flex h-full gap-2.5 rounded-lg border border-ondo-border bg-ondo-surface p-2.5">
       {/* 실제 치수 비율대로 맞춘 박스를 이 영역 안에서 가운데 정렬한다(남는 공간은 레터박스). */}
       <div
         ref={areaRef}

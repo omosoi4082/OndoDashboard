@@ -21,7 +21,11 @@ export function ModeTabs(): ReactElement {
           key={tab.id}
           type="button"
           onClick={() => setMode(tab.id)}
-          className={`h-[46px] w-[182px] rounded-[24px] text-base text-white transition-colors ${
+          // 높이 32px = 기존 46px에서 30% 축소(46 × 0.7 = 32.2, 2026-10-26 온도 추가요청
+          // 레이아웃 (4) — 버튼 같은 UI가 3D보다 커 보인다는 지적). 가로 182px과 탭-패널
+          // 간격 10px은 그대로 둔다. 둥근 모서리는 새 높이의 절반(16px)이라 알약 모양이
+          // 유지되고, 글자 16px은 32px 안에 들어가므로 그대로 둔다.
+          className={`h-[32px] w-[182px] rounded-[16px] text-base text-white transition-colors ${
             mode === tab.id ? 'bg-ondo-accent font-semibold' : 'hover:bg-ondo-surface-2'
           }`}
         >

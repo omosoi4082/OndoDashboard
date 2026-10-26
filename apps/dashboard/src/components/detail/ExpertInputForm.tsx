@@ -46,15 +46,22 @@ const COLUMNS: ReadonlyArray<{ key: keyof ExpertRowDraft; unit: string }> = [
 ];
 
 // 2026-10-17 사용자 지정 치수. 한 줄 폭 704 = 왼쪽 패딩 26 + 시간 칸 48 + (간격 12 + 입력칸 198) × 3.
+// 2026-10-26 사용자 지시로 입력 칸 높이만 36 → 28px(약 22% 축소. 먼저 30%인 25px로 줄였다가
+// 사용자가 28로 다시 정했다)로 줄였다 — 가로 198·간격 12·왼쪽 패딩 26(= 704 계산)은 그대로다.
+// 글자 16px은 기본 줄높이(24px) + 테두리 2px = 26px이라 28px 안에 들어간다(크롬 실측
+// clientHeight 26 / scrollHeight 26) — 25px일 때 필요했던 leading-none은 뺐다.
 // ★ Tailwind 클래스는 **리터럴로** 적는다 — 템플릿 문자열로 조립하면 빌드 시 스캐너가 못 찾아
 //   해당 CSS가 생성되지 않는다(폭·간격이 통째로 먹지 않는다).
 const GRID_COLS = 'grid grid-cols-[48px_198px_198px_198px] gap-3';
 /** 표 한 줄의 전체 폭(패딩 포함). 열 제목 줄과 입력 줄이 같은 폭을 쓰게 묶어 둔다. */
 const ROW_CLASS = `${GRID_COLS} w-[704px] pl-[26px]`;
 
-/** 우상단 보조 버튼(92×40, 시안 #44 치수) — "초기화"와 "예시값"이 같은 자리를 번갈아 쓴다. */
+/** 우상단 보조 버튼(92×40, 시안 #44 치수) — "초기화"와 "예시값"이 같은 자리를 번갈아 쓴다.
+ * 2026-10-26 사용자 지시로 높이 40 → 21(제목 줄 42의 반에 맞춤), 가로 92는 유지. 글자는
+ * 15px이면 줄높이 22.5px + 테두리 2px가 21px를 넘겨 13px·leading-none으로 낮췄다(크롬 실측).
+ * "적용" 버튼도 같은 높이·글자여야 줄이 어긋나지 않는다. */
 const SECONDARY_BUTTON_CLASS =
-  'h-[40px] w-[92px] shrink-0 rounded-lg border border-[rgba(85,85,85,0.5)] bg-[rgba(71,73,81,0.45)] text-[15px] font-medium text-white transition-colors hover:bg-[rgba(71,73,81,0.7)]';
+  'h-[28px] w-[92px] shrink-0 rounded-lg border border-[rgba(85,85,85,0.5)] bg-[rgba(71,73,81,0.45)] text-[13px] leading-none font-medium text-white transition-colors hover:bg-[rgba(71,73,81,0.7)]';
 
 export function ExpertInputForm({
   rowLabels,
@@ -77,17 +84,19 @@ export function ExpertInputForm({
   const canFillExample = !hasInput && !isLoading;
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4">
-      {/* 제목 줄 — 시안 01(제목+적용), 02~04(제목+초기화+적용), 04-1(뒤로+제목+초기화+적용) */}
-      <div className="flex h-[42px] shrink-0 items-center gap-2">
+    <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+      {/* 제목 줄 — 시안 01(제목+적용), 02~04(제목+초기화+적용), 04-1(뒤로+제목+초기화+적용).
+          2026-10-26 사용자 지시로 줄 높이 42 → 21(반), 버튼 40 → 21, 뒤로 가기 24 → 21px.
+          "필수값 설정" 라벨 16px과 가로 치수(버튼 92)는 그대로 둔다. */}
+      <div className="flex h-[28px] shrink-0 items-center gap-2">
         {onBack && (
           <button
             type="button"
             onClick={onBack}
             aria-label="결과 화면으로 돌아가기"
-            className="flex h-6 w-6 shrink-0 items-center justify-center text-[#ccc] transition-colors hover:text-white"
+            className="flex h-[23px] w-[23px] shrink-0 items-center justify-center text-[#ccc] transition-colors hover:text-white"
           >
-            <ChevronLeft size={24} />
+            <ChevronLeft size={18} />
           </button>
         )}
         <span className="text-[16px] font-semibold text-[#ccc]">필수값 설정</span>
@@ -107,7 +116,7 @@ export function ExpertInputForm({
             type="button"
             onClick={onSubmit}
             disabled={!validation.isValid || isLoading}
-            className="h-[40px] w-[92px] shrink-0 rounded-lg border border-[#1088de] bg-[#1088de] text-[15px] font-medium text-white transition-colors hover:bg-[#1088de]/80 disabled:cursor-not-allowed disabled:border-[rgba(85,85,85,0.3)] disabled:bg-[rgba(71,73,81,0.3)] disabled:text-[rgba(255,255,255,0.3)]"
+            className="h-[28px] w-[92px] shrink-0 rounded-lg border border-[#1088de] bg-[#1088de] text-[13px] leading-none font-medium text-white transition-colors hover:bg-[#1088de]/80 disabled:cursor-not-allowed disabled:border-[rgba(85,85,85,0.3)] disabled:bg-[rgba(71,73,81,0.3)] disabled:text-[rgba(255,255,255,0.3)]"
           >
             적용
           </button>
@@ -128,12 +137,13 @@ export function ExpertInputForm({
 
       {/* 24행 전부를 패널 높이만큼 펼치고 넘치는 만큼만 스크롤한다(시안 01~04-1: 오른쪽에
           스크롤바가 보이고 표가 패널 바닥까지 내려간다). */}
-      <div className="ondo-scrollbar flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
+      <div className="ondo-scrollbar flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto">
         {drafts.map((row, rowIndex) => {
           const rowValidation = validation.rows[rowIndex];
           return (
             <div key={rowIndex} className={`${ROW_CLASS} items-start`}>
-              <span className="flex h-[36px] items-center text-[14px] text-[#cccccc]">
+              {/* 시간 라벨 높이는 입력 칸과 같아야 세로 중심이 맞는다(2026-10-26 36 → 28). */}
+              <span className="flex h-[28px] items-center text-[14px] text-[#cccccc]">
                 {rowLabels[rowIndex] ?? `${rowIndex}시`}
               </span>
               {COLUMNS.map((col) => {
@@ -148,7 +158,7 @@ export function ExpertInputForm({
                       aria-label={`${rowLabels[rowIndex] ?? `${rowIndex}시`} ${EXPERT_FIELD_LABELS[col.key]}`}
                       aria-invalid={error != null}
                       onChange={(e) => updateCell(rowIndex, col.key, e.target.value)}
-                      className={`h-[36px] w-[198px] rounded-[6px] border px-3 text-center text-[16px] text-white outline-none placeholder:text-[13px] placeholder:text-white/30 focus:border-[#555] focus:bg-transparent ${
+                      className={`h-[28px] w-[198px] rounded-[6px] border px-3 text-center text-[16px] text-white outline-none placeholder:text-[13px] placeholder:text-white/30 focus:border-[#555] focus:bg-transparent ${
                         error
                           ? 'border-[rgba(255,105,91,0.7)] bg-[rgba(255,105,91,0.05)]'
                           : 'border-[rgba(85,85,85,0.5)] bg-[rgba(71,73,81,0.1)]'

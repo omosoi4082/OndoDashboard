@@ -140,10 +140,10 @@ export function ExpertModeView(): ReactElement {
           onSubmit={handleSubmit}
         />
         {isLoading && (
-          <span className="shrink-0 pt-3 text-xs text-white/60">전문가 모드 결과를 계산하는 중입니다...</span>
+          <span className="shrink-0 pt-2.5 text-xs text-white/60">전문가 모드 결과를 계산하는 중입니다...</span>
         )}
         {!isLoading && expert !== null && expert.status === 'error' && (
-          <span className="shrink-0 pt-3 text-xs text-[#ff695b]">{expert.error.message}</span>
+          <span className="shrink-0 pt-2.5 text-xs text-[#ff695b]">{expert.error.message}</span>
         )}
       </>
     );
