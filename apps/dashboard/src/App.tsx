@@ -4,6 +4,7 @@
 // 바꿨다). 모바일 대응은 안 한다(CLAUDE.md) — `MIN_VIEWPORT_WIDTH_PX`/`MIN_VIEWPORT_HEIGHT_PX`
 // 아래로 작은 창에서만 스크롤 없이 잘리는 걸 허용한다(아래 min-w/min-h).
 import type { ReactElement } from 'react';
+import { AreaNameLabel } from './components/AreaNameLabel.js';
 import { Header } from './components/Header.js';
 import { OutdoorPanel } from './components/OutdoorPanel.js';
 import { ScaleBar } from './components/ScaleBar.js';
@@ -18,9 +19,11 @@ import { useMainStore } from './store/mainStore.js';
 import {
   DETAIL_PANEL_WIDTH_PX,
   MAIN_SCENE_HEIGHT_PX,
+  MAIN_SCENE_TOP_PX,
   MAIN_SCENE_WIDTH_PX,
   MIN_VIEWPORT_HEIGHT_PX,
   MIN_VIEWPORT_WIDTH_PX,
+  OUTDOOR_CLUSTER_SCALE,
 } from './config/constants.js';
 
 function App(): ReactElement {
@@ -62,7 +65,7 @@ function App(): ReactElement {
         <div
           data-testid="main-scene"
           className="absolute left-0 top-0 isolate"
-          style={{ width: MAIN_SCENE_WIDTH_PX, height: MAIN_SCENE_HEIGHT_PX }}
+          style={{ width: MAIN_SCENE_WIDTH_PX, height: MAIN_SCENE_HEIGHT_PX, top: MAIN_SCENE_TOP_PX }}
         >
           <MainScene />
         </div>
@@ -79,14 +82,31 @@ function App(): ReactElement {
               2026-10-09 사용자 요청). */}
           <div className="relative flex flex-1 flex-col">
             <div className="relative flex-1">
-              <div className="absolute left-0 top-0 pl-[42px] pt-[18px]">
-                <div className="pointer-events-auto">
+              {/* 축척(8) — 좌측 영역의 오른쪽 아래, 상세 패널 바로 왼쪽(2026-10-26 사용자
+                  지시로 왼쪽 아래 → 오른쪽 아래. 외부환경 묶음이 왼쪽 아래로 내려와서 자리를
+                  비켜줬다. docs/06-design-guide.md도 같이 고쳤다).
+                  축척은 줄이지 않는다 — 막대 길이가 카메라 줌에서 계산된 실제 거리라
+                  축소하면 눈금이 틀어진다. */}
+              <div className="absolute bottom-6 right-6">
+                <ScaleBar />
+              </div>
+              {/* 위치 이름 + 외부환경(3) 묶음 — 좌측 하단(왼쪽 40px·아래 24px).
+                  원래 외부환경은 왼쪽 위, 위치 이름은 헤더 왼쪽이었는데 3D 모델링을 더 크게
+                  보여 달라는 요청으로 우선순위가 낮은 이 정보를 아래로 내리고 80%로 줄였다
+                  (2026-10-26 온도 추가요청 레이아웃 (2)).
+                  축소는 OutdoorPanel 내부 치수(Figma 실측값)를 건드리지 않게 바깥에서 한 번에
+                  하고, transformOrigin을 bottom left로 둬서 이 모서리에 붙은 채 줄어든다. */}
+              <div
+                className="absolute bottom-6 left-10"
+                style={{
+                  transform: `scale(${OUTDOOR_CLUSTER_SCALE})`,
+                  transformOrigin: 'bottom left',
+                }}
+              >
+                <div className="pointer-events-auto flex flex-col gap-[14px]">
+                  <AreaNameLabel />
                   <OutdoorPanel />
                 </div>
-              </div>
-              {/* 축척(8) — 메인 3D 왼쪽 아래(docs/06-design-guide.md) */}
-              <div className="absolute bottom-6 left-10">
-                <ScaleBar />
               </div>
               {isFirstLoading && <LoadingOverlay />}
             </div>

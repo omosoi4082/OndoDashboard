@@ -24,13 +24,16 @@ test('B-1-1 화면을 열면 돈사 3D 모델이 보인다', async ({ page }) =>
   await expectCanvasNotBlank(mainCanvas(page), '메인 3D');
 });
 
-test('B-1-2 헤더에 위치·로고·날짜와 움직이는 시계가 있다', async ({ page }) => {
+test('B-1-2 헤더에 로고·날짜와 움직이는 시계가 있고, 위치 이름이 왼쪽 아래에 있다', async ({ page }) => {
   const header = page.locator('header');
   await expect(header.getByRole('img', { name: '온도' })).toBeVisible();
 
-  const location = header.locator('span').first();
+  // 위치 이름은 2026-10-26부터 헤더가 아니라 좌측 하단 외부환경 묶음 위에 있다
+  // (온도 추가요청 레이아웃 (2) — 3D를 더 크게 보이게 하려고 내렸다).
+  const location = page.getByTestId('area-name');
+  await expect(location).toBeVisible();
   const locationText = (await location.innerText()).trim();
-  expect(locationText, '헤더 왼쪽 위치 이름이 비어 있습니다(기상청 응답의 동네 이름)').not.toBe('-');
+  expect(locationText, '위치 이름이 비어 있습니다(기상청 응답의 동네 이름)').not.toBe('-');
 
   const clock = header.locator('time');
   const first = await clock.innerText();

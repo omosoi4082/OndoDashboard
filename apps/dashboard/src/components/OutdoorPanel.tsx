@@ -1,6 +1,9 @@
 // 외부환경(3) — 3-1 기상청 실황 + 3-2 미세기후 (01-functional-spec.md 2장). 스타일·크기는
 // docs/06-design-guide.md "외부환경"(디자인 원본 실측: 블록 폭 338, 타일 82×66, 간격 4,
 // 타일 안 아이콘 18×18·아이콘-값 간격 12, 2026-10-10 Figma 재확인).
+// 아이콘 크기는 Figma 실측 18×18이었으나 2026-10-26 사용자 지시로 **20×20(10% 확대)**이다
+// (타일 82×66·패딩·간격·패널 폭 338은 그대로). App.tsx에서 이 패널 전체를 scale(0.8)로
+// 줄이므로 화면에서는 20 × 0.8 = 16px로 보인다.
 // 타일 4칸: 풍향·풍속·강수량·습도(2026-10-10 사용자 재확정 — 05-open-questions.md #36의
 // 2026-10-09 순서(풍향·풍속·습도·강수량)에서 변경). 풍속·강수량 출처는 기상청 WSD·RN1,
 // 기상대 CURWIND·RAIN(05-open-questions.md #36).
@@ -14,7 +17,9 @@ import { HumidityDropIcon, RainLinesIcon, WindDirectionIcon, WindSpeedIcon } fro
 function WeatherIcon({ code, isNight }: { code: WeatherCode | null; isNight: boolean }): ReactElement {
   const icon = getWeatherIcon(code, isNight);
   if (!icon) return <span className="text-sm text-ondo-muted">-</span>;
-  return <img src={icon.src} alt={icon.label} title={icon.label} className="h-[18px] w-[18px]" />;
+  // 날씨 아이콘 크기 — Figma 실측 18px → 2026-10-26 "기상청 아이콘들 10%씩" 지시로 20px →
+  // 같은 날 "날씨 아이콘만 10% 더" 지시로 22px(20 × 1.1). 타일 아이콘 4종은 20px 그대로다.
+  return <img src={icon.src} alt={icon.label} title={icon.label} className="h-[22px] w-[22px]" />;
 }
 
 function Tile({ icon, value, unit }: { icon: ReactNode; value: string | null; unit?: string }): ReactElement {
@@ -53,14 +58,14 @@ interface WeatherBlockProps {
 function WeatherBlock(props: WeatherBlockProps): ReactElement {
   const { testId, title, disconnected, weatherCode, isNight, temp, rh, windDir, windDeg, windSpeed, rain } = props;
   return (
-    <div data-testid={testId} className="flex w-[338px] flex-col gap-[17px]">
+    <div data-testid={testId} className="flex w-[358px] flex-col gap-[17px]">
       <div className="flex h-5 items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-[10px]">
           <span className="h-3.5 w-[3px] bg-ondo-accent-bar" />
           <span className="text-base font-bold text-white">{title}</span>
           {disconnected && <span className="rounded bg-red-500/20 px-1.5 py-0.5 text-[10px] text-red-300">연결 끊김</span>}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-[10px]">
           <WeatherIcon code={weatherCode} isNight={isNight} />
           <span className="text-lg font-semibold text-white">
             {temp === null ? '-' : temp.toFixed(1)}
@@ -68,27 +73,37 @@ function WeatherBlock(props: WeatherBlockProps): ReactElement {
           </span>
         </div>
       </div>
-      <div className="flex gap-[4px]">
+      <div className="flex gap-[10px]">
         {/* 풍향: windDeg(바람이 불어오는 방위, docs/03 3장)만큼 북쪽 기준으로 화살표를 돌린다 —
             디자인의 북서풍(↖)·북풍(↑) 예시와 같은 규칙. 글자는 명세대로 16방위. */}
         <Tile
-          icon={<WindDirectionIcon size={18} style={{ transform: `rotate(${windDeg ?? 0}deg)` }} />}
+          icon={<WindDirectionIcon size={20} style={{ transform: `rotate(${windDeg ?? 0}deg)` }} />}
           value={windDir}
         />
-        <Tile icon={<WindSpeedIcon size={18} />} value={num(windSpeed, 1)} unit="m/s" />
-        <Tile icon={<RainLinesIcon size={18} />} value={num(rain, 1)} unit="mm" />
-        <Tile icon={<HumidityDropIcon size={18} />} value={num(rh, 0)} unit="%" />
+        <Tile icon={<WindSpeedIcon size={20} />} value={num(windSpeed, 1)} unit="m/s" />
+        <Tile icon={<RainLinesIcon size={20} />} value={num(rain, 1)} unit="mm" />
+        <Tile icon={<HumidityDropIcon size={20} />} value={num(rh, 0)} unit="%" />
       </div>
     </div>
   );
 }
 
+// 외부환경 패널 간격 — 2026-10-26 "기상청 모든 갭을 10으로" → 같은 날 "세로갭은 기존 그대로"로
+// 정정. 그래서 **가로(행) 간격만 10px**이고 **세로(열) 간격은 Figma 실측값 그대로**다.
+//   가로 10px : 타일 4장 사이(실측 4) / 막대↔제목(8) / 날씨아이콘↔기온(12)
+//   세로 유지 : 제목↔타일 줄 17 / 타일 안 아이콘↔값 12 / 아라동↔패널 14(App.tsx)
+//   예외     : 두 블록 사이는 사용자가 따로 10으로 정했다(실측 37).
+// 타일 사이 간격을 4 → 10으로 벌리면 82px 타일 4장이 338px 안에 안 들어와 타일이 줄어들므로
+// (82×4 + 10×3 = 358) 블록 폭을 338 → 358로 같이 넓혔다. 타일 치수는 시안값이라 지킨다.
+// 기상청 실황 ↔ 미세기후 두 블록 사이 간격(gap-[10px]) — Figma 실측 37px → 2026-10-26
+// 사용자 지시로 33px(4px 축소) → 같은 날 10px로 다시 정했다. 좌측 하단으로 내려 80%로
+// 축소된 뒤라 화면에서는 10 × 0.8 = 8px로 보인다.
 export function OutdoorPanel(): ReactElement {
   const kma = okData(useMainStore((s) => s.weatherKma));
   const station = okData(useMainStore((s) => s.weatherStation));
 
   return (
-    <div className="flex flex-col gap-[37px]">
+    <div className="flex flex-col gap-[10px]">
       <WeatherBlock
         testId="weather-kma"
         title={kma?.label ?? '기상청 실황'}
