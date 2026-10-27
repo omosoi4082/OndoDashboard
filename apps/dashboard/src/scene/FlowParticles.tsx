@@ -14,7 +14,6 @@ import { zUpToYUp } from './coords.js';
 import { colormapRGB01, normalize } from '../detail/colormap.js';
 import {
   createParticles,
-  inletShareFor,
   sampleScalar,
   stepParticles,
   velocityFieldOf,
@@ -23,14 +22,8 @@ import {
 import { useDetailStore } from '../store/detailStore.js';
 import {
   FLOW_PARTICLE_COUNT,
-  FLOW_PARTICLE_INLET_SHARE,
-  FLOW_PARTICLE_LIFE_MAX_S,
-  FLOW_PARTICLE_LIFE_MIN_S,
-  FLOW_PARTICLE_REF_AIRFLOW_M3H,
+  FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H,
   FLOW_PARTICLE_SIZE_M,
-  FLOW_PARTICLE_STUCK_S,
-  FLOW_PARTICLE_STUCK_SPEED,
-  FLOW_PARTICLE_TIME_SCALE,
   FLOW_PARTICLE_TRAIL,
   PARTITION_HEIGHT_M,
   SECTION_PARTITION_SEGMENTS,
@@ -43,7 +36,7 @@ interface FlowParticlesProps {
 }
 
 const LUT_SIZE = 256;
-/** 태어날 때·사라질 때 투명도를 서서히 바꾸는 시간(초) — 갑자기 튀어나와 보이지 않게. */
+/** 급기구에서 막 나온 입자가 서서히 나타나는 시간(화면 초) — 갑자기 튀어나와 보이지 않게. */
 const FADE_S = 0.4;
 const HEAD_ALPHA = 0.95;
 const TRAIL_ALPHA = 0.6;
@@ -93,24 +86,28 @@ function makeDotTexture(): THREE.Texture {
 export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): ReactElement {
   const colorField = useDetailStore((s) => s.particleColorField);
 
+  const [W, D, H] = geometry.room.size;
+  const roomVolumeM3 = W * D * H;
   const opts: ParticleOptions = useMemo(
     () => ({
       count: FLOW_PARTICLE_COUNT,
       trail: FLOW_PARTICLE_TRAIL,
-      inletShare: FLOW_PARTICLE_INLET_SHARE,
-      lifeMinS: FLOW_PARTICLE_LIFE_MIN_S,
-      lifeMaxS: FLOW_PARTICLE_LIFE_MAX_S,
-      timeScale: FLOW_PARTICLE_TIME_SCALE,
-      stuckSpeed: FLOW_PARTICLE_STUCK_SPEED,
-      stuckS: FLOW_PARTICLE_STUCK_S,
+      // 방 공기가 한 번 바뀔 만큼 들어오면 최대 개수가 찬다.
+      particlesPerM3: roomVolumeM3 > 0 ? FLOW_PARTICLE_COUNT / roomVolumeM3 : 0,
+      fallbackAirflowM3h: FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H,
       partition: { segments: SECTION_PARTITION_SEGMENTS, height: PARTITION_HEIGHT_M },
     }),
-    [],
+    [roomVolumeM3],
   );
+  // 프레임(타임라인)·색 기준은 ref로 읽는다 — 바뀌어도 입자를 새로 뿌리지 않고 이어서 흐른다.
+  const frameRef = useRef(frame);
+  frameRef.current = frame;
+  // 처음엔 방 전체에 고르게 뿌린다(샘플 seedAll). geometry가 바뀔 때만 새로.
   const state = useMemo(() => createParticles(geometry, opts), [geometry, opts]);
 
   const { headGeom, trailGeom } = useMemo(() => {
-    const { count, trail } = opts;
+    const count = state.capacity;
+    const { trail } = opts;
     const head = new THREE.BufferGeometry();
     head.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3).setUsage(THREE.DynamicDrawUsage));
     head.setAttribute('color', new THREE.BufferAttribute(new Float32Array(count * 4), 4).setUsage(THREE.DynamicDrawUsage));
@@ -119,7 +116,7 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
     tail.setAttribute('position', new THREE.BufferAttribute(new Float32Array(nv * 3), 3).setUsage(THREE.DynamicDrawUsage));
     tail.setAttribute('color', new THREE.BufferAttribute(new Float32Array(nv * 4), 4).setUsage(THREE.DynamicDrawUsage));
     return { headGeom: head, trailGeom: tail };
-  }, [opts]);
+  }, [state, opts]);
   const dotTexture = useMemo(() => makeDotTexture(), []);
   useEffect(
     () => () => {
@@ -130,9 +127,6 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
     [headGeom, trailGeom, dotTexture],
   );
 
-  // 프레임(타임라인)·색 기준은 ref로 읽는다 — 바뀌어도 입자를 새로 뿌리지 않고 이어서 흐른다.
-  const frameRef = useRef(frame);
-  frameRef.current = frame;
   const colorRef = useRef({ lut: makeLut(colorField), min: 0, max: 1, field: colorField });
   useEffect(() => {
     const r = colorField === 'temp' ? range.temp : range.rh;
@@ -143,10 +137,12 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
     const f = frameRef.current;
     // 탭 전환 등으로 프레임 간격이 크게 벌어지면 입자가 한 번에 튀지 않게 자른다.
     const dt = Math.min(delta, 0.1);
-    const inletShare = inletShareFor(FLOW_PARTICLE_INLET_SHARE, f.supply, FLOW_PARTICLE_REF_AIRFLOW_M3H);
-    stepParticles(state, geometry, velocityFieldOf(geometry, f), dt, Math.random, inletShare);
+    // 배속은 매 프레임 스토어에서 바로 읽는다 — 바꿔도 입자를 새로 뿌리지 않는다.
+    const speed = useDetailStore.getState().particleSpeed;
+    stepParticles(state, geometry, velocityFieldOf(geometry, f), f.supply, dt, speed);
 
-    const { count, trail } = opts;
+    const count = state.capacity;
+    const { trail } = opts;
     const { lut, min, max, field } = colorRef.current;
     const values = field === 'temp' ? f.grid.temp : f.grid.rh;
     const grid = geometry.grid;
@@ -173,10 +169,9 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
 
     for (let p = 0; p < count; p++) {
       const o = p * trail * 3;
-      const age = state.age[p] ?? 0;
-      const life = state.life[p] ?? 0;
-      const fade = Math.max(0, Math.min(1, age / FADE_S, (life - age) / FADE_S));
       const len = state.histLen[p] ?? 0;
+      // 빈 자리(배기구로 나갔거나 아직 안 나온 입자)는 투명하게 둔다.
+      const fade = len === 0 ? 0 : Math.min(1, (state.age[p] ?? 0) / FADE_S);
 
       const [x, y, z] = zUpToYUp([state.hist[o] ?? 0, state.hist[o + 1] ?? 0, state.hist[o + 2] ?? 0]);
       hp[p * 3] = x;

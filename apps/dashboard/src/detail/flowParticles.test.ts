@@ -3,13 +3,15 @@ import type { DetailFrame, FlowVec, Geometry, GridDef } from '@ondo/shared';
 import {
   blockedByPartition,
   createParticles,
-  inletShareFor,
+  emitCountFor,
+  atOutlet,
   sampleScalar,
   sampleVelocity,
   segmentsCross,
   stepParticles,
   velocityFieldOf,
   type ParticleOptions,
+  type ParticleState,
 } from './flowParticles.js';
 
 // 2×2×2 격자(간격 1 m) — 꼭짓점 8개.
@@ -24,16 +26,15 @@ const GEOMETRY: Geometry = {
   flowGrid: COARSE,
 };
 
+// 내보내기 없음(particlesPerM3 0) — 입자는 테스트가 place로 직접 놓는다.
 const OPTS: ParticleOptions = {
   count: 4,
   trail: 3,
-  inletShare: 0,
-  lifeMinS: 100,
-  lifeMaxS: 100,
-  timeScale: 1,
-  stuckSpeed: 0,
-  stuckS: 100,
+  particlesPerM3: 0,
+  fallbackAirflowM3h: 0,
 };
+
+const SUPPLY = { airflow_m3h: 3600, ach: 12, inlet_velocity: 0.26, T_supply: 25, RH_supply: 80, pad_on: true };
 
 function frame(gridFlow?: FlowVec[]): DetailFrame {
   return {
@@ -46,6 +47,17 @@ function frame(gridFlow?: FlowVec[]): DetailFrame {
     summary: { T_mean: 0, T_min: 0, T_max: 0, T_west: 0, T_east: 0, RH_mean: 0, V_mean: 0, V_max: 0 },
     quality: { in_range: true, warnings: [] },
   };
+}
+
+/** 입자 p를 (x, y, z)에 놓는다(막 나온 입자). */
+function place(st: ParticleState, p: number, x: number, y: number, z: number): void {
+  const o = p * st.opts.trail * 3;
+  st.hist[o] = x;
+  st.hist[o + 1] = y;
+  st.hist[o + 2] = z;
+  st.histLen[p] = 1;
+  st.age[p] = 0;
+  st.stuck[p] = 0;
 }
 
 /** 고정 순서 난수 — 같은 입력이면 같은 결과. */
@@ -101,19 +113,35 @@ describe('velocityFieldOf — grid.flow가 있으면 그것, 없으면 flowGrid'
   });
 });
 
-describe('inletShareFor — 급기 풍량 비례', () => {
-  const supply = { airflow_m3h: 620, ach: 12, inlet_velocity: 0.26, T_supply: 25, RH_supply: 80, pad_on: true };
-
-  it('supply가 없으면 기본 비율', () => {
-    expect(inletShareFor(0.5, undefined, 1240)).toBe(0.5);
+describe('emitCountFor — 급기 풍량 비례', () => {
+  it('들어온 공기 부피 × 1 m³당 입자 수', () => {
+    // 3,600 m³/h = 1 m³/s, 2초 → 2 m³ × 5개
+    expect(emitCountFor(SUPPLY, 0, 5, 2)).toBeCloseTo(10);
   });
 
-  it('기준 풍량의 절반이면 비율도 절반', () => {
-    expect(inletShareFor(0.5, supply, 1240)).toBeCloseTo(0.25);
+  it('supply가 없으면 대체 풍량', () => {
+    expect(emitCountFor(undefined, 1800, 5, 2)).toBeCloseTo(5);
+  });
+});
+
+describe('atOutlet — 배기구 격자점이 걸친 격자 한 칸', () => {
+  // 실제 형상: grid 간격 0.25×0.25×0.4, 배기구 중심 (2.25, 0, 1.6) → x 2.0~2.5, z 1.2~2.0, y 0.25 안.
+  const REAL: Geometry = {
+    ...GEOMETRY,
+    room: { ...GEOMETRY.room, size: [4.5, 4, 2.8], outlet: { wall: 'y=0', x: 2.25, z: 1.6, d: 0.4 } },
+    grid: { origin: [0, 0, 0], spacing: [0.25, 0.25, 0.4], size: [19, 17, 8] },
+  };
+
+  it('배기구 원 밖이라도 그 칸 안이면 나간다', () => {
+    expect(atOutlet(REAL, 2.25, 0.02, 1.6)).toBe(true);
+    expect(atOutlet(REAL, 2.45, 0.02, 1.25)).toBe(true); // 원(반지름 0.2) 밖, 칸 안
+    expect(atOutlet(REAL, 2.25, 0.25, 1.6)).toBe(true);
   });
 
-  it('기준보다 크면 기본 비율에서 자른다', () => {
-    expect(inletShareFor(0.5, { ...supply, airflow_m3h: 5000 }, 1240)).toBe(0.5);
+  it('칸 밖이면 아니다', () => {
+    expect(atOutlet(REAL, 2.6, 0.02, 1.6)).toBe(false);
+    expect(atOutlet(REAL, 2.25, 0.02, 1.1)).toBe(false);
+    expect(atOutlet(REAL, 2.25, 0.3, 1.6)).toBe(false);
   });
 });
 
@@ -140,40 +168,118 @@ describe('칸막이 — 선분 교차', () => {
   });
 });
 
-describe('stepParticles', () => {
+describe('stepParticles — 샘플(Datacenter 뷰어) 규칙', () => {
+  // 테스트 격자는 간격 1 m라 배기구 칸(atOutlet)이 방 전체를 덮는다 — 배기구 판정을 보는
+  // 테스트 말고는 배기구를 y = 0이 아닌 벽으로 옮긴다.
+  const NO_OUTLET: Geometry = { ...GEOMETRY, room: { ...GEOMETRY.room, outlet: { wall: 'x=0', x: 0, z: 0.5, d: 0.4 } } };
   const field = { grid: GRID, flow: new Array<FlowVec>(8).fill([0.1, 0, 0, 0.1]) };
+  const still = { grid: GRID, flow: new Array<FlowVec>(8).fill([0, 0, 0, 0]) };
+
+  /** 빈 상태(예비분만) — 입자는 place로 직접 놓는다. */
+  function empty(opts: ParticleOptions): ParticleState {
+    const st = createParticles(NO_OUTLET, opts);
+    st.histLen.fill(0);
+    return st;
+  }
+  const alive = (st: ParticleState): number => Array.from(st.histLen).filter((n) => n > 0).length;
+
+  it('처음엔 count개를 방 안에 고르게 뿌리고, 자리는 1.5배를 잡는다', () => {
+    const st = createParticles(NO_OUTLET, { ...OPTS, count: 4 });
+    expect(st.capacity).toBe(6);
+    expect(alive(st)).toBe(4);
+  });
+
+  it('급기 풍량만큼 급기구 사각형 안 천장 바로 아래에 넣는다', () => {
+    const st = empty({ ...OPTS, count: 4, particlesPerM3: 1 });
+    // 1 m³/s × 3초 = 3개
+    stepParticles(st, NO_OUTLET, still, SUPPLY, 3, 1, seq(0, 0.5, 0.5, 0));
+    expect(alive(st)).toBe(3);
+    for (let p = 0; p < 3; p++) {
+      const o = p * 3 * 3;
+      expect(st.hist[o]).toBeCloseTo(0.5); // 급기구 중심 x
+      expect(st.hist[o + 1]).toBeCloseTo(0.5);
+      expect(st.hist[o + 2]).toBeGreaterThan(0.9); // 천장(z = 1) 바로 아래
+    }
+  });
+
+  it('배속만큼 실제 시간이 흘러 넣는 개수도 늘어난다', () => {
+    const st = empty({ ...OPTS, count: 4, particlesPerM3: 1 });
+    stepParticles(st, NO_OUTLET, still, SUPPLY, 1, 3, seq(0.5));
+    expect(alive(st)).toBe(3);
+  });
+
+  it('빈 자리가 없으면 넣지 않는다(떠 있는 입자를 지우지 않는다)', () => {
+    const st = createParticles(NO_OUTLET, { ...OPTS, count: 2, particlesPerM3: 10 });
+    expect(st.capacity).toBe(3);
+    stepParticles(st, NO_OUTLET, still, SUPPLY, 1, 1, seq(0.5));
+    expect(alive(st)).toBe(3);
+  });
 
   it('유속 방향으로 옮기고 꼬리를 민다', () => {
-    const st = createParticles(GEOMETRY, { ...OPTS, count: 1 }, seq(0.2, 0.5, 0.5, 0));
-    const x0 = st.hist[0] ?? 0;
-    stepParticles(st, GEOMETRY, field, 1, seq(0.5));
-    expect(st.hist[0]).toBeCloseTo(x0 + 0.1);
-    expect(st.hist[3]).toBeCloseTo(x0); // 꼬리 1칸 = 이전 위치
+    const st = empty({ ...OPTS, count: 1 });
+    place(st, 0, 0.2, 0.5, 0.5);
+    stepParticles(st, NO_OUTLET, field, undefined, 1, 1);
+    expect(st.hist[0]).toBeCloseTo(0.3);
+    expect(st.hist[3]).toBeCloseTo(0.2); // 꼬리 1칸 = 이전 위치
     expect(st.histLen[0]).toBe(2);
   });
 
-  it('배기구(y = 0 벽 원)에 닿으면 다시 태어난다', () => {
-    const toOutlet = { grid: GRID, flow: new Array<FlowVec>(8).fill([0, -1, 0, 1]) };
-    const st = createParticles(GEOMETRY, { ...OPTS, count: 1 }, seq(0.5, 0.05, 0.5, 0));
-    stepParticles(st, GEOMETRY, toOutlet, 0.1, seq(0.5));
-    expect(st.histLen[0]).toBe(1);
-    expect(st.age[0]).toBe(0);
+  it('배율(timeScale)만큼 더 멀리 간다', () => {
+    const st = empty({ ...OPTS, count: 1 });
+    place(st, 0, 0.2, 0.5, 0.5);
+    stepParticles(st, NO_OUTLET, field, undefined, 1, 3);
+    expect(st.hist[0]).toBeCloseTo(0.5);
   });
 
-  it('수명이 지나면 다시 태어난다(inletShare 1 → 급기구 아래)', () => {
-    const st = createParticles(GEOMETRY, { ...OPTS, count: 1, lifeMinS: 1, lifeMaxS: 1 }, seq(0.5, 0.5, 0.5, 0));
-    stepParticles(st, GEOMETRY, field, 2, seq(0), 1);
-    expect(st.age[0]).toBe(0);
-    expect(st.hist[2]).toBeGreaterThan(0.9); // 천장(z = 1) 바로 아래
+  it('배기구 칸에 닿으면 사라진다(예비분으로)', () => {
+    const toOutlet = { grid: GRID, flow: new Array<FlowVec>(8).fill([0, -1, 0, 1]) };
+    const st = empty({ ...OPTS, count: 1 });
+    place(st, 0, 0.5, 0.05, 0.5);
+    stepParticles(st, GEOMETRY, toOutlet, undefined, 0.1, 1);
+    expect(st.histLen[0]).toBe(0);
+  });
+
+  it('배기구가 아닌 벽에 닿으면 사라지지 않고 벽에 머문다', () => {
+    const toWall = { grid: GRID, flow: new Array<FlowVec>(8).fill([0, -1, 0, 1]) };
+    const st = empty({ ...OPTS, count: 1 });
+    place(st, 0, 0.1, 0.05, 0.1);
+    stepParticles(st, NO_OUTLET, toWall, undefined, 0.1, 1);
+    expect(st.histLen[0]).toBe(2);
+    expect(st.hist[1]).toBeCloseTo(0.004);
+  });
+
+  it('멈춤: 시작 40초 전에는 멈춰 있어도 그대로 둔다', () => {
+    const st = empty({ ...OPTS, count: 1 });
+    place(st, 0, 0.3, 0.3, 0.05);
+    stepParticles(st, NO_OUTLET, still, undefined, 30, 1, seq(0.9));
+    expect(st.hist[2]).toBeCloseTo(0.05);
+  });
+
+  it('멈춤: 40초 뒤 느린 상태가 25초 넘게 이어지면 방 안 아무 곳으로 다시 놓는다', () => {
+    const st = empty({ ...OPTS, count: 1 });
+    place(st, 0, 0.3, 0.3, 0.05);
+    stepParticles(st, NO_OUTLET, still, undefined, 41, 1, seq(0.9)); // 40초 지남, 멈춤 41초 시작
+    expect(st.stuck[0]).toBe(0); // 다시 놓이면 멈춤 시간도 처음부터
+    // 41 > 25라 이미 다시 놓였어야 한다 — 0.02 + 0.9 × 0.96
+    expect(st.hist[2]).toBeCloseTo(0.884);
+    expect(st.histLen[0]).toBe(1);
+  });
+
+  it('멈춤: 빠르게 움직이면 멈춤 시간이 0으로 돌아간다', () => {
+    const st = empty({ ...OPTS, count: 1 });
+    place(st, 0, 0.2, 0.5, 0.5);
+    st.simS = 100;
+    st.stuck[0] = 20;
+    stepParticles(st, NO_OUTLET, field, undefined, 0.1, 1);
+    expect(st.stuck[0]).toBe(0);
   });
 
   it('칸막이 높이 아래에서는 칸막이를 넘지 못한다', () => {
     const wall = { segments: [[[0.5, 0], [0.5, 1]]] as const, height: 0.78 };
-    const st = createParticles(GEOMETRY, { ...OPTS, count: 1, partition: wall }, seq(0.4, 0.5, 0.3, 0));
-    const x0 = st.hist[0] ?? 0;
-    expect(x0).toBeLessThan(0.5);
+    const st = empty({ ...OPTS, count: 1, partition: wall });
+    place(st, 0, 0.4, 0.5, 0.3);
     const fast = { grid: GRID, flow: new Array<FlowVec>(8).fill([1, 0, 0, 1]) };
-    stepParticles(st, GEOMETRY, fast, 0.5, seq(0.5));
-    expect(st.hist[0]).toBeCloseTo(x0);
+    stepParticles(st, NO_OUTLET, fast, undefined, 0.5, 1);
+    expect(st.hist[0]).toBeLessThan(0.5);
   });
 });

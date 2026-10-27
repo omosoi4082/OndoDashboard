@@ -5,6 +5,7 @@ import { History } from 'lucide-react';
 import type { DetailFrame } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { Timeline } from './Timeline.js';
+import { FLOW_PARTICLE_SPEEDS } from '../../config/constants.js';
 
 /** 상세 패널 스크롤 영역 — "3D 자돈방"부터 "2D 수평단면"까지만 스크롤되고, 그 위의
  * 분석 항목·시간 설정·전문가 입력폼·제어 토글 같은 버튼류는 스크롤 밖에 고정된다
@@ -115,6 +116,34 @@ function ParticleColorToggle(): ReactElement | null {
   );
 }
 
+// 유동 입자 배속 — 온도 측 샘플이 쓴 1·3·10배(mock/응답형식_추가안내_v1.3.3.txt). 유동일 때만 보인다.
+function ParticleSpeedToggle(): ReactElement | null {
+  const valueField = useDetailStore((s) => s.valueField);
+  const speed = useDetailStore((s) => s.particleSpeed);
+  const setSpeed = useDetailStore((s) => s.setParticleSpeed);
+  if (valueField !== 'flow') return null;
+  return (
+    <div className="flex items-center gap-2 text-xs text-white">
+      배속
+      <div className="flex overflow-hidden rounded-md border border-ondo-border">
+        {FLOW_PARTICLE_SPEEDS.map((v) => (
+          <button
+            key={v}
+            type="button"
+            aria-pressed={speed === v}
+            onClick={() => setSpeed(v)}
+            className={`h-6 px-3 text-xs transition-colors ${
+              speed === v ? 'bg-[#3b3c42] text-white' : 'bg-ondo-surface-2 text-ondo-muted hover:text-white'
+            }`}
+          >
+            {v}배
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SectionTitle({ title, right }: { title: string; right?: ReactNode }): ReactElement {
   return (
     <div className="flex h-6 shrink-0 items-center justify-between">
@@ -143,6 +172,7 @@ export function Detail3DSection({ children }: { children: ReactNode }): ReactEle
         title="3D 자돈방"
         right={
           <div className="flex items-center gap-2.5">
+            <ParticleSpeedToggle />
             <ParticleColorToggle />
             <PointsToggle />
           </div>

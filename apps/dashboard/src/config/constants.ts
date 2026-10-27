@@ -218,31 +218,22 @@ if (import.meta.hot) {
   });
 }
 
-// 유동 입자 애니메이션(scene/FlowParticles.tsx, 2026-10-26 온도 측 요청) — 명세 없음(개발자
-// 결정), 화면 보고 조정한다. 개수·꼬리는 참고 샘플(입자 6,000·꼬리 12)보다 줄였다 — 방이
-// 비슷한 크기라도 유동 격자가 288점이라 입자를 늘려도 흐름이 더 자세해지지 않는다.
+// 유동 입자 애니메이션(scene/FlowParticles.tsx). 움직임 규칙은 온도 측 샘플 방식 그대로다
+// (mock/응답형식_추가안내_v1.3.3.txt "화면 구현 참고", 2026-10-27 사용자 "샘플과 똑같이"):
+// 처음 방에 고르게 뿌리고, 급기구에서 풍량 비례로 투입, 배기구에서 소멸, 멈춘 입자는 방 안에
+// 다시 놓기, 실제 속도의 1·3·10배(기본 3배) — 세부 값은 샘플 코드(detail/flowParticles.ts).
+// 샘플과 다른 것은 개수·꼬리·점 크기뿐이다(개발자 결정 — 05 #54).
+/** 처음 방에 뿌리는 입자 수(샘플 NP는 6,000). 급기 공기 1 m³당 입자 수 = 이 값 ÷ 방 체적(샘플과 같은 식). */
 export const FLOW_PARTICLE_COUNT = 2500;
 export const FLOW_PARTICLE_TRAIL = 18;
-/** 다시 태어날 때 급기구에서 나올 비율 — 나머지는 방 안 아무 곳(방 전체 흐름도 보이게). */
-export const FLOW_PARTICLE_INLET_SHARE = 0.5;
-export const FLOW_PARTICLE_LIFE_MIN_S = 4;
-export const FLOW_PARTICLE_LIFE_MAX_S = 10;
-/**
- * 화면 1초 = 실제 몇 초 — 방 안 유속이 평균 0.02 m/s(95 %가 0.05 이하, v1.3.3 grid.flow 실측)라
- * 실제 속도로는 멈춰 보인다. 온도 측 샘플은 1·3·10배를 썼다(2026-10-27 안내) — 그중 10배.
- * 6배일 때보다 배기구 도달이 초당 129 → 155개로 늘었다(실제 응답 첫 프레임으로 30초 모의).
- */
-export const FLOW_PARTICLE_TIME_SCALE = 10;
-/**
- * 이보다 느린 상태가 FLOW_PARTICLE_STUCK_S 이어지면 다시 태어난다. 0.01이면 grid.flow의 느린
- * 방 안 공기까지 "멈춤"으로 잡혀 초당 약 200개가 허공에서 사라졌다(0.003 → 약 70개).
- */
-export const FLOW_PARTICLE_STUCK_SPEED = 0.003;
-export const FLOW_PARTICLE_STUCK_S = 1.5;
 export const FLOW_PARTICLE_SIZE_M = 0.05;
+/** 배속 선택지 — 온도 측 샘플이 쓴 1·3·10배. 화면 1초 = 실제 몇 초. */
+export const FLOW_PARTICLE_SPEEDS = [1, 3, 10] as const;
+export type FlowParticleSpeed = (typeof FLOW_PARTICLE_SPEEDS)[number];
+/** 기본 배속 — 샘플 기본값과 같은 3배. */
+export const FLOW_PARTICLE_DEFAULT_SPEED: FlowParticleSpeed = 3;
 /**
- * 급기 풍량 기준값(m³/h) — 이 풍량일 때 다시 태어나는 입자의 FLOW_PARTICLE_INLET_SHARE만큼이
- * 급기구에서 나온다. 풍량이 적으면 비율도 줄어든다(supply.airflow_m3h, v1.3.3 viz).
- * 온도 측 2026-10-27: 환기팬 가동률에 따라 보통 약 770~1,240 m³/h — 그 최댓값.
+ * supply가 없을 때(viz 꺼짐·구버전 서버) 쓰는 급기 풍량(m³/h) — 온도 측 2026-10-27:
+ * 환기팬 가동률에 따라 보통 약 770~1,240 m³/h, 그 최댓값.
  */
-export const FLOW_PARTICLE_REF_AIRFLOW_M3H = 1240;
+export const FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H = 1240;
