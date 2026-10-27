@@ -30,11 +30,17 @@ function formatTick(v: number): string {
 const PLAN_WIDTH_SHARE = 0.6;
 // 레이아웃 고정 여백(px) — 가로세로 비율 맞춤 계산에 쓴다. Tailwind 클래스(w-7=28, h-3=12)와
 // 값이 어긋나지 않게 같이 바꿔야 한다.
-// 2026-10-27 사용자: "사각 프레임 패딩 없이, 숫자와 단면도 사이 갭도 없이" — 바깥 테두리 패딩과
-// 축 숫자~단면 사이 간격을 모두 0으로 뒀다(아래 flex gap-0·right-0도 같은 요청이다).
+// 2026-10-27 사용자: "사각 프레임 패딩 없이, 숫자와 단면도 사이 갭도 없이" → 그 뒤 "단면 위에
+// 패딩 2만 주고 세로 숫자와 단면 사이 갭은 2 정도". 그래서 위 패딩 2px, Y축 숫자~단면 2px,
+// X축 숫자~단면 0px이다.
 const Y_AXIS_GUTTER_PX = 28;
 const X_AXIS_ROW_PX = 12;
-const ROW_GAP_PX = 0;
+/** Y축 숫자와 단면 사이(px). */
+const Y_AXIS_GAP_PX = 2;
+/** X축 숫자와 단면 사이(px). */
+const X_AXIS_GAP_PX = 0;
+/** 사각 프레임 위 패딩(px) — 좌우·아래는 0이다. */
+const FRAME_TOP_PAD_PX = 2;
 
 export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps): ReactElement {
   const valueField = useDetailStore((s) => s.valueField);
@@ -119,22 +125,25 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
     return () => observer.disconnect();
   }, []);
 
-  const canvasW = Math.max(0, areaSize.width - Y_AXIS_GUTTER_PX - ROW_GAP_PX);
+  const canvasW = Math.max(0, areaSize.width - Y_AXIS_GUTTER_PX - Y_AXIS_GAP_PX);
   const canvasHFromW = canvasW / (viewW / viewH);
-  const canvasHCap = Math.max(0, areaSize.height - X_AXIS_ROW_PX - ROW_GAP_PX);
+  const canvasHCap = Math.max(0, areaSize.height - X_AXIS_ROW_PX - X_AXIS_GAP_PX);
   const fittedCanvasH = Math.min(canvasHFromW, canvasHCap);
   const fittedCanvasW = fittedCanvasH * (viewW / viewH);
 
   return (
-    <div className="flex h-full gap-2.5 rounded-lg border border-ondo-border bg-ondo-surface">
+    <div
+      className="flex h-full gap-2.5 rounded-lg border border-ondo-border bg-ondo-surface"
+      style={{ paddingTop: FRAME_TOP_PAD_PX }}
+    >
       {/* 실제 치수 비율대로 맞춘 박스를 이 영역 안에서 가운데 정렬한다(남는 공간은 레터박스). */}
       <div
         ref={areaRef}
         className="flex min-h-0 min-w-0 shrink-0 items-center justify-center"
         style={{ width: `${PLAN_WIDTH_SHARE * 100}%` }}
       >
-        <div style={{ width: fittedCanvasW + Y_AXIS_GUTTER_PX + ROW_GAP_PX }}>
-          <div className="flex gap-0" style={{ height: fittedCanvasH }}>
+        <div style={{ width: fittedCanvasW + Y_AXIS_GUTTER_PX + Y_AXIS_GAP_PX }}>
+          <div className="flex" style={{ height: fittedCanvasH, gap: Y_AXIS_GAP_PX }}>
             {/* Y축 칫수(m) — 아래 X축 행의 marginLeft와 폭을 맞춰야 눈금이 캔버스와 정렬된다. */}
             <div className="relative shrink-0" style={{ width: Y_AXIS_GUTTER_PX }}>
               {yTicks.map((v) => (
@@ -180,7 +189,12 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
           {/* X축 칫수(m) */}
           <div
             className="relative shrink-0"
-            style={{ height: X_AXIS_ROW_PX, marginTop: ROW_GAP_PX, marginLeft: Y_AXIS_GUTTER_PX + ROW_GAP_PX, width: fittedCanvasW }}
+            style={{
+              height: X_AXIS_ROW_PX,
+              marginTop: X_AXIS_GAP_PX,
+              marginLeft: Y_AXIS_GUTTER_PX + Y_AXIS_GAP_PX,
+              width: fittedCanvasW,
+            }}
           >
             {xTicks.map((v) => (
               <span
