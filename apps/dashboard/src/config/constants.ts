@@ -223,8 +223,15 @@ if (import.meta.hot) {
 // 급기 풍량 비례, 1·3·10배). 샘플 HTML은 참고만 한다(2026-10-27 사용자). 세부는 detail/flowParticles.ts.
 /** 동시에 떠 있는 최대 입자 수(개발자 결정). 급기 공기 1 m³당 입자 수 = 이 값 ÷ 방 체적. */
 export const FLOW_PARTICLE_COUNT = 2500;
-export const FLOW_PARTICLE_TRAIL = 18;
+export const FLOW_PARTICLE_TRAIL = 28;
 export const FLOW_PARTICLE_SIZE_M = 0.05;
+/**
+ * 머리(원)의 화면 크기 한계(px). 월드 크기(FLOW_PARTICLE_SIZE_M)만 쓰면 확대할수록 원이
+ * 무한정 커져 1px 꼬리선과의 비율이 벌어진다(2026-10-27 사용자: "원과 라인에 비율이 크지 않아").
+ * 온도 측 샘플 뷰어도 같은 방식이다 — gl_PointSize를 clamp(uSize*uScale/-z, 1.5, 7)로 자른다.
+ */
+export const FLOW_PARTICLE_MIN_PX = 1.5;
+export const FLOW_PARTICLE_MAX_PX = 7;
 /** 배속 선택지 — 안내문의 1·3·10배. 화면 1초 = 실제 몇 초. */
 export const FLOW_PARTICLE_SPEEDS = [1, 3, 10] as const;
 export type FlowParticleSpeed = (typeof FLOW_PARTICLE_SPEEDS)[number];

@@ -23,6 +23,8 @@ import { useDetailStore } from '../store/detailStore.js';
 import {
   FLOW_PARTICLE_COUNT,
   FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H,
+  FLOW_PARTICLE_MAX_PX,
+  FLOW_PARTICLE_MIN_PX,
   FLOW_PARTICLE_SIZE_M,
   FLOW_PARTICLE_TRAIL,
   PARTITION_HEIGHT_M,
@@ -83,6 +85,39 @@ function makeDotTexture(): THREE.Texture {
   return tex;
 }
 
+/**
+ * 머리(원) 머티리얼 — 내장 PointsMaterial을 쓰되 gl_PointSize만 px로 자른다.
+ *
+ * 왜: sizeAttenuation만 쓰면 확대할 때 원이 계속 커져 1px 꼬리선과 크기 차이가 벌어진다.
+ * 온도 측 샘플 뷰어와 같은 방식(clamp 1.5~7 px)으로 자르면, 줌을 당겨도 원이 일정 크기
+ * 이상 커지지 않고 멀어지면 작아진다(2026-10-27 사용자).
+ *
+ * 셰이더를 통째로 새로 쓰지 않는 이유는 파일 머리말과 같다 — Canvas의 logarithmicDepthBuffer
+ * 처리를 내장 셰이더(logdepthbuf_vertex)에 그대로 맡긴다. 그 include 바로 앞에 한 줄만 끼운다.
+ */
+function makeHeadMaterial(map: THREE.Texture): THREE.PointsMaterial {
+  const mat = new THREE.PointsMaterial({
+    vertexColors: true,
+    size: FLOW_PARTICLE_SIZE_M,
+    sizeAttenuation: true,
+    map,
+    transparent: true,
+    alphaTest: 0.25,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  mat.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <logdepthbuf_vertex>',
+      `gl_PointSize = clamp( gl_PointSize, ${FLOW_PARTICLE_MIN_PX.toFixed(1)}, ${FLOW_PARTICLE_MAX_PX.toFixed(1)} );
+#include <logdepthbuf_vertex>`,
+    );
+  };
+  // 셰이더를 고쳤으니 캐시 키도 달라야 한다 — 같은 키면 PointsMaterial 원본 프로그램을 쓴다.
+  mat.customProgramCacheKey = () => 'flow-particle-head-clamped';
+  return mat;
+}
+
 export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): ReactElement {
   const colorField = useDetailStore((s) => s.particleColorField);
 
@@ -118,13 +153,15 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
     return { headGeom: head, trailGeom: tail };
   }, [state, opts]);
   const dotTexture = useMemo(() => makeDotTexture(), []);
+  const headMaterial = useMemo(() => makeHeadMaterial(dotTexture), [dotTexture]);
   useEffect(
     () => () => {
       headGeom.dispose();
       trailGeom.dispose();
       dotTexture.dispose();
+      headMaterial.dispose();
     },
-    [headGeom, trailGeom, dotTexture],
+    [headGeom, trailGeom, dotTexture, headMaterial],
   );
 
   const colorRef = useRef({ lut: makeLut(colorField), min: 0, max: 1, field: colorField });
@@ -216,18 +253,7 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
       <lineSegments geometry={trailGeom} frustumCulled={false} renderOrder={2}>
         <lineBasicMaterial vertexColors transparent depthWrite={false} toneMapped={false} />
       </lineSegments>
-      <points geometry={headGeom} frustumCulled={false} renderOrder={3}>
-        <pointsMaterial
-          vertexColors
-          size={FLOW_PARTICLE_SIZE_M}
-          sizeAttenuation
-          map={dotTexture}
-          transparent
-          alphaTest={0.25}
-          depthWrite={false}
-          toneMapped={false}
-        />
-      </points>
+      <points geometry={headGeom} material={headMaterial} frustumCulled={false} renderOrder={3} />
     </>
   );
 }
