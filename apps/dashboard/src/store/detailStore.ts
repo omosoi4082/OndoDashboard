@@ -63,6 +63,13 @@ export interface DetailState {
    */
   timelineFrameIndex: number;
   timelinePlaying: boolean;
+  /**
+   * 처음부터 다시 시작한 횟수 — 올라갈 때마다 유동 입자를 **빈 방에서 급기구부터** 다시 뿌린다
+   * (scene/FlowParticles.tsx). 2026-10-27 사용자: "처음 급기구에서 나오는 게 아니고 나오는 중간
+   * 색만 바뀐다". 타임라인만 0으로 되돌리면 입자는 흐르던 자리를 그대로 이어가서,
+   * 초기화·모드 전환·분석 항목 전환이 "다시 시작"으로 보이지 않는다.
+   */
+  timelineRunId: number;
 
   setGeometry: (geometry: Geometry) => void;
   setMode: (mode: DetailMode) => void;
@@ -110,6 +117,7 @@ export const useDetailStore = create<DetailState>((set) => ({
   control: null,
   timelineFrameIndex: 0,
   timelinePlaying: false,
+  timelineRunId: 0,
 
   setGeometry: (geometry) => set({ geometry }),
   // 모드를 바꿀 때마다: ① 유동/습도/온도 토글은 기본값(온도)으로(01-functional-spec.md 3장
@@ -134,6 +142,7 @@ export const useDetailStore = create<DetailState>((set) => ({
       // 모드에 들어가면 바로 재생한다(2026-10-27 사용자). 입자는 재생 중에만 흐르므로
       // (FlowParticles.tsx) 멈춘 채로 시작하면 유동을 켜도 서 있다. 현재 모드는 타임라인이 없다.
       timelinePlaying: mode !== 'current',
+      timelineRunId: 0,
       expert: null,
     }),
   /**
@@ -147,6 +156,7 @@ export const useDetailStore = create<DetailState>((set) => ({
       valueField: field,
       timelineFrameIndex: s.mode === 'current' ? s.timelineFrameIndex : 0,
       timelinePlaying: s.mode !== 'current',
+      timelineRunId: s.timelineRunId + 1,
     })),
   setParticleColorField: (field) => set({ particleColorField: field }),
   setParticleSpeed: (speed) => set({ particleSpeed: speed }),
@@ -166,7 +176,13 @@ export const useDetailStore = create<DetailState>((set) => ({
   setTimelineFrameIndex: (index) => set({ timelineFrameIndex: index }),
   play: () => set({ timelinePlaying: true }),
   pause: () => set({ timelinePlaying: false }),
-  stop: () => set((s) => ({ timelineFrameIndex: 0, timelinePlaying: s.mode !== 'current' })),
+  stop: () =>
+    set((s) => ({
+      timelineFrameIndex: 0,
+      timelinePlaying: s.mode !== 'current',
+      // 입자도 빈 방에서 급기구부터 다시 — 그래야 "처음부터"가 눈에 보인다(2026-10-27 사용자).
+      timelineRunId: s.timelineRunId + 1,
+    })),
   advanceTimeline: (frameCount) =>
     set((s) => {
       const result = advanceTimelineFrame(s.timelineFrameIndex, frameCount);

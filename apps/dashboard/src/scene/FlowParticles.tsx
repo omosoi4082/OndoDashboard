@@ -140,7 +140,9 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
   const frameRef = useRef(frame);
   frameRef.current = frame;
   // 빈 방에서 시작해 급기구에서 나온 입자로 채워진다(안내문 "급기구에서 출발").
-  const state = useMemo(() => createParticles(opts), [opts]);
+  // timelineRunId가 올라가면(초기화·모드 전환·분석 항목 전환) 다시 빈 방부터 시작한다.
+  const runId = useDetailStore((s) => s.timelineRunId);
+  const state = useMemo(() => createParticles(opts), [opts, runId]);
 
   const { headGeom, trailGeom } = useMemo(() => {
     const count = state.capacity;
