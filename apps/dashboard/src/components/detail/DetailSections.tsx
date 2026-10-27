@@ -171,7 +171,9 @@ export function Detail3DSection({ children }: { children: ReactNode }): ReactEle
       <SectionTitle
         title="3D 자돈방"
         right={
-          <div className="flex items-center gap-2.5">
+          /* 배속·입자 색·포인트 표시 사이 간격 10 → 18px (2026-10-27 사용자 "갭을 8씩 더줘").
+             유동이 아닐 때는 포인트 표시 한 개만 남아 이 간격이 드러나지 않는다. */
+          <div className="flex items-center gap-[18px]">
             <ParticleSpeedToggle />
             <ParticleColorToggle />
             <PointsToggle />
