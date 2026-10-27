@@ -19,6 +19,7 @@ import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ControlSummaryCard } from './ControlSummaryCard.js';
 import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
 import { FlowVisualization } from '../../scene/FlowVisualization.js';
+import { CONTROL_OVERLAY_SAMPLE } from '../../config/constants.js';
 
 type ControlTarget = ControlDetail['target'];
 
@@ -173,12 +174,29 @@ export function ControlModeView(): ReactElement {
                     />
                   )
                 }
-                htmlOverlay={<ControlSummaryCard frames={control.data.frames} control={control.data.control} frameIndex={frameIndex} />}
+                htmlOverlayFill={CONTROL_OVERLAY_SAMPLE}
+                htmlOverlay={
+                  CONTROL_OVERLAY_SAMPLE ? (
+                    <>
+                      {/* 배치 샘플(2026-10-27) — 단면은 좌측 하단, 그래프는 우측 하단 오버레이. */}
+                      <div className="pointer-events-auto absolute bottom-3 left-3 h-[232px] w-[344px]">
+                        <Detail2DSection geometry={geometry} frame={frame} range={control.data.range} />
+                      </div>
+                      <div className="absolute bottom-3 right-3">
+                        <ControlSummaryCard frames={control.data.frames} control={control.data.control} frameIndex={frameIndex} />
+                      </div>
+                    </>
+                  ) : (
+                    <ControlSummaryCard frames={control.data.frames} control={control.data.control} frameIndex={frameIndex} />
+                  )
+                }
               />
             </Detail3DSection>
-            <Detail2DBox>
-              <Detail2DSection geometry={geometry} frame={frame} range={control.data.range} />
-            </Detail2DBox>
+            {!CONTROL_OVERLAY_SAMPLE && (
+              <Detail2DBox>
+                <Detail2DSection geometry={geometry} frame={frame} range={control.data.range} />
+              </Detail2DBox>
+            )}
           </>
         )}
       </DetailScrollBody>
