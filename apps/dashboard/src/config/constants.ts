@@ -218,20 +218,21 @@ if (import.meta.hot) {
   });
 }
 
-// 유동 입자 애니메이션(scene/FlowParticles.tsx). 움직임 규칙은 온도 측 샘플 방식 그대로다
-// (mock/응답형식_추가안내_v1.3.3.txt "화면 구현 참고", 2026-10-27 사용자 "샘플과 똑같이"):
-// 처음 방에 고르게 뿌리고, 급기구에서 풍량 비례로 투입, 배기구에서 소멸, 멈춘 입자는 방 안에
-// 다시 놓기, 실제 속도의 1·3·10배(기본 3배) — 세부 값은 샘플 코드(detail/flowParticles.ts).
-// 샘플과 다른 것은 개수·꼬리·점 크기뿐이다(개발자 결정 — 05 #54).
-/** 처음 방에 뿌리는 입자 수(샘플 NP는 6,000). 급기 공기 1 m³당 입자 수 = 이 값 ÷ 방 체적(샘플과 같은 식). */
+// 유동 입자 애니메이션(scene/FlowParticles.tsx). 규칙은 온도 데이터와 자돈방 안내문 기준이다
+// (mock/응답형식_추가안내_v1.3.3.txt "화면 구현 참고" — 급기구에서 출발, 배기구에서 소멸, 출발 개수는
+// 급기 풍량 비례, 1·3·10배). 샘플 HTML은 참고만 한다(2026-10-27 사용자). 세부는 detail/flowParticles.ts.
+/** 동시에 떠 있는 최대 입자 수(개발자 결정). 급기 공기 1 m³당 입자 수 = 이 값 ÷ 방 체적. */
 export const FLOW_PARTICLE_COUNT = 2500;
 export const FLOW_PARTICLE_TRAIL = 18;
 export const FLOW_PARTICLE_SIZE_M = 0.05;
-/** 배속 선택지 — 온도 측 샘플이 쓴 1·3·10배. 화면 1초 = 실제 몇 초. */
+/** 배속 선택지 — 안내문의 1·3·10배. 화면 1초 = 실제 몇 초. */
 export const FLOW_PARTICLE_SPEEDS = [1, 3, 10] as const;
 export type FlowParticleSpeed = (typeof FLOW_PARTICLE_SPEEDS)[number];
-/** 기본 배속 — 샘플 기본값과 같은 3배. */
-export const FLOW_PARTICLE_DEFAULT_SPEED: FlowParticleSpeed = 3;
+/**
+ * 기본 배속 10배 — grid.flow 방 안 유속이 평균 0.02 m/s(95 %가 0.05 이하)라 1·3배로는 거의 멈춰
+ * 보이고, 빈 방에서 시작해 급기구 입자로 차는 데 3배는 1분 넘게 걸린다(10배는 약 30초).
+ */
+export const FLOW_PARTICLE_DEFAULT_SPEED: FlowParticleSpeed = 10;
 /**
  * supply가 없을 때(viz 꺼짐·구버전 서버) 쓰는 급기 풍량(m³/h) — 온도 측 2026-10-27:
  * 환기팬 가동률에 따라 보통 약 770~1,240 m³/h, 그 최댓값.

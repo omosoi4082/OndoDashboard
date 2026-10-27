@@ -102,8 +102,8 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
   // 프레임(타임라인)·색 기준은 ref로 읽는다 — 바뀌어도 입자를 새로 뿌리지 않고 이어서 흐른다.
   const frameRef = useRef(frame);
   frameRef.current = frame;
-  // 처음엔 방 전체에 고르게 뿌린다(샘플 seedAll). geometry가 바뀔 때만 새로.
-  const state = useMemo(() => createParticles(geometry, opts), [geometry, opts]);
+  // 빈 방에서 시작해 급기구에서 나온 입자로 채워진다(안내문 "급기구에서 출발").
+  const state = useMemo(() => createParticles(opts), [opts]);
 
   const { headGeom, trailGeom } = useMemo(() => {
     const count = state.capacity;

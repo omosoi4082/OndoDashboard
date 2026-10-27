@@ -168,7 +168,7 @@ describe('칸막이 — 선분 교차', () => {
   });
 });
 
-describe('stepParticles — 샘플(Datacenter 뷰어) 규칙', () => {
+describe('stepParticles — 급기구 출발·배기구 소멸·멈춤 시 급기구로', () => {
   // 테스트 격자는 간격 1 m라 배기구 칸(atOutlet)이 방 전체를 덮는다 — 배기구 판정을 보는
   // 테스트 말고는 배기구를 y = 0이 아닌 벽으로 옮긴다.
   const NO_OUTLET: Geometry = { ...GEOMETRY, room: { ...GEOMETRY.room, outlet: { wall: 'x=0', x: 0, z: 0.5, d: 0.4 } } };
@@ -177,16 +177,14 @@ describe('stepParticles — 샘플(Datacenter 뷰어) 규칙', () => {
 
   /** 빈 상태(예비분만) — 입자는 place로 직접 놓는다. */
   function empty(opts: ParticleOptions): ParticleState {
-    const st = createParticles(NO_OUTLET, opts);
-    st.histLen.fill(0);
-    return st;
+    return createParticles(opts);
   }
   const alive = (st: ParticleState): number => Array.from(st.histLen).filter((n) => n > 0).length;
 
-  it('처음엔 count개를 방 안에 고르게 뿌리고, 자리는 1.5배를 잡는다', () => {
-    const st = createParticles(NO_OUTLET, { ...OPTS, count: 4 });
-    expect(st.capacity).toBe(6);
-    expect(alive(st)).toBe(4);
+  it('처음엔 빈 방이다(방에 미리 뿌리지 않는다)', () => {
+    const st = createParticles({ ...OPTS, count: 4 });
+    expect(st.capacity).toBe(4);
+    expect(alive(st)).toBe(0);
   });
 
   it('급기 풍량만큼 급기구 사각형 안 천장 바로 아래에 넣는다', () => {
@@ -209,10 +207,12 @@ describe('stepParticles — 샘플(Datacenter 뷰어) 규칙', () => {
   });
 
   it('빈 자리가 없으면 넣지 않는다(떠 있는 입자를 지우지 않는다)', () => {
-    const st = createParticles(NO_OUTLET, { ...OPTS, count: 2, particlesPerM3: 10 });
-    expect(st.capacity).toBe(3);
+    const st = createParticles({ ...OPTS, count: 2, particlesPerM3: 10 });
+    place(st, 0, 0.2, 0.2, 0.5);
+    place(st, 1, 0.3, 0.3, 0.5);
     stepParticles(st, NO_OUTLET, still, SUPPLY, 1, 1, seq(0.5));
-    expect(alive(st)).toBe(3);
+    expect(alive(st)).toBe(2);
+    expect(st.hist[0]).toBeCloseTo(0.2); // 떠 있던 입자는 그대로
   });
 
   it('유속 방향으로 옮기고 꼬리를 민다', () => {
@@ -248,27 +248,20 @@ describe('stepParticles — 샘플(Datacenter 뷰어) 규칙', () => {
     expect(st.hist[1]).toBeCloseTo(0.004);
   });
 
-  it('멈춤: 시작 40초 전에는 멈춰 있어도 그대로 둔다', () => {
+  it('멈춤: 느린 상태가 25초(실제 시간) 넘게 이어지면 급기구로 되돌린다', () => {
     const st = empty({ ...OPTS, count: 1 });
     place(st, 0, 0.3, 0.3, 0.05);
-    stepParticles(st, NO_OUTLET, still, undefined, 30, 1, seq(0.9));
-    expect(st.hist[2]).toBeCloseTo(0.05);
-  });
-
-  it('멈춤: 40초 뒤 느린 상태가 25초 넘게 이어지면 방 안 아무 곳으로 다시 놓는다', () => {
-    const st = empty({ ...OPTS, count: 1 });
-    place(st, 0, 0.3, 0.3, 0.05);
-    stepParticles(st, NO_OUTLET, still, undefined, 41, 1, seq(0.9)); // 40초 지남, 멈춤 41초 시작
-    expect(st.stuck[0]).toBe(0); // 다시 놓이면 멈춤 시간도 처음부터
-    // 41 > 25라 이미 다시 놓였어야 한다 — 0.02 + 0.9 × 0.96
-    expect(st.hist[2]).toBeCloseTo(0.884);
-    expect(st.histLen[0]).toBe(1);
+    stepParticles(st, NO_OUTLET, still, undefined, 20, 1, seq(0.5));
+    expect(st.hist[2]).toBeCloseTo(0.05); // 20초 — 아직 그대로
+    stepParticles(st, NO_OUTLET, still, undefined, 10, 1, seq(0.5));
+    expect(st.hist[0]).toBeCloseTo(0.5); // 급기구 중심
+    expect(st.hist[2]).toBeGreaterThan(0.9); // 천장 바로 아래
+    expect(st.stuck[0]).toBe(0);
   });
 
   it('멈춤: 빠르게 움직이면 멈춤 시간이 0으로 돌아간다', () => {
     const st = empty({ ...OPTS, count: 1 });
     place(st, 0, 0.2, 0.5, 0.5);
-    st.simS = 100;
     st.stuck[0] = 20;
     stepParticles(st, NO_OUTLET, field, undefined, 0.1, 1);
     expect(st.stuck[0]).toBe(0);

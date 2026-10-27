@@ -1,11 +1,12 @@
 // 유동 입자 애니메이션(scene/FlowParticles.tsx) 순수 로직 — 2026-10-26 온도 측 요청
 // ("공기 입자가 급기구에서 들어와 배기구로 흘러가는 애니메이션", "입자 색을 온도 / 습도로").
-// 규칙은 온도 측 샘플 방식 그대로다(mock/응답형식_추가안내_v1.3.3.txt "화면 구현 참고",
-// 2026-10-27 사용자 "샘플과 똑같이"): 급기구 사각형 안 천장 바로 아래에서 출발, y = 0 벽의
-// 배기구에 닿으면 소멸(판정 범위는 원이 아니라 배기구 격자 한 칸 — atOutlet), 출발 개수는 급기 풍량 비례, 실제 속도의 1·3·10배, 위치의
-// 유속·온도·습도는 격자 8점 삼선형 보간, 칸막이(0.78 m)는 통과하지 못한다.
-// 안내문에 없는 세부(처음 방에 고르게 뿌리기, 예비분 0.5배, 멈춘 입자 다시 놓기, 단계 쪼개기)는
-// 샘플 코드(Datacenter_v3_1_M2_3D열유동_뷰어.html)의 값을 그대로 옮겼다(2026-10-27 사용자).
+// 기준은 온도 데이터(grid.flow·supply)와 자돈방 안내문(mock/응답형식_추가안내_v1.3.3.txt
+// "화면 구현 참고")이다. 샘플 HTML(Datacenter_v3_1_M2_3D열유동_뷰어.html)은 참고만 한다
+// (2026-10-27 사용자 "데이터를 바탕으로 만들어야지, html은 말 그대로 참고만").
+//   - 출발: 급기구 사각형 안 천장 바로 아래에서만, 급기 풍량에 비례한 개수(처음에도 방은 비어 있다).
+//   - 소멸: 배기구에 닿으면(판정 범위는 배기구 격자 한 칸 — atOutlet).
+//   - 멈춤: 벽·바닥 점이 0이라 그 근처에서 멈춘 입자는 급기구로 되돌린다(판정 값은 샘플 HTML 참고).
+//   - 유속·온도·습도는 격자 8점 삼선형 보간, 실제 속도의 1·3·10배, 칸막이(0.78 m)는 통과하지 못한다.
 // 좌표는 전부 데이터 좌표(z-up, m)다 — Three.js 변환은 그리는 쪽(zUpToYUp)에서 한다.
 //
 // 유속장은 둘 중 하나다(velocityFieldOf):
@@ -184,11 +185,11 @@ export function blockedByPartition(
 }
 
 export interface ParticleOptions {
-  /** 처음 방에 고르게 뿌리는 입자 수(샘플 NP). 자리는 1.5배를 잡고 나머지는 급기구 투입 예비분. */
+  /** 동시에 떠 있을 수 있는 최대 입자 수 — 다 차면 빈 자리가 날 때까지 급기구 투입을 쉰다. */
   count: number;
   /** 꼬리에 기억할 위치 수(머리 포함). */
   trail: number;
-  /** 급기 공기 1 m³당 입자 수(emitCountFor) — 샘플은 NP ÷ 방 체적. */
+  /** 급기 공기 1 m³당 입자 수(emitCountFor) — 최대 개수 ÷ 방 체적(방 공기 한 번 바뀔 만큼이면 다 찬다). */
   particlesPerM3: number;
   /** supply가 없을 때(viz 꺼짐) 쓰는 급기 풍량(m³/h). */
   fallbackAirflowM3h: number;
@@ -197,38 +198,33 @@ export interface ParticleOptions {
 }
 
 /**
- * 샘플(Datacenter_v3_1_M2_3D열유동_뷰어.html `seedAll`·`inject`·`advect`)과 같은 값.
- * 멈춤: 시작 STUCK_AFTER_S 뒤부터 |u|+|v|+|w| < STUCK_SPEED 상태가 STUCK_HOLD_S 이어지면
- * 방 안 아무 곳으로 다시 놓는다(바닥·벽에 멈춘 입자 정리). 시간은 전부 실제(시뮬레이션) 초.
+ * 멈춤: |u|+|v|+|w| < STUCK_SPEED 상태가 STUCK_HOLD_S(실제 초) 이어지면 급기구로 되돌린다.
+ * grid.flow는 벽·바닥 점이 0이라 그 근처로 간 입자는 속도가 0으로 줄어 그대로 멈춘다(바닥에
+ * 쌓여 보였다). 값은 샘플 HTML을 참고했다.
  */
-const STUCK_AFTER_S = 40;
 const STUCK_SPEED = 0.02;
 const STUCK_HOLD_S = 25;
-/** 한 단계에 이 거리(m)보다 멀리 가지 않게 쪼갠다(샘플 0.04 m, 최대 16단계). */
+/** 한 단계에 이 거리(m)보다 멀리 가지 않게 쪼갠다(최대 16단계) — 배기구 앞 2.7 m/s도 건너뛰지 않게. */
 const SUBSTEP_MAX_M = 0.04;
 const SUBSTEP_MAX_N = 16;
-/** 입자 자리 = count × 이 배수(샘플 NMAX = NP × 1.5). */
-const CAPACITY_FACTOR = 1.5;
 
 export interface ParticleState {
   opts: ParticleOptions;
-  /** 입자 자리 수(= ceil(count × 1.5)). */
+  /** 입자 자리 수(= count). */
   capacity: number;
   /** 위치 기록 — 입자 p의 k번째(0 = 현재) 위치가 (p*trail + k)*3 부터 x,y,z. */
   hist: Float32Array;
-  /** 기록된 꼬리 길이(0~trail) — 0이면 비어 있는 자리(배기구로 나갔거나 예비분, 그리지 않는다). */
+  /** 기록된 꼬리 길이(0~trail) — 0이면 비어 있는 자리(아직 안 나왔거나 배기구로 나감, 그리지 않는다). */
   histLen: Uint8Array;
   /** 놓인 뒤 화면 시간(초) — 서서히 나타나게 하는 데만 쓴다. */
   age: Float32Array;
   /** 느린 상태가 이어진 실제 시간(초). */
   stuck: Float32Array;
-  /** 시작부터 흐른 실제 시간(초) — 멈춤 규칙은 STUCK_AFTER_S 뒤부터. */
-  simS: number;
   /** 아직 넣지 못한 소수점 이하 입자 수(다음 스텝으로 넘긴다). */
   emitCarry: number;
 }
 
-/** 방 안쪽으로 좌표를 자르는 여유(m) — 샘플 0.004. */
+/** 방 안쪽으로 좌표를 자르는 여유(m). */
 const WALL_MARGIN_M = 0.004;
 
 function place(state: ParticleState, p: number, x: number, y: number, z: number): void {
@@ -241,14 +237,8 @@ function place(state: ParticleState, p: number, x: number, y: number, z: number)
   state.stuck[p] = 0;
 }
 
-/** 방 안 아무 곳(샘플 placeUniform — 벽에서 0.02 m 안쪽). */
-function placeUniform(state: ParticleState, p: number, geometry: Geometry, rand: Rand): void {
-  const [W, D, H] = geometry.room.size;
-  place(state, p, 0.02 + rand() * (W - 0.04), 0.02 + rand() * (D - 0.04), 0.02 + rand() * (H - 0.04));
-}
-
 /**
- * 급기구 사각형 안, 천장 바로 아래(샘플 inject — 면에서 급기 속도 × dt 안쪽까지, 가장자리 3 % 안쪽).
+ * 급기구 사각형 안, 천장 바로 아래(면에서 급기 속도 × dt 안쪽까지 — 한꺼번에 나와 한 겹으로 겹치지 않게).
  * 급기구 면적이 같아 셋 중 고르게 고른다.
  */
 function placeAtInlet(state: ParticleState, p: number, geometry: Geometry, inletVelocity: number, h: number, rand: Rand): void {
@@ -261,21 +251,18 @@ function placeAtInlet(state: ParticleState, p: number, geometry: Geometry, inlet
   place(state, p, x, y, z);
 }
 
-/** 처음엔 count개를 방 전체에 고르게 뿌리고(샘플 seedAll), 남은 0.5배는 예비분으로 비워 둔다. */
-export function createParticles(geometry: Geometry, opts: ParticleOptions, rand: Rand = Math.random): ParticleState {
-  const capacity = Math.ceil(opts.count * CAPACITY_FACTOR);
-  const state: ParticleState = {
+/** 빈 방으로 시작한다 — 입자는 stepParticles가 급기구에서 넣는다. */
+export function createParticles(opts: ParticleOptions): ParticleState {
+  const capacity = opts.count;
+  return {
     opts,
     capacity,
     hist: new Float32Array(capacity * opts.trail * 3),
     histLen: new Uint8Array(capacity),
     age: new Float32Array(capacity),
     stuck: new Float32Array(capacity),
-    simS: 0,
     emitCarry: 0,
   };
-  for (let p = 0; p < opts.count; p++) placeUniform(state, p, geometry, rand);
-  return state;
 }
 
 /**
@@ -316,8 +303,8 @@ function maxSpeed(flow: readonly FlowVec[]): number {
 const maxSpeedCache = new WeakMap<readonly FlowVec[], number>();
 
 /**
- * dtS(화면 초)만큼 진행한다 — 실제 시간으로는 dtS × timeScale(샘플 1·3·10배).
- * 샘플 advance 순서 그대로: 급기구 투입(inject) → 이동(advect) → 꼬리 기록(pushHistory).
+ * dtS(화면 초)만큼 진행한다 — 실제 시간으로는 dtS × timeScale(1·3·10배).
+ * 급기구 투입 → 이동 → 꼬리 기록 순서.
  */
 export function stepParticles(
   state: ParticleState,
@@ -335,17 +322,16 @@ export function stepParticles(
   const [W, D, H] = geometry.room.size;
   const h = dtS * timeScale;
   if (h <= 0) return;
-  state.simS += h;
 
-  // inject — 예비분이 있을 때만(샘플: freeList가 비면 넣지 않는다).
+  // 급기구 투입 — 빈 자리가 있을 때만.
   const inlets = geometry.room.inlets;
+  const inletArea = inlets.reduce((a, it) => a + it.w * it.l, 0);
+  const airflow = supply?.airflow_m3h ?? fallbackAirflowM3h;
+  const inletVelocity = inletArea > 0 ? airflow / 3600 / inletArea : 0;
   if (inlets.length > 0) {
     const want = state.emitCarry + emitCountFor(supply, fallbackAirflowM3h, particlesPerM3, h);
     let n = Math.floor(want);
     state.emitCarry = want - n;
-    const inletArea = inlets.reduce((a, it) => a + it.w * it.l, 0);
-    const airflow = supply?.airflow_m3h ?? fallbackAirflowM3h;
-    const inletVelocity = inletArea > 0 ? airflow / 3600 / inletArea : 0;
     for (let p = 0; p < capacity && n > 0; p++) {
       if ((state.histLen[p] ?? 0) !== 0) continue;
       placeAtInlet(state, p, geometry, inletVelocity, h, rand);
@@ -392,16 +378,16 @@ export function stepParticles(
       z = Math.min(Math.max(z, WALL_MARGIN_M), H - WALL_MARGIN_M);
     }
     if (exited) {
-      // 배기구로 나감 → 급기구에서 다시 들어올 예비분(샘플과 같다).
+      // 배기구로 나감 → 빈 자리(다음 투입 때 급기구에서 다시 나온다).
       state.histLen[p] = 0;
       continue;
     }
-    // 멈춤 — 샘플은 마지막 단계의 유속(|u|+|v|+|w|)으로 판정한다.
+    // 멈춤 — 마지막 단계의 유속(|u|+|v|+|w|)으로 판정하고, 오래 멈추면 급기구로 되돌린다.
     const spd = Math.abs(vB[0]) + Math.abs(vB[1]) + Math.abs(vB[2]);
-    if (state.simS > STUCK_AFTER_S && spd < STUCK_SPEED) {
+    if (spd < STUCK_SPEED) {
       state.stuck[p] = (state.stuck[p] ?? 0) + h;
-      if ((state.stuck[p] ?? 0) > STUCK_HOLD_S) {
-        placeUniform(state, p, geometry, rand);
+      if ((state.stuck[p] ?? 0) > STUCK_HOLD_S && inlets.length > 0) {
+        placeAtInlet(state, p, geometry, inletVelocity, h, rand);
         continue;
       }
     } else {
