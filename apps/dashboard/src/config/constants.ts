@@ -1,3 +1,4 @@
+import type { OutletHit } from '../detail/flowParticles.js';
 // 화면 전역 상수. 미확정/개발자 결정 값은 docs/05-open-questions.md를 참고하고,
 // 여기서는 그 상수만 모아둔다(CLAUDE.md "치수는 설정 상수로 분리").
 import type { Vector3Tuple } from 'three';
@@ -251,6 +252,18 @@ export const FLOW_PARTICLE_MAX_PX = 7;
  * (2026-10-27 사용자) 급기구에서 주기적으로 다시 내보내는 쪽을 쓴다. 네 모드 모두 같다.
  */
 export const FLOW_PARTICLE_MAX_AGE_S = 20;
+
+/**
+ * 배기구 소멸 판정 — 'circle'이 온도 측 안내문("화면 구현 참고")이 권한 방식이고,
+ * 'cell'은 배기구 격자점이 걸친 격자 한 칸이다(detail/flowParticles.ts의 atOutlet).
+ *
+ * 실제 v1.3.3 예측 응답 첫 프레임으로 60초(10배속) 모의한 결과 — 입자 4,000개 기준:
+ *   circle : 배기구로 5,085회 사라짐, **배기구 벽에 붙어 있는 입자 2,399개**(전부 원 바깥)
+ *   cell   : 배기구로 14,522회 사라짐, 벽에 붙은 입자 21개
+ * 배기구 둘레 격자점이 0(벽면 조건)이라 원 바깥에서 속도가 0으로 줄어 붙는다. 그래서 기본은
+ * 'cell'로 두고, 온도 측에 어느 쪽이 맞는지 확인 요청 중이다(2026-10-28). 답이 오면 한 줄로 바꾼다.
+ */
+export const FLOW_PARTICLE_OUTLET_HIT: OutletHit = 'cell';
 export const FLOW_PARTICLE_SPEEDS = [1, 3, 10] as const;
 export type FlowParticleSpeed = (typeof FLOW_PARTICLE_SPEEDS)[number];
 /**

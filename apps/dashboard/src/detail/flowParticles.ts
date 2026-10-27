@@ -289,6 +289,8 @@ export interface ParticleOptions {
   partition?: PartitionWall;
   /** 입자 수명(화면 초) — 이 시간이 지나면 급기구에서 다시 내보낸다. 없으면 수명 없음. */
   maxAgeS?: number;
+  /** 배기구 소멸 판정(기본 'cell'). 온도 측 안내문이 권한 방식은 'circle'이다. */
+  outletHit?: OutletHit;
 }
 
 /**
@@ -369,10 +371,31 @@ export function createParticles(opts: ParticleOptions): ParticleState {
  * 벽에 붙은 1,287개 중 99 %가 배기구 중심 0.5 m 안). 화면에 그리는 배기구 크기는 그대로다.
  * 칸 크기는 grid 간격에서 나온다 — 지금 형상이면 x 2.0~2.5, z 1.2~2.0, 벽에서 y 0.25 m 안.
  */
-export function atOutlet(geometry: Geometry, x: number, y: number, z: number): boolean {
+/**
+ * 배기구 소멸 판정 방식.
+ *  - 'circle' : geometry.json의 배기구 원(지름 0.4 m) 안 — 온도 측 안내문 "화면 구현 참고"가 권한 방식.
+ *  - 'cell'   : 배기구 격자점이 걸친 격자 한 칸(x ±0.25, z ±0.4, 벽에서 0.25 m) — 원으로만 지우면
+ *               입자가 원 바로 바깥 벽에 붙던 것을 넓혀 본 안이다(2026-10-27).
+ */
+export type OutletHit = 'circle' | 'cell';
+
+export function atOutlet(
+  geometry: Geometry,
+  x: number,
+  y: number,
+  z: number,
+  hit: OutletHit = 'cell',
+): boolean {
   const out = geometry.room.outlet;
   if (out.wall !== 'y=0') return false;
   const { origin, spacing } = geometry.grid;
+  if (hit === 'circle') {
+    // 벽에서 한 칸 안쪽까지 들어온 입자가 배기구 원(지름 d) 안이면 빨려 나간 것으로 본다.
+    const r = out.d / 2;
+    const dx = x - out.x;
+    const dz = z - out.z;
+    return y <= origin[1] + spacing[1] && dx * dx + dz * dz <= r * r;
+  }
   // 배기구 중심에 가장 가까운 격자점 — 그 점에서 앞뒤로 한 칸.
   const nodeX = origin[0] + Math.round((out.x - origin[0]) / spacing[0]) * spacing[0];
   const nodeZ = origin[2] + Math.round((out.z - origin[2]) / spacing[2]) * spacing[2];
@@ -409,7 +432,7 @@ export function stepParticles(
   timeScale: number,
   rand: Rand = Math.random,
 ): void {
-  const { trail, partition, particlesPerM3, fallbackAirflowM3h, maxAgeS } = state.opts;
+  const { trail, partition, particlesPerM3, fallbackAirflowM3h, maxAgeS, outletHit = 'cell' } = state.opts;
   const { capacity } = state;
   const fg = field.grid;
   const flow = field.flow;
@@ -484,7 +507,7 @@ export function stepParticles(
       ) {
         z = partition.height + PARTITION_CLEAR_M;
       }
-      if (atOutlet(geometry, x, y, z)) {
+      if (atOutlet(geometry, x, y, z, outletHit)) {
         exited = true;
         break;
       }

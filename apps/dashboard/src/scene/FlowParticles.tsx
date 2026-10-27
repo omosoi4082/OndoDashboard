@@ -24,6 +24,7 @@ import {
   FLOW_PARTICLE_COUNT,
   FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H,
   FLOW_PARTICLE_MAX_AGE_S,
+  FLOW_PARTICLE_OUTLET_HIT,
   FLOW_PARTICLE_MAX_PX,
   FLOW_PARTICLE_MIN_PX,
   FLOW_PARTICLE_SIZE_M,
@@ -140,6 +141,7 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
       particlesPerM3: roomVolumeM3 > 0 ? FLOW_PARTICLE_COUNT / roomVolumeM3 : 0,
       fallbackAirflowM3h: FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H,
       maxAgeS: FLOW_PARTICLE_MAX_AGE_S,
+      outletHit: FLOW_PARTICLE_OUTLET_HIT,
       // 칸막이 차단은 우리 판단으로 넣은 규칙이라 한 줄로 끌 수 있게 둔다(2026-10-28, 상수 주석 참고).
       partition: PARTITION_BLOCKS_PARTICLES
         ? { segments: SECTION_PARTITION_SEGMENTS, height: PARTITION_HEIGHT_M }
