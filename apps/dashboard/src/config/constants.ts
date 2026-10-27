@@ -221,9 +221,10 @@ if (import.meta.hot) {
 // 유동 입자 애니메이션(scene/FlowParticles.tsx). 규칙은 온도 데이터와 자돈방 안내문 기준이다
 // (mock/응답형식_추가안내_v1.3.3.txt "화면 구현 참고" — 급기구에서 출발, 배기구에서 소멸, 출발 개수는
 // 급기 풍량 비례, 1·3·10배). 샘플 HTML은 참고만 한다(2026-10-27 사용자). 세부는 detail/flowParticles.ts.
-/** 동시에 떠 있는 최대 입자 수(개발자 결정). 급기 공기 1 m³당 입자 수 = 이 값 ÷ 방 체적. */
-export const FLOW_PARTICLE_COUNT = 2500;
-export const FLOW_PARTICLE_TRAIL = 28;
+/** 동시에 떠 있는 최대 입자 수(2026-10-27 사용자 지정 4,000). 급기 공기 1 m³당 입자 수 = 이 값 ÷ 방 체적.
+ * 이 PC 실측으로는 9,000까지 60fps, 12,000부터 프레임이 빠졌다 — 테스트 PC 사양을 모르니 여유를 둔다. */
+export const FLOW_PARTICLE_COUNT = 4000;
+export const FLOW_PARTICLE_TRAIL = 18;
 export const FLOW_PARTICLE_SIZE_M = 0.05;
 /**
  * 머리(원)의 화면 크기 한계(px). 월드 크기(FLOW_PARTICLE_SIZE_M)만 쓰면 확대할수록 원이
