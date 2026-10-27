@@ -7,6 +7,7 @@ import type { ApiResponse, ControlDetail, CurrentDetail, ExpertDetail, ForecastD
 import { advanceTimelineFrame } from '../detail/timeline.js';
 import { keepLastGoodOnComputeFailure } from '../detail/keepLastGood.js';
 import { formatFrameDateTime } from '../detail/timeline.js';
+import { FLOW_PARTICLE_DEFAULT_SPEED, type FlowParticleSpeed } from '../config/constants.js';
 
 // 01-functional-spec.md 1장: 모드 탭(현재/예측/전문가/제어). shared의 각 Detail*의
 // mode 리터럴을 그대로 모아 쓴다(타입 복제가 아니라 참조).
@@ -23,6 +24,8 @@ export interface DetailState {
   mode: DetailMode;
   valueField: ValueField;
   particleColorField: ParticleColorField;
+  /** 유동 입자 배속(온도 측 샘플 1·3·10배) — 기본 10배. */
+  particleSpeed: FlowParticleSpeed;
   /** 11·16·23·30 포인트 on/off — 기본값 on. */
   pointsVisible: boolean;
   /** GET /api/detail/current 응답 — M4. null = 아직 응답을 받지 못함(최초 로딩). */
@@ -65,6 +68,7 @@ export interface DetailState {
   setMode: (mode: DetailMode) => void;
   setValueField: (field: ValueField) => void;
   setParticleColorField: (field: ParticleColorField) => void;
+  setParticleSpeed: (speed: FlowParticleSpeed) => void;
   setPointsVisible: (visible: boolean) => void;
   setCurrent: (current: ApiResponse<CurrentDetail>) => void;
   setForecast: (forecast: ApiResponse<ForecastDetail>) => void;
@@ -96,6 +100,7 @@ export const useDetailStore = create<DetailState>((set) => ({
   mode: 'current',
   valueField: 'temp',
   particleColorField: 'temp',
+  particleSpeed: FLOW_PARTICLE_DEFAULT_SPEED,
   pointsVisible: defaultPointsVisible('current'),
   current: null,
   currentStaleNotice: null,
@@ -120,6 +125,9 @@ export const useDetailStore = create<DetailState>((set) => ({
     set({
       mode,
       valueField: 'temp',
+      // 입자 색도 모드마다 기본(온도)으로 — 습도로 바꾼 채 다른 탭에 가면 그대로 남았다(2026-10-27 사용자).
+      particleColorField: 'temp',
+      particleSpeed: FLOW_PARTICLE_DEFAULT_SPEED,
       pointsVisible: defaultPointsVisible(mode),
       timelineFrameIndex: 0,
       timelinePlaying: false,
@@ -127,6 +135,7 @@ export const useDetailStore = create<DetailState>((set) => ({
     }),
   setValueField: (field) => set({ valueField: field }),
   setParticleColorField: (field) => set({ particleColorField: field }),
+  setParticleSpeed: (speed) => set({ particleSpeed: speed }),
   setPointsVisible: (visible) => set({ pointsVisible: visible }),
   // 연산 서버 실패 시 이전 정상 결과를 유지할지는 순수 함수로 판단한다(D-4).
   setCurrent: (next) =>

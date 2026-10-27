@@ -90,6 +90,7 @@ export function ControlModeView(): ReactElement {
   const setControl = useDetailStore((s) => s.setControl);
   const valueField = useDetailStore((s) => s.valueField);
   const timelineFrameIndex = useDetailStore((s) => s.timelineFrameIndex);
+  const stopTimeline = useDetailStore((s) => s.stop);
 
   // 기본값 에너지 최적화(01-functional-spec.md 4.4).
   const [target, setTarget] = useState<ControlTarget>('energy');
@@ -115,6 +116,8 @@ export function ControlModeView(): ReactElement {
     // 같은 target을 다시 눌렀을 땐 setTarget이 리렌더를 일으키지 않아 effect가 다시
     // 돌지 않는다 — 그 상태에서 isLoading만 true로 두면 영영 꺼지지 않으므로 먼저 걸러낸다.
     if (next === target) return;
+    // 다른 최적화 결과라 재생 위치를 이어 가면 혼란스럽다 — 처음으로 되돌리고 멈춘다(2026-10-27 사용자).
+    stopTimeline();
     setIsLoading(true);
     setTarget(next);
   }
