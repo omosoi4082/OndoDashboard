@@ -42,6 +42,13 @@ const LUT_SIZE = 256;
 /** 급기구에서 막 나온 입자가 서서히 나타나는 시간(화면 초) — 갑자기 튀어나와 보이지 않게. */
 const FADE_S = 0.4;
 const HEAD_ALPHA = 0.95;
+/**
+ * 멈춘 채로 막대를 옮겼을 때(= 프레임만 바뀌었을 때) 입자를 따라오게 하는 걸음 수(1/60초 단위).
+ * 2026-10-27 사용자: "막대를 끌면 등치면처럼 정지 상태에서도 갱신돼야 하지 않나".
+ * 등치면·2D는 그 시각 값으로 다시 그려지는데 입자만 서 있으면 한 화면이 서로 다른 시각을 보여준다.
+ * 12걸음이면 기본 10배속에서 약 2초치 흐름이라 눈에 띄게 바뀌고, 한 번에 25 ms 안팎이라 끌어도 끊기지 않는다.
+ */
+const SCRUB_CATCHUP_STEPS = 12;
 const TRAIL_ALPHA = 0.6;
 
 function makeLut(field: 'temp' | 'rh'): Float32Array {
@@ -139,6 +146,8 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
   // 프레임(타임라인)·색 기준은 ref로 읽는다 — 바뀌어도 입자를 새로 뿌리지 않고 이어서 흐른다.
   const frameRef = useRef(frame);
   frameRef.current = frame;
+  /** 마지막으로 입자를 움직인 프레임 — 멈춘 채로 막대만 옮겼는지 판단한다. */
+  const lastSteppedFrame = useRef(frame);
   // 빈 방에서 시작해 급기구에서 나온 입자로 채워진다(안내문 "급기구에서 출발").
   // timelineRunId가 올라가면(초기화·모드 전환·분석 항목 전환) 다시 빈 방부터 시작한다.
   const runId = useDetailStore((s) => s.timelineRunId);
@@ -184,7 +193,17 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
     const dt = Math.min(delta, 0.1);
     // 배속은 매 프레임 스토어에서 바로 읽는다 — 바꿔도 입자를 새로 뿌리지 않는다.
     const speed = useDetailStore.getState().particleSpeed;
-    if (playing) stepParticles(state, geometry, velocityFieldOf(geometry, f), f.supply, dt, speed);
+    if (playing) {
+      stepParticles(state, geometry, velocityFieldOf(geometry, f), f.supply, dt, speed);
+      lastSteppedFrame.current = f;
+    } else if (lastSteppedFrame.current !== f) {
+      // 멈춘 채로 시각만 바뀌었다 — 그 시각 유동장으로 잠깐 흘려 입자를 따라오게 한다.
+      const field = velocityFieldOf(geometry, f);
+      for (let i = 0; i < SCRUB_CATCHUP_STEPS; i++) {
+        stepParticles(state, geometry, field, f.supply, 1 / 60, speed);
+      }
+      lastSteppedFrame.current = f;
+    }
 
     const count = state.capacity;
     const { trail } = opts;
