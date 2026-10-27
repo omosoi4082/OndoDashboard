@@ -172,36 +172,18 @@ export function segmentsCross(
     !(d1 === 0 && d2 === 0); // 같은 직선 위(벽을 따라 미끄러짐)는 가로지른 것이 아니다
 }
 
-/** (x0,y0)→(x1,y1) 이동이 칸막이 높이 아래에서 칸막이를 가로지르는지. */
-export function blockedByPartition(
-  wall: PartitionWall | undefined,
-  x0: number, y0: number, x1: number, y1: number, z: number,
-): boolean {
-  if (wall === undefined || z > wall.height) return false;
-  for (const [[cx, cy], [dx, dy]] of wall.segments) {
-    if (segmentsCross(x0, y0, x1, y1, cx, cy, dx, dy)) return true;
-  }
-  return false;
-}
-
 /**
- * 칸막이 판 반두께(m) — 모델 실측 0.04 두께(PigRoom_W0가 x 1.82~1.86)의 절반.
- * 입자 반지름 몫으로 조금 더 준다.
+ * 칸막이 판 두께 몫의 여유(m) — 모델 실측 판 두께 0.04에 입자 반지름 몫을 더했다.
+ * 입자가 이 띠 안으로 들어오지 못하게 막고, 위에서 내려온 입자는 판 위에 올려놓는다.
  */
-const PARTITION_HALF_THICKNESS_M = 0.03;
+const PARTITION_BLOCK_M = 0.05;
 
-/**
- * 판 윗면에 올려놓을 때 띄우는 높이(m). 윗면 높이에 정확히 두면 점이 판에 반쯤 박혀 보여
- * "칸막이를 뚫고 지나간다"처럼 보인다(2026-10-27 사용자, 제어 모드에서 확인).
- */
-const PARTITION_CLEAR_M = 0.02;
-
-/** (x, y)가 칸막이 판이 서 있는 자리(선분에서 반두께 안)인지 — 판을 수직으로 지나가지 못하게 할 때 쓴다. */
+/** (x, y)가 칸막이 판이 서 있는 자리(선분에서 margin 안)인지. */
 export function overPartition(
   wall: PartitionWall | undefined,
   x: number,
   y: number,
-  margin: number = PARTITION_HALF_THICKNESS_M,
+  margin: number = PARTITION_BLOCK_M,
 ): boolean {
   if (wall === undefined) return false;
   for (const [[ax, ay], [bx, by]] of wall.segments) {
@@ -215,6 +197,36 @@ export function overPartition(
   }
   return false;
 }
+
+/**
+ * (x0,y0)→(x1,y1) 이동이 칸막이 높이 아래에서 칸막이에 막히는지.
+ *
+ * 가로지르는 경우뿐 아니라 **판 두께 안으로 파고드는 경우도 막는다**(2026-10-27 사용자: 제어
+ * 모드에서 "회색 벽에 입자가 나온다"). geometry의 선분은 모델이 그리는 판의 한쪽 면이고
+ * (실측 PigRoom_W0: x 1.82~1.86, 선분은 x = 1.82) 판은 그 옆으로 4 cm 두께가 있다. 선분만
+ * 보면 반대쪽에서 온 입자가 판 속 4 cm까지 들어와 멈춰 **판 안에 박혀 보였다**(60초 모의에서
+ * 제어 모드 약 1,100개). 이미 띠 안에 있던 입자는 막지 않는다 — 막으면 영영 못 빠져나온다.
+ */
+export function blockedByPartition(
+  wall: PartitionWall | undefined,
+  x0: number, y0: number, x1: number, y1: number, z: number,
+  margin: number = PARTITION_BLOCK_M,
+): boolean {
+  if (wall === undefined || z > wall.height) return false;
+  for (const [[cx, cy], [dx, dy]] of wall.segments) {
+    if (segmentsCross(x0, y0, x1, y1, cx, cy, dx, dy)) return true;
+  }
+  return overPartition(wall, x1, y1, margin) && !overPartition(wall, x0, y0, margin);
+}
+
+
+
+/**
+ * 판 윗면에 올려놓을 때 띄우는 높이(m). 윗면 높이에 정확히 두면 점이 판에 반쯤 박혀 보여
+ * "칸막이를 뚫고 지나간다"처럼 보인다(2026-10-27 사용자, 제어 모드에서 확인).
+ */
+const PARTITION_CLEAR_M = 0.02;
+
 
 export interface ParticleOptions {
   /** 동시에 떠 있을 수 있는 최대 입자 수 — 다 차면 빈 자리가 날 때까지 급기구 투입을 쉰다. */

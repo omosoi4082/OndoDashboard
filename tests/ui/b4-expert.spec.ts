@@ -15,6 +15,7 @@ import {
   openDashboard,
   openExpertInput,
   playButton,
+  resetAndPause,
   timelineResetButton,
   sliderIndex,
   timelineSlider,
@@ -118,7 +119,7 @@ test('B-4-11 타임라인 라벨이 00:00~24:00이고 재생된다', async ({ pa
   await expect(page.getByText('00:00', { exact: true })).toBeVisible();
   await expect(page.getByText(/\/ 24:00$/)).toBeVisible();
   // 결과가 뜨면 바로 재생된다(2026-10-27) — ▶ 동작을 보려면 먼저 멈춘다.
-  await timelineResetButton(page).click();
+  await resetAndPause(page);
   await playButton(page).click();
   await expect(async () => {
     expect(await sliderIndex(page), '재생을 눌렀는데 막대가 움직이지 않습니다').toBeGreaterThan(0);

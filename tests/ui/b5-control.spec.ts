@@ -9,6 +9,7 @@ import {
   openDashboard,
   openMode,
   playButton,
+  resetAndPause,
   timelineResetButton,
   sliderIndex,
   waitForDetail3D,
@@ -65,7 +66,7 @@ test('B-5-5 환경 최적화를 누르면 다시 불러와 화면이 갱신된�
 
 test('B-5-6 재생하면 그래프의 세로선도 같이 움직인다', async ({ page }) => {
   const line = summaryChart(page).locator('line[stroke="#38bdf8"]');
-  await timelineResetButton(page).click();
+  await resetAndPause(page);
   const before = await line.getAttribute('x1');
   await playButton(page).click();
   await expect(async () => {

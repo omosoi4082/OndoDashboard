@@ -9,6 +9,7 @@ import {
   openDashboard,
   openMode,
   playButton,
+  resetAndPause,
   sliderIndex,
   snapshot,
   timelineResetButton,
@@ -40,8 +41,8 @@ test('B-3-3 막대 양 끝에 현재 시각과 마지막 시각이 적혀 있다
 });
 
 test('B-3-4 재생 버튼을 누르면 막대가 움직이고 3D 색이 바뀐다', async ({ page }) => {
-  // 2026-10-27부터 모드에 들어가면 바로 재생된다 — ▶ 동작을 보려면 먼저 초기화로 멈춰 둔다.
-  await timelineResetButton(page).click();
+  // 2026-10-27부터 모드에 들어가면 바로 재생된다 — ▶ 동작을 보려면 먼저 멈춰 둔다.
+  await resetAndPause(page);
   const canvas = detail3dCanvas(page);
   const before = await snapshot(canvas);
   const startIndex = await sliderIndex(page);
@@ -53,7 +54,7 @@ test('B-3-4 재생 버튼을 누르면 막대가 움직이고 3D 색이 바뀐�
 });
 
 test('B-3-5 다시 누르면 멈춘다', async ({ page }) => {
-  await timelineResetButton(page).click();
+  await resetAndPause(page);
   await playButton(page).click();
   await expect(async () => {
     expect(await sliderIndex(page)).toBeGreaterThan(0);
@@ -66,7 +67,7 @@ test('B-3-5 다시 누르면 멈춘다', async ({ page }) => {
 
 test('B-3-6 막대를 끌면 3D와 2D가 같이 바뀐다', async ({ page }) => {
   // 재생 중에 끌면 끈 자리가 바로 지나가 버린다 — 멈춰 두고 본다.
-  await timelineResetButton(page).click();
+  await resetAndPause(page);
   const canvas = detail3dCanvas(page);
   const before = await snapshot(canvas);
   const moved = await dragTimeline(page, 0.7);
@@ -74,21 +75,23 @@ test('B-3-6 막대를 끌면 3D와 2D가 같이 바뀐다', async ({ page }) => 
   await expectCanvasChanged(canvas, before, '타임라인 드래그');
 });
 
-test('B-3-7 초기화를 누르면 맨 처음으로 돌아가고 멈춘다', async ({ page }) => {
-  await playButton(page).click();
+test('B-3-7 초기화를 누르면 맨 처음으로 돌아가 다시 재생된다', async ({ page }) => {
+  // 2026-10-27 사용자: "초기화를 누르면 처음부터 재생돼야 한다"(그 전에는 일시정지와 같았다).
   await expect(async () => {
-    expect(await sliderIndex(page)).toBeGreaterThan(0);
+    expect(await sliderIndex(page), '모드에 들어가면 바로 재생돼야 합니다').toBeGreaterThan(0);
   }).toPass({ timeout: 10_000 });
   await timelineResetButton(page).click();
-  expect(await sliderIndex(page), '초기화했는데 맨 처음으로 돌아가지 않았습니다').toBe(0);
-  await page.waitForTimeout(2_000);
-  expect(await sliderIndex(page), '초기화했는데 재생이 계속됩니다').toBe(0);
+  const atReset = await sliderIndex(page);
+  expect(atReset, '초기화했는데 맨 처음으로 돌아가지 않았습니다').toBeLessThanOrEqual(2);
+  await expect(async () => {
+    expect(await sliderIndex(page), '초기화했는데 다시 재생되지 않습니다').toBeGreaterThan(atReset);
+  }).toPass({ timeout: 10_000 });
 });
 
 test('B-3-8 재생이 제 속도로 넘어간다', async ({ page }) => {
   // 설계값은 프레임당 0.5초(TIMELINE_FRAME_DURATION_MS). 3초면 6프레임 전후다.
   // 눈에 보이는 "뚝뚝 끊김"(렌더 지연)까지는 판정할 수 없다 — 사람이 볼 항목으로 남긴다.
-  await timelineResetButton(page).click();
+  await resetAndPause(page);
   await playButton(page).click();
   const t0 = Date.now();
   await page.waitForTimeout(3_000);

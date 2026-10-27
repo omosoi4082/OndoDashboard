@@ -106,6 +106,12 @@ export function playButton(page: Page): Locator {
   return page.locator('button.rounded-full').filter({ hasNot: page.locator('input') }).first();
 }
 
+/** 초기화 → 맨 처음으로 되돌린 뒤(2026-10-27부터 바로 재생된다) ⏸로 멈춘다. ▶ 동작을 보는 항목에서 쓴다. */
+export async function resetAndPause(page: Page): Promise<void> {
+  await timelineResetButton(page).click();
+  await playButton(page).click();
+}
+
 export function timelineResetButton(page: Page): Locator {
   return page.getByRole('button', { name: '초기화', exact: true });
 }
