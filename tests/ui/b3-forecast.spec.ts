@@ -1,6 +1,7 @@
-// B-3. 예측 모드 — 테스트-체크리스트.md B-3의 8개 항목.
+// B-3. 예측 모드 — 테스트-체크리스트.md B-3의 11개 항목(9~11은 2026-10-27 유동 입자).
 import { expect, test } from '@playwright/test';
 import {
+  analysisButton,
   detail3dCanvas,
   expectCanvasChanged,
   expectCanvasNotBlank,
@@ -12,6 +13,9 @@ import {
   snapshot,
   timelineResetButton,
   timelineSlider,
+  legendTicks,
+  particleColorButton,
+  particleSpeedButton,
 } from './helpers.js';
 
 test.beforeEach(async ({ page }) => {
@@ -90,4 +94,48 @@ test('B-3-8 재생이 제 속도로 넘어간다', async ({ page }) => {
     advanced,
     `${seconds.toFixed(1)}초 동안 ${advanced}프레임만 넘어갔습니다(설계값 약 ${expected.toFixed(0)}프레임)`,
   ).toBeGreaterThanOrEqual(Math.floor(expected * 0.5));
+});
+
+
+test('B-3-9 유동을 켜면 입자가 저절로 움직인다', async ({ page }) => {
+  // 2026-10-26 온도 측 요청 ①(급기구 → 배기구 애니메이션). 재생을 누르지 않아도 입자는
+  // 계속 움직인다 — 아무것도 누르지 않았는데 화면이 달라지면 돌고 있는 것이다.
+  // 입자는 격자 데이터로 그리므로 예측·전문가·제어 모드에만 있다(현재 모드는 점 색만 바뀐다,
+  // docs/01-functional-spec.md "3D 표현 규칙").
+  await analysisButton(page, '유동').click();
+  const canvas = detail3dCanvas(page);
+  await page.waitForTimeout(2_000); // 방이 비어 있다가 급기구에서 입자가 나오기 시작한다
+  const before = await snapshot(canvas);
+  await expectCanvasChanged(canvas, before, '유동 입자 애니메이션');
+});
+
+test('B-3-10 입자 색을 습도로 바꾸면 범례 기준이 바뀐다', async ({ page }) => {
+  // 2026-10-26 온도 측 요청 ②(입자 색 온도/습도). 색은 캔버스로 재기 어려워, 같이 바뀌는
+  // 범례 눈금(온도 범위 → 습도 범위)으로 본다.
+  await analysisButton(page, '유동').click();
+  await expect(particleColorButton(page, '온도'), '입자 색 전환이 보이지 않습니다').toBeVisible();
+  expect(await particleColorButton(page, '온도').getAttribute('aria-pressed'), '기본이 온도가 아닙니다').toBe(
+    'true',
+  );
+  const tempTicks = await legendTicks(page);
+  await particleColorButton(page, '습도').click();
+  expect(await particleColorButton(page, '습도').getAttribute('aria-pressed')).toBe('true');
+  await expect(async () => {
+    expect(await legendTicks(page), '입자 색을 습도로 바꿨는데 범례가 그대로입니다').not.toBe(tempTicks);
+  }).toPass({ timeout: 5_000 });
+});
+
+test('B-3-11 배속 1·3·10배를 고를 수 있고 기본은 10배다', async ({ page }) => {
+  await analysisButton(page, '유동').click();
+  for (const speed of [1, 3, 10] as const) {
+    await expect(particleSpeedButton(page, speed), `${speed}배 버튼이 없습니다`).toBeVisible();
+  }
+  expect(await particleSpeedButton(page, 10).getAttribute('aria-pressed'), '기본 배속이 10배가 아닙니다').toBe(
+    'true',
+  );
+  await particleSpeedButton(page, 1).click();
+  expect(await particleSpeedButton(page, 1).getAttribute('aria-pressed'), '1배를 눌렀는데 선택되지 않습니다').toBe(
+    'true',
+  );
+  expect(await particleSpeedButton(page, 10).getAttribute('aria-pressed')).toBe('false');
 });

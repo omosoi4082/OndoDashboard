@@ -387,3 +387,20 @@ export function watchConsoleErrors(page: Page): string[] {
   page.on('pageerror', (err) => errors.push(`pageerror: ${err.message}`));
   return errors;
 }
+
+/** "3D 자돈방" 제목 줄의 "입자 색" 온도/습도 버튼 — 유동을 골랐을 때만 보인다.
+ * 분석 항목 줄에도 같은 글씨의 버튼이 있어(ControlsRow) 반드시 3D 섹션 안으로 좁힌다. */
+export function particleColorButton(page: Page, label: '온도' | '습도'): Locator {
+  return detail3dSection(page).getByRole('button', { name: label, exact: true });
+}
+
+/** "3D 자돈방" 제목 줄의 배속 버튼(1배·3배·10배). 유동일 때만 보인다. */
+export function particleSpeedButton(page: Page, speed: 1 | 3 | 10): Locator {
+  return detail3dSection(page).getByRole('button', { name: `${speed}배`, exact: true });
+}
+
+/** 색 범례에 적힌 눈금 값들(공백 정리한 한 줄). 입자 색을 바꾸면 이 값이 온도 범위에서
+ * 습도 범위로 바뀌므로, 색이 실제로 다른 기준을 따르는지 글자로 확인할 수 있다. */
+export async function legendTicks(page: Page): Promise<string> {
+  return (await page.getByTestId('detail-legend').innerText()).replace(/\s+/g, ' ').trim();
+}
