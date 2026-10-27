@@ -223,13 +223,6 @@ if (import.meta.hot) {
 // 급기 풍량 비례, 1·3·10배). 샘플 HTML은 참고만 한다(2026-10-27 사용자). 세부는 detail/flowParticles.ts.
 /** 동시에 떠 있는 최대 입자 수(2026-10-27 사용자 지정 4,000). 급기 공기 1 m³당 입자 수 = 이 값 ÷ 방 체적.
  * 이 PC 실측으로는 9,000까지 60fps, 12,000부터 프레임이 빠졌다 — 테스트 PC 사양을 모르니 여유를 둔다. */
-/**
- * 제어 모드 화면 배치 **샘플**(2026-10-27 사용자: "제어 모드에 수평단면 프레임 없이 3D를 꽉 채우고,
- * 단면은 좌측 하단, 절감률 그래프는 우측 하단으로 오버레이 — 느낌만 보겠다").
- * true면 제어 모드만 그 배치로 그린다. 되돌리려면 false 한 줄이면 된다. 다른 모드는 그대로다.
- */
-export const CONTROL_OVERLAY_SAMPLE = true;
-
 export const FLOW_PARTICLE_COUNT = 4000;
 export const FLOW_PARTICLE_TRAIL = 18;
 export const FLOW_PARTICLE_SIZE_M = 0.05;

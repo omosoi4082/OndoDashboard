@@ -50,11 +50,6 @@ interface Detail3DViewProps {
    * 이 컴포넌트 수정 없이 끼워 넣기)을 HTML 콘텐츠로 확장한 것이라 이름을 구분했다.
    */
   htmlOverlay?: ReactNode;
-  /**
-   * true면 htmlOverlay를 3D 영역 **전체**에 깔고 자리는 오버레이가 스스로 정한다(absolute).
-   * 제어 모드 배치 샘플(2026-10-27)에서 단면을 좌측 하단, 그래프를 우측 하단에 두려고 추가했다.
-   */
-  htmlOverlayFill?: boolean;
   /** 데이터 없음 안내·로딩·오류 문구 — 3D 뷰 가운데에 겹쳐 표시한다. */
   message?: { text: string; isError: boolean } | null;
   /**
@@ -194,7 +189,6 @@ export function Detail3DView({
   range,
   overlay = null,
   htmlOverlay = null,
-  htmlOverlayFill = false,
   message = null,
   notice = null,
 }: Detail3DViewProps): ReactElement {
@@ -320,11 +314,7 @@ export function Detail3DView({
 
       {/* 제어 모드 요약 카드(그래프) 위치 — 좌측 하단(2026-10-14 04_제어모드_디자인_범례추가
           전달. 2026-10-11 시안에서는 우측 하단이었는데, 그 자리에 범례가 들어오면서 옮겼다). */}
-      {htmlOverlay && (
-        <div className={`pointer-events-none absolute ${htmlOverlayFill ? 'inset-0' : 'bottom-3 left-3'}`}>
-          {htmlOverlay}
-        </div>
-      )}
+      {htmlOverlay && <div className="pointer-events-none absolute bottom-3 left-3">{htmlOverlay}</div>}
 
       {message && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
