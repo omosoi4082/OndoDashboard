@@ -199,6 +199,48 @@ export function overPartition(
 }
 
 /**
+ * 막힌 속도를 칸막이 면 성분과 "타고 오르는" 성분으로 나눈다.
+ *
+ * 왜: 유속 데이터에는 칸막이가 들어 있지 않다(연산 격자에 경계가 없다). 그래서 수평 이동만
+ * 되돌리면 입자가 벽 앞에서 멈췄다가 그대로 직선으로 지나가는 것처럼 보인다(2026-10-28 사용자:
+ * "벽을 넘으면 물결처럼 보여야 하는데 아니다"). 실제 공기는 칸막이를 만나면 면을 따라 흐르면서
+ * 위로 솟아 넘어간다 — 벽에 부딪친 성분(법선)을 위쪽 속도로 돌려 그 모양을 만든다.
+ *
+ * @returns 벽면을 따라가는 수평 속도(tx, ty)와 위로 돌릴 속도(climb). 가까운 선분이 없으면 null.
+ */
+export function partitionDeflect(
+  wall: PartitionWall | undefined,
+  x: number,
+  y: number,
+  vx: number,
+  vy: number,
+): { tx: number; ty: number; climb: number } | null {
+  if (wall === undefined) return null;
+  let best: { d2: number; ux: number; uy: number } | null = null;
+  for (const [[ax, ay], [bx, by]] of wall.segments) {
+    const sx = bx - ax;
+    const sy = by - ay;
+    const len2 = sx * sx + sy * sy;
+    if (len2 === 0) continue;
+    const t = Math.max(0, Math.min(1, ((x - ax) * sx + (y - ay) * sy) / len2));
+    const dx = x - (ax + t * sx);
+    const dy = y - (ay + t * sy);
+    const d2 = dx * dx + dy * dy;
+    if (best === null || d2 < best.d2) {
+      const len = Math.sqrt(len2);
+      best = { d2, ux: sx / len, uy: sy / len };
+    }
+  }
+  if (best === null) return null;
+  // 면 방향 성분(미끄러짐)과 면에 부딪친 성분(위로 돌릴 양).
+  const along = vx * best.ux + vy * best.uy;
+  const tx = along * best.ux;
+  const ty = along * best.uy;
+  const climb = Math.abs(vx * -best.uy + vy * best.ux);
+  return { tx, ty, climb };
+}
+
+/**
  * (x0,y0)→(x1,y1) 이동이 칸막이 높이 아래에서 칸막이에 막히는지.
  *
  * 가로지르는 경우뿐 아니라 **판 두께 안으로 파고드는 경우도 막는다**(2026-10-27 사용자: 제어
@@ -226,6 +268,12 @@ export function blockedByPartition(
  * "칸막이를 뚫고 지나간다"처럼 보인다(2026-10-27 사용자, 제어 모드에서 확인).
  */
 const PARTITION_CLEAR_M = 0.02;
+
+/**
+ * 칸막이에 부딪친 수평 속도를 위쪽 속도로 돌리는 비율. 1이면 부딪친 만큼 그대로 위로 간다.
+ * 2026-10-28 사용자 요청(벽을 타고 넘는 물결 모양)으로 넣었다.
+ */
+const PARTITION_CLIMB = 1;
 
 
 export interface ParticleOptions {
@@ -412,8 +460,16 @@ export function stepParticles(
       z += hs * vB[2];
       // 칸막이에 막히면 수평 이동만 버린다(위아래로는 계속 흘러 칸막이를 넘어갈 수 있다).
       if (blockedByPartition(partition, x0, y0, x, y, Math.min(z, z0))) {
-        x = x0;
-        y = y0;
+        // 벽면을 따라 미끄러지고, 벽에 부딪친 만큼은 위로 올라간다(칸막이를 타고 넘는 모양).
+        const deflect = partitionDeflect(partition, x0, y0, vB[0], vB[1]);
+        if (deflect === null) {
+          x = x0;
+          y = y0;
+        } else {
+          x = x0 + hs * deflect.tx;
+          y = y0 + hs * deflect.ty;
+          z = z0 + hs * (vB[2] + deflect.climb * PARTITION_CLIMB);
+        }
       }
       // 판 자리로 내려오면 윗면에 올려놓는다 — 수평만 막으면 칸막이 바로 위에 떨어진 입자가
       // 판을 그대로 통과했다(2026-10-27 사용자 "입자가 뚫고 지나가는데"). 30초 모의에서 16개.

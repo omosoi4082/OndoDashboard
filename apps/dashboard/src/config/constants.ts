@@ -135,6 +135,15 @@ export const SECTION_PARTITION_SEGMENTS: ReadonlyArray<
     [2.22, 4.0],
   ],
 ];
+/**
+ * 유동 입자가 칸막이에 막히는지 — **온도 측 요구가 아니라 우리 판단으로 넣은 규칙**이다(2026-10-28).
+ * 연산 서버가 주는 유속에는 칸막이가 들어 있지 않아, 데이터대로만 움직이면 입자가 3D 모델의
+ * 칸막이를 그대로 통과한다. 실제로 벽이 있는데 통과하는 그림이 더 어색해서 막고, 벽에 부딪친
+ * 만큼은 위로 올려 타고 넘게 했다(detail/flowParticles.ts의 blockedByPartition·partitionDeflect).
+ * **온도 측이 "데이터 그대로 두라"고 하면 이 값을 false로 바꾸면 원래대로 통과한다.**
+ */
+export const PARTITION_BLOCKS_PARTICLES = true;
+
 /** 칸막이 높이(m) — config/geometry.json room.partition.height. 유동 입자가 이 아래에서는 칸막이를 못 지난다. */
 export const PARTITION_HEIGHT_M = 0.78;
 
