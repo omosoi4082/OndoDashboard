@@ -393,7 +393,13 @@ function checkFrames(
   }
 
   const gridFlow = d.frames[0]?.grid.flow;
-  const flowNote = gridFlow !== undefined ? `유속 ${gridFlow.length}점(viz)` : `유속 ${d.frames[0]?.flow.length ?? 0}점`;
+  // 전문가·제어 목업은 v1.3.2 응답이라 유속이 288점이다. 실제 연산 서버가 v1.3.3이면 네 모드 모두
+  // 2,584점으로 올라오므로, 목업 때문에 입자 흐름이 모드마다 달라 보이는 것임을 적어 둔다
+  // (2026-10-27 사용자: 온도 측에 따로 요청하지 말고 경고로만 남긴다).
+  const flowNote =
+    gridFlow !== undefined
+      ? `유속 ${gridFlow.length}점(viz)`
+      : `유속 ${d.frames[0]?.flow.length ?? 0}점 — 목업 파일 기준입니다(실제 연산 서버 v1.3.3은 2,584점)`;
   line('ok', `${label} 정상 — 프레임 ${d.frames.length}개, 색 범위 온도 ${d.range.temp.min}~${d.range.temp.max}℃, ${flowNote}`);
 }
 

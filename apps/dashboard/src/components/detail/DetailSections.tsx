@@ -86,10 +86,12 @@ function PointsToggle(): ReactElement {
 // 유동 입자 색 기준(온도/습도) — 유동을 골랐을 때만 "3D 자돈방" 제목 줄에 보인다
 // (2026-10-26 온도 측 요청 "입자 색을 온도 / 습도 두 가지로 바꿔 볼 수 있는 기능").
 function ParticleColorToggle(): ReactElement | null {
+  const mode = useDetailStore((s) => s.mode);
   const valueField = useDetailStore((s) => s.valueField);
   const field = useDetailStore((s) => s.particleColorField);
   const setField = useDetailStore((s) => s.setParticleColorField);
-  if (valueField !== 'flow') return null;
+  // 현재 모드에는 입자가 없다(125개 포인트만, docs/01 "3D 표현 규칙") — 버튼도 숨긴다(2026-10-27 사용자).
+  if (valueField !== 'flow' || mode === 'current') return null;
   const options = [
     { id: 'temp', label: '온도' },
     { id: 'rh', label: '습도' },
@@ -118,10 +120,12 @@ function ParticleColorToggle(): ReactElement | null {
 
 // 유동 입자 배속 — 온도 측 샘플이 쓴 1·3·10배(mock/응답형식_추가안내_v1.3.3.txt). 유동일 때만 보인다.
 function ParticleSpeedToggle(): ReactElement | null {
+  const mode = useDetailStore((s) => s.mode);
   const valueField = useDetailStore((s) => s.valueField);
   const speed = useDetailStore((s) => s.particleSpeed);
   const setSpeed = useDetailStore((s) => s.setParticleSpeed);
-  if (valueField !== 'flow') return null;
+  // 현재 모드에는 입자가 없어 배속도 의미가 없다(2026-10-27 사용자).
+  if (valueField !== 'flow' || mode === 'current') return null;
   return (
     <div className="flex items-center gap-2 text-xs text-white">
       배속
