@@ -234,6 +234,33 @@
   **2차 10/21(수)**: 패키지 + 실행·결과 추출 방법 + 예측·제어 '참고용' 문구가 정상이라는 예고.
   행 라벨 #51은 양쪽 모두 **넣지 않는다**. 초안은 `docs/replies/20261019-회신반영보고.md`.
 
+## 2026-10-27 온도 측 회신(연산 서버 v1.3.3 가시화 데이터) 반영
+
+받은 것: 메일(10/26 추가요청 회신에 대한 답) + `연산서버_실제응답_가시화용_v1.3.3_20261027.zip`
+(현재·예측 실제 요청/응답 쌍, geometry.json(변경 없음), `응답형식_추가안내_v1.3.3.txt` → `mock/`에 보관).
+요지: 요청에 `"viz": true`를 넣으면 `frames[].grid.flow`(2,584점, grid와 같은 순서, 급기구·배기구
+경계조건 포함)와 `frames[].supply`(급기 풍량·온도 등)가 온다. 납품은 10/30 그대로, 추가 요청은
+가능한 범위에서. 2D 단면은 **실제 비율(4.5 × 4 m) 유지**, 영역만 최대한 크게.
+온도 측 부탁: "grid.flow가 있으면 쓰고 없으면 288점" — 그러면 이후 viz만 켜면 된다.
+
+**사용자 결정(2026-10-27)**
+- `COMPUTE_VIZ` **기본 꺼짐**, 콘솔(`setup.bat` [2/3])에서 on/off. v1.3.2 서버에 viz를 보내면 거부될 수 있다.
+- **목업 파일을 v1.3.3 실제 응답으로 교체**(`mock/sample_response_*.json`, 예측 18 MB) — mock 모드에서도 2,584점 유동이 보인다.
+
+- [x] relay: `COMPUTE_VIZ`(env·`.env.example`·setup·doctor·시작 로그), 요청 본문 `viz`, `grid.flow`·`supply`
+  스키마·shared 타입·변환 통과, grid.flow 개수 검증. 테스트 6건.
+- [x] **버그**: 실제 예측 응답의 `forecast_issued_at: null`을 스키마가 거부해 **예측 응답 전체가 형식 오류**였다 → nullable.
+- [x] 목업 4개 파일 교체.
+- [x] 입자: `velocityFieldOf`(grid.flow 우선, 없으면 flowGrid), 칸막이(높이 0.78 m) 통과 막기,
+  급기구 출발 비율을 `supply.airflow_m3h`에 비례(`FLOW_PARTICLE_REF_AIRFLOW_M3H` 1,240),
+  배속 6 → 10, 멈춤 판정 0.01 → 0.003 m/s(실제 응답으로 30초 모의해 정함 — 05 #54).
+  `flowParticles.test.ts` 18건(남아 있던 단위 테스트 항목 포함).
+- [ ] **사용자 화면 확인**(mock, 예측 모드 → 유동) 후 배속·개수 조정
+- [ ] `npm run test:ui` 재실행(유동 화살표 → 입자)
+- [ ] 2D 단면 영역 키우기(비율 유지)
+- [ ] (선택) 유동 2D 단면도 grid.flow가 있으면 그것으로 — 지금은 flowGrid
+- [ ] 온도 회신: viz 기본 꺼짐 + setup.bat에서 켜는 법, 2D 비율 유지 반영
+
 ## M0. 저장소 기본 구성
 
 - npm workspaces 모노레포: `apps/dashboard`, `apps/relay`, `packages/shared`, `mock/`.

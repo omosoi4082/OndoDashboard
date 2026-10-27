@@ -4,10 +4,13 @@
 // 삼선형 보간해 중점법(RK2)으로 옮기고, 색은 같은 위치의 grid 온도·습도를 삼선형 보간한다.
 // 좌표는 전부 데이터 좌표(z-up, m)다 — Three.js 변환은 그리는 쪽(zUpToYUp)에서 한다.
 //
-// flowGrid(0.5×0.5×0.7 m 간격)는 방 벽·천장까지 닿지 않는다(맨 위 노드 z = 2.45, 천장 2.8).
-// 격자 바깥은 가장 가까운 가장자리 노드 값을 그대로 쓴다(보간 좌표를 격자 안으로 자른다).
-// 칸막이(높이 0.78 m)는 flowGrid로 표현되지 않아 입자가 통과할 수 있다(05-open-questions.md).
-import type { FlowVec, Geometry, GridDef } from '@ondo/shared';
+// 유속장은 둘 중 하나다(velocityFieldOf):
+//   - grid.flow(연산 서버 v1.3.3 `viz: true`, 2026-10-27) — 온도·습도와 같은 2,584점, 천장·벽 포함,
+//     급기구(w ≈ −0.5)·배기구(v ≈ −2.7) 경계조건이 들어 있다. 있으면 이것을 쓴다(온도 측 요청).
+//   - flowGrid(288점, 0.5×0.5×0.7 m) — viz가 꺼졌거나 구버전 서버. 방 벽·천장까지 닿지 않아
+//     (맨 위 노드 z = 2.45) 격자 바깥은 가장 가까운 가장자리 노드 값을 쓴다.
+// 칸막이(높이 0.78 m)는 어느 격자로도 표현되지 않아(격자 간격보다 얇다) 선분 교차로 직접 막는다.
+import type { DetailFrame, DetailFrameSupply, FlowVec, Geometry, GridDef } from '@ondo/shared';
 
 export type Rand = () => number;
 
@@ -83,6 +86,73 @@ export function sampleVelocity(
   return out;
 }
 
+/** 입자를 옮길 유속장 — 격자 정의와 그 격자 순서의 유속 배열. */
+export interface VelocityField {
+  grid: GridDef;
+  flow: readonly FlowVec[];
+}
+
+function nodeCount(grid: GridDef): number {
+  return grid.size[0] * grid.size[1] * grid.size[2];
+}
+
+/**
+ * grid.flow가 있고 개수가 grid와 맞으면 그것을, 아니면 flowGrid(288점)를 쓴다.
+ * 온도 측 요청(2026-10-27): "grid.flow가 있으면 그것을 쓰고 없으면 기존 288점" — 그래서
+ * 연산 서버 요청에 viz만 켜면 화면 수정 없이 정밀 유속으로 바뀐다.
+ */
+export function velocityFieldOf(geometry: Geometry, frame: DetailFrame): VelocityField {
+  const fine = frame.grid.flow;
+  if (fine !== undefined && fine.length === nodeCount(geometry.grid)) {
+    return { grid: geometry.grid, flow: fine };
+  }
+  return { grid: geometry.flowGrid, flow: frame.flow };
+}
+
+/**
+ * 다시 태어날 때 급기구에서 나올 비율 — 급기 풍량에 비례시킨다(온도 측 안내: "출발 개수는
+ * supply.airflow_m3h에 비례시키면 들어오는 공기량이 맞습니다"). 입자 총수는 고정이라 개수 대신
+ * 비율을 바꾼다. supply가 없으면(viz 꺼짐) 기본 비율 그대로.
+ */
+export function inletShareFor(base: number, supply: DetailFrameSupply | undefined, refAirflowM3h: number): number {
+  if (supply === undefined || refAirflowM3h <= 0) return base;
+  return base * Math.min(Math.max(supply.airflow_m3h / refAirflowM3h, 0), 1);
+}
+
+/** 칸막이 — 바닥에서 height(m)까지 선 모양 벽. segments는 room 좌표 (x, y) 선분. */
+export interface PartitionWall {
+  segments: ReadonlyArray<readonly [readonly [number, number], readonly [number, number]]>;
+  height: number;
+}
+
+/** 2D 선분 (a→b)와 (c→d)가 서로 가로지르는지(끝점이 닿기만 하는 경우 포함). */
+export function segmentsCross(
+  ax: number, ay: number, bx: number, by: number,
+  cx: number, cy: number, dx: number, dy: number,
+): boolean {
+  const cross = (px: number, py: number, qx: number, qy: number, rx: number, ry: number): number =>
+    (qx - px) * (ry - py) - (qy - py) * (rx - px);
+  const d1 = cross(cx, cy, dx, dy, ax, ay);
+  const d2 = cross(cx, cy, dx, dy, bx, by);
+  const d3 = cross(ax, ay, bx, by, cx, cy);
+  const d4 = cross(ax, ay, bx, by, dx, dy);
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0) || d1 === 0 || d2 === 0) &&
+    ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0) || d3 === 0 || d4 === 0) &&
+    !(d1 === 0 && d2 === 0); // 같은 직선 위(벽을 따라 미끄러짐)는 가로지른 것이 아니다
+}
+
+/** (x0,y0)→(x1,y1) 이동이 칸막이 높이 아래에서 칸막이를 가로지르는지. */
+export function blockedByPartition(
+  wall: PartitionWall | undefined,
+  x0: number, y0: number, x1: number, y1: number, z: number,
+): boolean {
+  if (wall === undefined || z > wall.height) return false;
+  for (const [[cx, cy], [dx, dy]] of wall.segments) {
+    if (segmentsCross(x0, y0, x1, y1, cx, cy, dx, dy)) return true;
+  }
+  return false;
+}
+
 export interface ParticleOptions {
   count: number;
   /** 꼬리에 기억할 위치 수(머리 포함). */
@@ -97,6 +167,8 @@ export interface ParticleOptions {
   /** 이 속도(m/s)보다 느린 상태가 stuckS초 이어지면 다시 태어난다(바닥·벽에 붙은 입자). */
   stuckSpeed: number;
   stuckS: number;
+  /** 입자가 통과하지 못하는 칸막이. 없으면 막지 않는다. */
+  partition?: PartitionWall;
 }
 
 export interface ParticleState {
@@ -170,16 +242,22 @@ function atOutlet(geometry: Geometry, x: number, y: number, z: number): boolean 
 const vA: [number, number, number] = [0, 0, 0];
 const vB: [number, number, number] = [0, 0, 0];
 
-/** dtS(화면 초)만큼 입자를 옮긴다. 꼬리는 한 칸씩 밀고 맨 앞에 새 위치를 넣는다. */
+/**
+ * dtS(화면 초)만큼 입자를 옮긴다. 꼬리는 한 칸씩 밀고 맨 앞에 새 위치를 넣는다.
+ * inletShare를 주면 opts.inletShare 대신 쓴다(급기 풍량 비례 — inletShareFor).
+ */
 export function stepParticles(
   state: ParticleState,
   geometry: Geometry,
-  flow: readonly FlowVec[],
+  field: VelocityField,
   dtS: number,
   rand: Rand = Math.random,
+  inletShareOverride?: number,
 ): void {
-  const { count, trail, timeScale, inletShare, stuckSpeed, stuckS } = state.opts;
-  const fg = geometry.flowGrid;
+  const { count, trail, timeScale, stuckSpeed, stuckS, partition } = state.opts;
+  const inletShare = inletShareOverride ?? state.opts.inletShare;
+  const fg = field.grid;
+  const flow = field.flow;
   const [W, D, H] = geometry.room.size;
   const h = dtS * timeScale;
   for (let p = 0; p < count; p++) {
@@ -196,9 +274,16 @@ export function stepParticles(
     // 중점법(RK2) — 샘플과 같다.
     sampleVelocity(fg, flow, x, y, z, vA);
     sampleVelocity(fg, flow, x + 0.5 * h * vA[0], y + 0.5 * h * vA[1], z + 0.5 * h * vA[2], vB);
+    const x0 = x;
+    const y0 = y;
     x += h * vB[0];
     y += h * vB[1];
     z += h * vB[2];
+    // 칸막이에 막히면 수평 이동만 버린다(위아래로는 계속 흘러 칸막이를 넘어갈 수 있다).
+    if (blockedByPartition(partition, x0, y0, x, y, Math.min(z, state.hist[o + 2] ?? z))) {
+      x = x0;
+      y = y0;
+    }
     if (atOutlet(geometry, x, y, z)) {
       spawn(state, p, geometry, rand, rand() < inletShare);
       continue;

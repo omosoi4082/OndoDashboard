@@ -1,5 +1,5 @@
 // 유동 입자 애니메이션 — 2026-10-26 온도 측 요청으로 유동 표현을 화살표(FlowCylinders)에서
-// 바꿨다. 입자가 급기구에서 나와 flowGrid 유속을 따라 흐르고, 색은 그 자리의 온도 또는
+// 바꿨다. 입자가 급기구에서 나와 유속(grid.flow가 있으면 그것, 없으면 flowGrid)을 따라 흐르고, 색은 그 자리의 온도 또는
 // 습도(grid 삼선형 보간)다. 움직임 계산은 detail/flowParticles.ts(순수 로직), 여기서는
 // 매 프레임 버퍼만 갱신한다 — 지오메트리·머티리얼은 다시 만들지 않는다.
 //
@@ -12,18 +12,28 @@ import * as THREE from 'three';
 import type { DetailBase, DetailFrame, Geometry } from '@ondo/shared';
 import { zUpToYUp } from './coords.js';
 import { colormapRGB01, normalize } from '../detail/colormap.js';
-import { createParticles, sampleScalar, stepParticles, type ParticleOptions } from '../detail/flowParticles.js';
+import {
+  createParticles,
+  inletShareFor,
+  sampleScalar,
+  stepParticles,
+  velocityFieldOf,
+  type ParticleOptions,
+} from '../detail/flowParticles.js';
 import { useDetailStore } from '../store/detailStore.js';
 import {
   FLOW_PARTICLE_COUNT,
   FLOW_PARTICLE_INLET_SHARE,
   FLOW_PARTICLE_LIFE_MAX_S,
   FLOW_PARTICLE_LIFE_MIN_S,
+  FLOW_PARTICLE_REF_AIRFLOW_M3H,
   FLOW_PARTICLE_SIZE_M,
   FLOW_PARTICLE_STUCK_S,
   FLOW_PARTICLE_STUCK_SPEED,
   FLOW_PARTICLE_TIME_SCALE,
   FLOW_PARTICLE_TRAIL,
+  PARTITION_HEIGHT_M,
+  SECTION_PARTITION_SEGMENTS,
 } from '../config/constants.js';
 
 interface FlowParticlesProps {
@@ -93,6 +103,7 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
       timeScale: FLOW_PARTICLE_TIME_SCALE,
       stuckSpeed: FLOW_PARTICLE_STUCK_SPEED,
       stuckS: FLOW_PARTICLE_STUCK_S,
+      partition: { segments: SECTION_PARTITION_SEGMENTS, height: PARTITION_HEIGHT_M },
     }),
     [],
   );
@@ -132,7 +143,8 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
     const f = frameRef.current;
     // 탭 전환 등으로 프레임 간격이 크게 벌어지면 입자가 한 번에 튀지 않게 자른다.
     const dt = Math.min(delta, 0.1);
-    stepParticles(state, geometry, f.flow, dt);
+    const inletShare = inletShareFor(FLOW_PARTICLE_INLET_SHARE, f.supply, FLOW_PARTICLE_REF_AIRFLOW_M3H);
+    stepParticles(state, geometry, velocityFieldOf(geometry, f), dt, Math.random, inletShare);
 
     const { count, trail } = opts;
     const { lut, min, max, field } = colorRef.current;

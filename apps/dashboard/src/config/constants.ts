@@ -135,6 +135,8 @@ export const SECTION_PARTITION_SEGMENTS: ReadonlyArray<
     [2.22, 4.0],
   ],
 ];
+/** 칸막이 높이(m) — config/geometry.json room.partition.height. 유동 입자가 이 아래에서는 칸막이를 못 지난다. */
+export const PARTITION_HEIGHT_M = 0.78;
 
 // 현재 모드(9~13)에서도 2D 단면을 보여줄지 — 01-functional-spec.md 3장은 "현재 모드에
 // 2D가 필요한지 확인 중"이라 플래그로 숨길 수 있게 하라고 돼 있지만, 이미
@@ -225,8 +227,22 @@ export const FLOW_PARTICLE_TRAIL = 18;
 export const FLOW_PARTICLE_INLET_SHARE = 0.5;
 export const FLOW_PARTICLE_LIFE_MIN_S = 4;
 export const FLOW_PARTICLE_LIFE_MAX_S = 10;
-/** 화면 1초 = 실제 몇 초 — 유속이 평균 0.1 m/s 안팎이라 실제 속도로는 거의 멈춰 보인다. */
-export const FLOW_PARTICLE_TIME_SCALE = 6;
-export const FLOW_PARTICLE_STUCK_SPEED = 0.01;
+/**
+ * 화면 1초 = 실제 몇 초 — 방 안 유속이 평균 0.02 m/s(95 %가 0.05 이하, v1.3.3 grid.flow 실측)라
+ * 실제 속도로는 멈춰 보인다. 온도 측 샘플은 1·3·10배를 썼다(2026-10-27 안내) — 그중 10배.
+ * 6배일 때보다 배기구 도달이 초당 129 → 155개로 늘었다(실제 응답 첫 프레임으로 30초 모의).
+ */
+export const FLOW_PARTICLE_TIME_SCALE = 10;
+/**
+ * 이보다 느린 상태가 FLOW_PARTICLE_STUCK_S 이어지면 다시 태어난다. 0.01이면 grid.flow의 느린
+ * 방 안 공기까지 "멈춤"으로 잡혀 초당 약 200개가 허공에서 사라졌다(0.003 → 약 70개).
+ */
+export const FLOW_PARTICLE_STUCK_SPEED = 0.003;
 export const FLOW_PARTICLE_STUCK_S = 1.5;
 export const FLOW_PARTICLE_SIZE_M = 0.05;
+/**
+ * 급기 풍량 기준값(m³/h) — 이 풍량일 때 다시 태어나는 입자의 FLOW_PARTICLE_INLET_SHARE만큼이
+ * 급기구에서 나온다. 풍량이 적으면 비율도 줄어든다(supply.airflow_m3h, v1.3.3 viz).
+ * 온도 측 2026-10-27: 환기팬 가동률에 따라 보통 약 770~1,240 m³/h — 그 최댓값.
+ */
+export const FLOW_PARTICLE_REF_AIRFLOW_M3H = 1240;
