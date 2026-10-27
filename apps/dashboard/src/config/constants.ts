@@ -234,6 +234,14 @@ export const FLOW_PARTICLE_SIZE_M = 0.05;
 export const FLOW_PARTICLE_MIN_PX = 1.5;
 export const FLOW_PARTICLE_MAX_PX = 7;
 /** 배속 선택지 — 안내문의 1·3·10배. 화면 1초 = 실제 몇 초. */
+/**
+ * 입자 수명(화면 초) — 이 시간이 지나면 급기구에서 다시 내보낸다(2026-10-27 사용자).
+ * 왜: 유속이 288점뿐인 전문가·제어 목업은 방 안 흐름이 한 곳으로 수렴해서, 그냥 두면 입자가
+ * 모두 그 자리에 겹쳐 2분 만에 화면이 비어 보였다(실측: 보이는 입자 10여 개). 온도 측 샘플은
+ * 멈춘 입자를 방 안 아무 곳에나 다시 뿌려 이를 피하는데, 그러면 사방에서 입자가 생겨 보여서
+ * (2026-10-27 사용자) 급기구에서 주기적으로 다시 내보내는 쪽을 쓴다. 네 모드 모두 같다.
+ */
+export const FLOW_PARTICLE_MAX_AGE_S = 20;
 export const FLOW_PARTICLE_SPEEDS = [1, 3, 10] as const;
 export type FlowParticleSpeed = (typeof FLOW_PARTICLE_SPEEDS)[number];
 /**

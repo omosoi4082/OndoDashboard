@@ -23,6 +23,7 @@ import { useDetailStore } from '../store/detailStore.js';
 import {
   FLOW_PARTICLE_COUNT,
   FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H,
+  FLOW_PARTICLE_MAX_AGE_S,
   FLOW_PARTICLE_MAX_PX,
   FLOW_PARTICLE_MIN_PX,
   FLOW_PARTICLE_SIZE_M,
@@ -130,6 +131,7 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
       // 방 공기가 한 번 바뀔 만큼 들어오면 최대 개수가 찬다.
       particlesPerM3: roomVolumeM3 > 0 ? FLOW_PARTICLE_COUNT / roomVolumeM3 : 0,
       fallbackAirflowM3h: FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H,
+      maxAgeS: FLOW_PARTICLE_MAX_AGE_S,
       partition: { segments: SECTION_PARTITION_SEGMENTS, height: PARTITION_HEIGHT_M },
     }),
     [roomVolumeM3],
@@ -172,11 +174,15 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
 
   useFrame((_, delta) => {
     const f = frameRef.current;
+    // 타임라인이 멈춰 있으면 입자도 멈춘다(2026-10-27 사용자 — 온도 측 샘플 뷰어와 같은 방식:
+    // advance(playing ? dtReal*speed : 0)). 멈춘 동안에도 버퍼는 한 번 더 갱신해야 색 기준을
+    // 바꿨을 때 반영되므로, 아래 색 갱신은 그대로 두고 이동만 건너뛴다.
+    const playing = useDetailStore.getState().timelinePlaying;
     // 탭 전환 등으로 프레임 간격이 크게 벌어지면 입자가 한 번에 튀지 않게 자른다.
     const dt = Math.min(delta, 0.1);
     // 배속은 매 프레임 스토어에서 바로 읽는다 — 바꿔도 입자를 새로 뿌리지 않는다.
     const speed = useDetailStore.getState().particleSpeed;
-    stepParticles(state, geometry, velocityFieldOf(geometry, f), f.supply, dt, speed);
+    if (playing) stepParticles(state, geometry, velocityFieldOf(geometry, f), f.supply, dt, speed);
 
     const count = state.capacity;
     const { trail } = opts;

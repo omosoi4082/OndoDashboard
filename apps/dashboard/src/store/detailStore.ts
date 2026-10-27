@@ -133,7 +133,19 @@ export const useDetailStore = create<DetailState>((set) => ({
       timelinePlaying: false,
       expert: null,
     }),
-  setValueField: (field) => set({ valueField: field }),
+  /**
+   * 분석 항목 전환. **유동을 고르면 타임라인이 맨 처음일 때 재생을 시작한다**(2026-10-27 사용자).
+   * 입자는 재생 중에만 흐르므로(FlowParticles.tsx — 온도 측 샘플 뷰어와 같은 방식), 그대로 두면
+   * 유동을 켜도 입자가 서 있다. 샘플도 열자마자 자동 재생으로 시작한다.
+   * 이미 보던 자리(index > 0)나 재생 중이면 건드리지 않는다 — 사용자가 멈춰 둔 것을 되살리지 않는다.
+   * 현재 모드는 타임라인도 입자도 없어 영향이 없다.
+   */
+  setValueField: (field) =>
+    set((s) => ({
+      valueField: field,
+      timelinePlaying:
+        field === 'flow' && s.mode !== 'current' && s.timelineFrameIndex === 0 ? true : s.timelinePlaying,
+    })),
   setParticleColorField: (field) => set({ particleColorField: field }),
   setParticleSpeed: (speed) => set({ particleSpeed: speed }),
   setPointsVisible: (visible) => set({ pointsVisible: visible }),

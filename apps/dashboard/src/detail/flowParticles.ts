@@ -184,6 +184,32 @@ export function blockedByPartition(
   return false;
 }
 
+/**
+ * 칸막이 판 반두께(m) — 모델 실측 0.04 두께(PigRoom_W0가 x 1.82~1.86)의 절반.
+ * 입자 반지름 몫으로 조금 더 준다.
+ */
+const PARTITION_HALF_THICKNESS_M = 0.03;
+
+/** (x, y)가 칸막이 판이 서 있는 자리(선분에서 반두께 안)인지 — 판을 수직으로 지나가지 못하게 할 때 쓴다. */
+export function overPartition(
+  wall: PartitionWall | undefined,
+  x: number,
+  y: number,
+  margin: number = PARTITION_HALF_THICKNESS_M,
+): boolean {
+  if (wall === undefined) return false;
+  for (const [[ax, ay], [bx, by]] of wall.segments) {
+    const vx = bx - ax;
+    const vy = by - ay;
+    const len2 = vx * vx + vy * vy;
+    const t = len2 > 0 ? Math.max(0, Math.min(1, ((x - ax) * vx + (y - ay) * vy) / len2)) : 0;
+    const dx = x - (ax + t * vx);
+    const dy = y - (ay + t * vy);
+    if (dx * dx + dy * dy < margin * margin) return true;
+  }
+  return false;
+}
+
 export interface ParticleOptions {
   /** 동시에 떠 있을 수 있는 최대 입자 수 — 다 차면 빈 자리가 날 때까지 급기구 투입을 쉰다. */
   count: number;
@@ -195,6 +221,8 @@ export interface ParticleOptions {
   fallbackAirflowM3h: number;
   /** 입자가 통과하지 못하는 칸막이. 없으면 막지 않는다. */
   partition?: PartitionWall;
+  /** 입자 수명(화면 초) — 이 시간이 지나면 급기구에서 다시 내보낸다. 없으면 수명 없음. */
+  maxAgeS?: number;
 }
 
 /**
@@ -216,7 +244,7 @@ export interface ParticleState {
   hist: Float32Array;
   /** 기록된 꼬리 길이(0~trail) — 0이면 비어 있는 자리(아직 안 나왔거나 배기구로 나감, 그리지 않는다). */
   histLen: Uint8Array;
-  /** 놓인 뒤 화면 시간(초) — 서서히 나타나게 하는 데만 쓴다. */
+  /** 놓인 뒤 화면 시간(초) — 서서히 나타나게 하는 데와 수명(maxAgeS) 판정에 쓴다. */
   age: Float32Array;
   /** 느린 상태가 이어진 실제 시간(초). */
   stuck: Float32Array;
@@ -315,7 +343,7 @@ export function stepParticles(
   timeScale: number,
   rand: Rand = Math.random,
 ): void {
-  const { trail, partition, particlesPerM3, fallbackAirflowM3h } = state.opts;
+  const { trail, partition, particlesPerM3, fallbackAirflowM3h, maxAgeS } = state.opts;
   const { capacity } = state;
   const fg = field.grid;
   const flow = field.flow;
@@ -369,6 +397,11 @@ export function stepParticles(
         x = x0;
         y = y0;
       }
+      // 판 자리로 내려오면 윗면에 올려놓는다 — 수평만 막으면 칸막이 바로 위에 떨어진 입자가
+      // 판을 그대로 통과했다(2026-10-27 사용자 "입자가 뚫고 지나가는데"). 30초 모의에서 16개.
+      if (partition !== undefined && z < partition.height && overPartition(partition, x, y)) {
+        z = partition.height;
+      }
       if (atOutlet(geometry, x, y, z)) {
         exited = true;
         break;
@@ -380,6 +413,11 @@ export function stepParticles(
     if (exited) {
       // 배기구로 나감 → 빈 자리(다음 투입 때 급기구에서 다시 나온다).
       state.histLen[p] = 0;
+      continue;
+    }
+    // 수명 — 오래된 입자는 급기구에서 다시 내보낸다(한자리에 겹쳐 쌓이지 않게).
+    if (maxAgeS !== undefined && (state.age[p] ?? 0) > maxAgeS && inlets.length > 0) {
+      placeAtInlet(state, p, geometry, inletVelocity, h, rand);
       continue;
     }
     // 멈춤 — 마지막 단계의 유속(|u|+|v|+|w|)으로 판정하고, 오래 멈추면 급기구로 되돌린다.

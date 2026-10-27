@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { DetailFrame, FlowVec, Geometry, GridDef } from '@ondo/shared';
 import {
   blockedByPartition,
+  overPartition,
   createParticles,
   emitCountFor,
   atOutlet,
@@ -265,6 +266,37 @@ describe('stepParticles — 급기구 출발·배기구 소멸·멈춤 시 급�
     st.stuck[0] = 20;
     stepParticles(st, NO_OUTLET, field, undefined, 0.1, 1);
     expect(st.stuck[0]).toBe(0);
+  });
+
+  it('칸막이 판 자리로는 위에서 아래로도 내려가지 못한다', () => {
+    // 수평만 막으면 칸막이 바로 위에 떨어진 입자가 판을 그대로 통과했다(2026-10-27 사용자).
+    const wall = { segments: [[[0.5, 0], [0.5, 1]]] as const, height: 0.78 };
+    const st = empty({ ...OPTS, count: 1, partition: wall });
+    place(st, 0, 0.5, 0.5, 0.9);
+    const down = { grid: GRID, flow: new Array<FlowVec>(8).fill([0, 0, -1, 1]) };
+    stepParticles(st, NO_OUTLET, down, undefined, 0.5, 1);
+    expect(st.hist[2]).toBeCloseTo(0.78); // 판 윗면에 올라선다(Float32라 0.7799999)
+  });
+
+  it('overPartition: 판 선 위면 참, 멀면 거짓', () => {
+    const wall = { segments: [[[0.5, 0], [0.5, 1]]] as const, height: 0.78 };
+    expect(overPartition(wall, 0.5, 0.4)).toBe(true);
+    expect(overPartition(wall, 0.51, 0.4)).toBe(true);
+    expect(overPartition(wall, 0.6, 0.4)).toBe(false);
+    expect(overPartition(wall, 0.5, 1.5)).toBe(false); // 선분 밖
+    expect(overPartition(undefined, 0.5, 0.4)).toBe(false);
+  });
+
+  it('수명: maxAgeS가 지나면 급기구에서 다시 내보낸다', () => {
+    // 유속이 성긴 목업(288점)에서 입자가 한자리에 겹쳐 쌓여 화면이 비어 보였다(2026-10-27).
+    const st = empty({ ...OPTS, count: 1, maxAgeS: 5 });
+    place(st, 0, 0.2, 0.5, 0.5);
+    stepParticles(st, NO_OUTLET, field, undefined, 3, 1, seq(0.5));
+    expect(st.hist[2]).toBeLessThan(0.9); // 아직 수명 안 지남
+    stepParticles(st, NO_OUTLET, field, undefined, 3, 1, seq(0.5));
+    expect(st.hist[0]).toBeCloseTo(0.5); // 급기구 중심
+    expect(st.hist[2]).toBeGreaterThan(0.9); // 천장 바로 아래
+    expect(st.age[0]).toBe(0);
   });
 
   it('칸막이 높이 아래에서는 칸막이를 넘지 못한다', () => {
