@@ -263,7 +263,7 @@ export const FLOW_PARTICLE_MAX_AGE_S = 20;
  * 배기구 둘레 격자점이 0(벽면 조건)이라 원 바깥에서 속도가 0으로 줄어 붙는다. 그래서 기본은
  * 'cell'로 두고, 온도 측에 어느 쪽이 맞는지 확인 요청 중이다(2026-10-28). 답이 오면 한 줄로 바꾼다.
  */
-export const FLOW_PARTICLE_OUTLET_HIT: OutletHit = 'cell';
+export const FLOW_PARTICLE_OUTLET_HIT: OutletHit = 'circle';
 export const FLOW_PARTICLE_SPEEDS = [1, 3, 10] as const;
 export type FlowParticleSpeed = (typeof FLOW_PARTICLE_SPEEDS)[number];
 /**

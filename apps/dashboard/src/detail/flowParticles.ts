@@ -323,6 +323,16 @@ export interface ParticleState {
 /** 방 안쪽으로 좌표를 자르는 여유(m). */
 const WALL_MARGIN_M = 0.004;
 
+/**
+ * 배기구 벽(y = 0)에 닿은 입자가 벽을 따라 배기구 쪽으로 쓸려 가는 속도(m/s).
+ *
+ * 왜: 받은 유속은 배기구 격자점 한 점만 빨아들이고 둘레 벽 점은 0이라, 벽에 닿은 입자가
+ * 배기구를 살짝 비껴가면 그 자리에 붙어 버린다. 실제로는 벽면을 따라 배기구로 모여 빠져나간다
+ * (2026-10-28 사용자: "빠져나가는 입자는 모두 배기구를 통해서 나가게"). 온도 측 안내문도
+ * 소멸은 geometry의 배기구 원을 쓰라고 했으므로, 원으로 모아 주는 쪽이 그 권고와 맞는다.
+ */
+const OUTLET_WALL_PULL_MS = 0.4;
+
 function place(state: ParticleState, p: number, x: number, y: number, z: number): void {
   const o = p * state.opts.trail * 3;
   state.hist[o] = x;
@@ -442,6 +452,7 @@ export function stepParticles(
 
   // 급기구 투입 — 빈 자리가 있을 때만.
   const inlets = geometry.room.inlets;
+  const outlet = geometry.room.outlet;
   const inletArea = inlets.reduce((a, it) => a + it.w * it.l, 0);
   const airflow = supply?.airflow_m3h ?? fallbackAirflowM3h;
   const inletVelocity = inletArea > 0 ? airflow / 3600 / inletArea : 0;
@@ -514,6 +525,17 @@ export function stepParticles(
       x = Math.min(Math.max(x, WALL_MARGIN_M), W - WALL_MARGIN_M);
       y = Math.min(Math.max(y, WALL_MARGIN_M), D - WALL_MARGIN_M);
       z = Math.min(Math.max(z, WALL_MARGIN_M), H - WALL_MARGIN_M);
+      // 배기구 벽에 닿았으면 벽을 따라 배기구로 모인다(위 OUTLET_WALL_PULL_MS 주석 참고).
+      if (outlet.wall === 'y=0' && y <= WALL_MARGIN_M * 2) {
+        const dx = outlet.x - x;
+        const dz = outlet.z - z;
+        const d = Math.hypot(dx, dz);
+        if (d > 1e-6) {
+          const stepM = Math.min(d, OUTLET_WALL_PULL_MS * hs);
+          x += (dx / d) * stepM;
+          z += (dz / d) * stepM;
+        }
+      }
     }
     if (exited) {
       // 배기구로 나감 → 빈 자리(다음 투입 때 급기구에서 다시 나온다).
