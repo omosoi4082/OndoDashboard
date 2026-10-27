@@ -120,6 +120,13 @@ function checkEnv(): EnvCheck {
   } else {
     line('ok', `연산 서버 모드: http (${env.get('COMPUTE_BASE_URL') ?? ''})`);
   }
+  // v1.3.3 가시화 데이터(2026-10-27). 꺼져 있어도 정상 — 유동 입자가 288점으로 그려질 뿐이다.
+  line(
+    'ok',
+    env.get('COMPUTE_VIZ') === 'true'
+      ? '가시화 데이터(viz): 켜짐 — 연산 서버가 v1.3.3 이상이어야 합니다'
+      : '가시화 데이터(viz): 꺼짐 — 유동 입자는 288점으로 그립니다 (켜려면 setup.bat [2/3])',
+  );
 
   return { ok: true, env };
 }
@@ -385,7 +392,9 @@ function checkFrames(
     }
   }
 
-  line('ok', `${label} 정상 — 프레임 ${d.frames.length}개, 색 범위 온도 ${d.range.temp.min}~${d.range.temp.max}℃`);
+  const gridFlow = d.frames[0]?.grid.flow;
+  const flowNote = gridFlow !== undefined ? `유속 ${gridFlow.length}점(viz)` : `유속 ${d.frames[0]?.flow.length ?? 0}점`;
+  line('ok', `${label} 정상 — 프레임 ${d.frames.length}개, 색 범위 온도 ${d.range.temp.min}~${d.range.temp.max}℃, ${flowNote}`);
 }
 
 async function checkDetail(baseUrl: string, counts: Counts | null): Promise<void> {

@@ -18,6 +18,8 @@ export interface ComputeClientOpts {
   pingTimeoutMs: number;
   /** SERVER·BUSY 오류 재시도 대기(http 모드, D-4). */
   retryDelayMs: number;
+  /** 요청에 `viz: true`(v1.3.3)를 넣을지(http 모드). */
+  viz: boolean;
 }
 
 export function createComputeClient(opts: ComputeClientOpts): ComputeClient {
@@ -31,6 +33,7 @@ export function createComputeClient(opts: ComputeClientOpts): ComputeClient {
     apiKeyHeader: opts.apiKeyHeader,
     timeoutMs: opts.timeoutMs,
     pingTimeoutMs: opts.pingTimeoutMs,
+    viz: opts.viz,
   });
   return withComputeRetry(http, { delayMs: opts.retryDelayMs });
 }

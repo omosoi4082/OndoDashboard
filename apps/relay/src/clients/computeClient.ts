@@ -3,7 +3,7 @@
 // requestForecast 등을 추가해도 그대로 재사용할 수 있게 설계한다.
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import type { DetailFrameOutdoor, DetailFrameQuality, DetailFrameSummary, FlowVec, MinMax } from '@ondo/shared';
+import type { DetailFrameOutdoor, DetailFrameQuality, DetailFrameSummary, DetailFrameSupply, FlowVec, MinMax } from '@ondo/shared';
 
 export interface ComputeRequestInput {
   time: string; // 타임존 없는 KST 문자열(docs/03 4.1)
@@ -15,11 +15,14 @@ export interface ComputeRequestInput {
 export interface ComputeFrame {
   time: string; // 타임존 없음(원응답 그대로) — relay가 +09:00 등을 부착(변환기 쪽 책임)
   points: { temp: number[]; rh: number[]; flow: FlowVec[] };
-  grid: { temp: number[]; rh: number[] };
+  /** flow는 v1.3.3 `viz: true`일 때만(grid와 같은 점·순서). */
+  grid: { temp: number[]; rh: number[]; flow?: FlowVec[] };
   flow: FlowVec[];
   outdoor: DetailFrameOutdoor;
   summary: DetailFrameSummary;
   quality: DetailFrameQuality;
+  /** v1.3.3 `viz: true`일 때만. */
+  supply?: DetailFrameSupply;
 }
 
 export type ComputeErrorCode = 'UPSTREAM_TIMEOUT' | 'UPSTREAM_UNREACHABLE' | 'UPSTREAM_ERROR';
@@ -109,6 +112,16 @@ const qualitySchema = z.object({
   warnings: z.array(z.string()),
 });
 
+// v1.3.3 `viz: true` 추가분(2026-10-27 온도 측 "응답형식_추가안내_v1.3.3").
+const supplySchema = z.object({
+  airflow_m3h: z.number(),
+  ach: z.number(),
+  inlet_velocity: z.number(),
+  T_supply: z.number(),
+  RH_supply: z.number(),
+  pad_on: z.boolean(),
+});
+
 // export: mock/mock_expert.json·mock_control.json(온도 측 실제 목업 파일)의 frames도 이
 // 연산 서버 원응답(4.2) 프레임과 같은 형태이므로 mockFileParse.ts가 그대로 재사용한다.
 export const frameSchema = z.object({
@@ -121,11 +134,14 @@ export const frameSchema = z.object({
   grid: z.object({
     temp: z.array(z.number()),
     rh: z.array(z.number()),
+    // v1.3.3 `viz: true`일 때만 온다. 없으면 화면이 flowGrid(288점)로 입자를 그린다.
+    flow: z.array(flowVecSchema).optional(),
   }),
   flow: z.array(flowVecSchema),
   outdoor: outdoorSchema,
   summary: summarySchema,
   quality: qualitySchema,
+  supply: supplySchema.optional(),
 });
 
 /** v3 `range`: `{temp: [min, max], rh: [...], flow: [0, max]}`(배열 형식). */
@@ -153,7 +169,9 @@ const computeOkSchema = z.object({
   // v3 추가분. 구버전 목업·합성 생성기에는 없으므로 optional로 둔다.
   range: computeRangeSchema.optional(),
   geometryId: z.string().optional(),
-  forecast_issued_at: z.string().optional(),
+  // v1.3.3 실제 응답(2026-10-27 첨부)은 null을 돌려준다 — 문자열만 받으면 예측 응답 전체가
+  // 형식 오류가 된다.
+  forecast_issued_at: z.string().nullable().optional(),
 });
 
 // D-4(2026-10-13): { request_id?, status: "error", code, field?, message }. code는 구버전 목업에
@@ -212,16 +230,29 @@ export function parseComputeResponse(json: unknown): ComputeResult {
   };
 }
 
-export function buildComputeRequestBody(inputs: ComputeRequestInput[]): { request_id: string; inputs: ComputeRequestInput[] } {
-  return { request_id: randomUUID(), inputs };
+/**
+ * `viz: true`(v1.3.3)면 응답에 grid.flow·supply가 붙는다. 꺼져 있으면 필드 자체를 넣지 않는다 —
+ * v1.3.2 서버가 모르는 필드를 거부할 수 있어서다(COMPUTE_VIZ, 기본 꺼짐).
+ */
+function vizField(viz: boolean): { viz?: true } {
+  return viz ? { viz: true } : {};
+}
+
+export function buildComputeRequestBody(
+  inputs: ComputeRequestInput[],
+  viz = false,
+): { request_id: string; inputs: ComputeRequestInput[]; viz?: true } {
+  return { request_id: randomUUID(), ...vizField(viz), inputs };
 }
 
 export function buildForecastRequestBody(
   inputs: ComputeRequestInput[],
   extra: ForecastRequestExtra,
-): { request_id: string; inputs: ComputeRequestInput[]; forecast_from: string; forecast_issued_at: string } {
+  viz = false,
+): { request_id: string; inputs: ComputeRequestInput[]; forecast_from: string; forecast_issued_at: string; viz?: true } {
   return {
     request_id: randomUUID(),
+    ...vizField(viz),
     inputs,
     forecast_from: extra.forecastFrom,
     forecast_issued_at: extra.forecastIssuedAt,
@@ -235,6 +266,8 @@ export interface HttpComputeClientOpts {
   timeoutMs: number;
   /** GET /v1/health 타임아웃. 진단용이라 연산 타임아웃(60초)보다 짧게 둔다. */
   pingTimeoutMs: number;
+  /** 요청에 `viz: true`를 넣을지(v1.3.3 가시화 데이터). 기본 꺼짐 — `.env`의 COMPUTE_VIZ. */
+  viz?: boolean;
 }
 
 /** 타임아웃·연결 실패 공통 문구(D-4). 마지막 정상 결과 유지는 대시보드 몫이다. */
@@ -286,7 +319,8 @@ async function postCompute(
     return { ok: false, code: 'UPSTREAM_ERROR', message: '연산 입력에 null 값이 포함돼 호출을 중단했습니다.' };
   }
 
-  const body = JSON.stringify(extra ? buildForecastRequestBody(inputs, extra) : buildComputeRequestBody(inputs));
+  const viz = opts.viz ?? false;
+  const body = JSON.stringify(extra ? buildForecastRequestBody(inputs, extra, viz) : buildComputeRequestBody(inputs, viz));
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), opts.timeoutMs);
   try {

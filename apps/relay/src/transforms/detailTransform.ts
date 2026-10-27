@@ -52,6 +52,9 @@ function validateFrameCounts(raw: ComputeFrame, geometry: Geometry): string | nu
   if (raw.flow.length !== expectedFlow) {
     return `flow 배열 개수가 Geometry와 다릅니다(기대 ${expectedFlow}, 실제 ${raw.flow.length}).`;
   }
+  if (raw.grid.flow !== undefined && raw.grid.flow.length !== expectedGrid) {
+    return `grid.flow 배열 개수가 Geometry와 다릅니다(기대 ${expectedGrid}, 실제 ${raw.grid.flow.length}).`;
+  }
   return null;
 }
 
@@ -96,6 +99,7 @@ export function buildCurrentDetail(args: {
     outdoor: raw.outdoor,
     summary: raw.summary,
     quality: raw.quality,
+    ...(raw.supply ? { supply: raw.supply } : {}),
   };
 
   // 응답의 range를 그대로 쓴다(v3부터). 없을 때만 프레임에서 계산한다 — ComputeRange
@@ -182,6 +186,7 @@ export function buildForecastDetail(args: {
       outdoor: raw.outdoor,
       summary: raw.summary,
       quality: raw.quality,
+      ...(raw.supply ? { supply: raw.supply } : {}),
     });
   }
 

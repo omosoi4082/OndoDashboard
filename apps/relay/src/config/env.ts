@@ -54,6 +54,10 @@ const envSchema = z.object({
   COMPUTE_BASE_URL: z.string().min(1).default('http://localhost:9000'),
   COMPUTE_API_KEY: z.string().default(''),
   COMPUTE_API_KEY_HEADER: z.string().min(1).default('X-API-Key'),
+  // 연산 서버 v1.3.3 가시화 데이터(grid.flow 2,584점·supply) 요청 여부(2026-10-27). 기본 꺼짐 —
+  // v1.3.2 서버에 viz를 보내면 거부될 수 있다. 서버 /v1/health의 server_version이 v1.3.3이면
+  // setup.bat에서 켠다. 꺼져 있으면 화면은 flowGrid(288점)로 유동 입자를 그린다.
+  COMPUTE_VIZ: z.preprocess((v) => (v === '' || v === undefined ? 'false' : v), z.enum(['true', 'false'])).transform((v) => v === 'true'),
   // 예측 입력(forecast 구간) fan_pct 5단 구간 표(docs/03 2장, 2026-10-13 B-4). 경계 기온(℃,
   // 오름차순)과 구간별 가동률(%, 경계보다 1개 많게)을 쉼표로 적는다. 경계는 아래쪽 포함.
   FAN_STEP_TEMPS: numberList.default('22,24,26,28'),

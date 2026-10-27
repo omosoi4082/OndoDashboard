@@ -84,6 +84,19 @@ async function main(): Promise<void> {
         text = setEnvValue(text, 'COMPUTE_BASE_URL', normalized);
       }
     }
+
+    // 가시화 데이터(v1.3.3 viz) — 연산 서버가 v1.3.3 이상일 때만 켠다(2026-10-27).
+    console.log('');
+    console.log('      가시화 데이터(유동 입자용 정밀 유속·급기 조건)를 받을지 정하세요.');
+    console.log('      on  = 받음 (연산 서버 버전이 v1.3.3 이상일 때만)');
+    console.log('      off = 받지 않음 (기본, 유동 입자는 기존 288점으로 그림)');
+    console.log(`      현재: ${getEnvValue(text, 'COMPUTE_VIZ') === 'true' ? 'on' : 'off'}`);
+    const viz = (await rl.question('      새 값 (on / off) > ')).trim().toLowerCase();
+    if (viz === 'on' || viz === 'off') {
+      text = setEnvValue(text, 'COMPUTE_VIZ', viz === 'on' ? 'true' : 'false');
+    } else if (viz !== '') {
+      console.log('      ⚠️  on 또는 off 만 쓸 수 있습니다 — 바꾸지 않았습니다.');
+    }
   }
   console.log('');
 

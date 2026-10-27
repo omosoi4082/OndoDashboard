@@ -97,6 +97,32 @@ describe('buildCurrentDetail', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.message).toContain('flow');
   });
+
+  // v1.3.3 viz(2026-10-27): grid.flow는 grid와 같은 점 수, supply는 그대로 통과.
+  it('grid.flow·supply가 있으면 그대로 넘긴다', () => {
+    const frame = validFrame();
+    frame.grid.flow = new Array(8).fill([0, -0.1, 0, 0.1]);
+    frame.supply = { airflow_m3h: 1237, ach: 24.54, inlet_velocity: 0.521, T_supply: 29.54, RH_supply: 88.7, pad_on: true };
+    const result = buildCurrentDetail({ computeFrames: [frame], modelVersion: 'v9', geometry: GEOMETRY });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.data.frames[0]?.grid.flow).toHaveLength(8);
+    expect(result.data.frames[0]?.supply?.airflow_m3h).toBe(1237);
+  });
+
+  it('grid.flow·supply가 없으면 필드도 없다(viz 꺼짐)', () => {
+    const result = buildCurrentDetail({ computeFrames: [validFrame()], modelVersion: 'v9', geometry: GEOMETRY });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.data.frames[0]?.grid.flow).toBeUndefined();
+    expect(result.data.frames[0]).not.toHaveProperty('supply');
+  });
+
+  it('grid.flow 개수가 grid와 다르면 에러', () => {
+    const frame = validFrame();
+    frame.grid.flow = [[0, 0, 0, 0]]; // 8개 기대
+    const result = buildCurrentDetail({ computeFrames: [frame], modelVersion: 'v9', geometry: GEOMETRY });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.message).toContain('grid.flow');
+  });
 });
 
 function forecastFrames(count: number): ComputeFrame[] {

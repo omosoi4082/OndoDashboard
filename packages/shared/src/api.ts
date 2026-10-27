@@ -121,15 +121,31 @@ export interface DetailFrameQuality {
   warnings: string[];
 }
 
+/**
+ * 급기 조건(연산 서버 v1.3.3, 요청에 `viz: true`일 때만 온다 — 2026-10-27 온도 측).
+ * 유동 입자 출발 개수·속도를 실제 급기 조건에 맞추는 데 쓴다.
+ */
+export interface DetailFrameSupply {
+  airflow_m3h: number; // 급기 풍량 [m³/h] (= 환기횟수 × 방 체적 50.4 m³)
+  ach: number; // 환기횟수 [회/h]
+  inlet_velocity: number; // 급기구 면 평균 유속 [m/s]
+  T_supply: number; // 급기 온도 [℃] (쿨링패드 통과 후)
+  RH_supply: number; // 급기 상대습도 [%]
+  pad_on: boolean; // 쿨링패드 가동 여부
+}
+
 export interface DetailFrame {
   offsetMin: number;
   time: Iso8601;
   points: { temp: number[]; rh: number[]; flow: FlowVec[] }; // 125
-  grid: { temp: number[]; rh: number[] }; // nx*ny*nz
+  // nx*ny*nz. flow는 v1.3.3 `viz: true`일 때만 온다 — grid와 같은 점·순서의 유속(2,584점,
+  // 급기구·배기구 경계조건 포함). 있으면 유동 입자가 flowGrid(288점) 대신 이것을 쓴다.
+  grid: { temp: number[]; rh: number[]; flow?: FlowVec[] };
   flow: FlowVec[]; // flowGrid 노드 수
   outdoor: DetailFrameOutdoor;
   summary: DetailFrameSummary;
   quality: DetailFrameQuality;
+  supply?: DetailFrameSupply; // v1.3.3 `viz: true`일 때만
 }
 
 export interface MinMax {

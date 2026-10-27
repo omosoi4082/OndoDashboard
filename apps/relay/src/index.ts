@@ -62,6 +62,7 @@ const computeClient = createComputeClient({
   timeoutMs: env.COMPUTE_TIMEOUT_MS,
   pingTimeoutMs: env.UPSTREAM_TIMEOUT_MS,
   retryDelayMs: env.COMPUTE_RETRY_DELAY_MS,
+  viz: env.COMPUTE_VIZ,
 });
 
 // 센서 5분 집계·결측 처리 임계값(docs/03-upstream-apis.md 1.2) — 센서 이력을 쓰는 연산 입력은
@@ -157,7 +158,7 @@ app.log.info(`센서 서버 : ${env.SENSOR_MODE}${env.SENSOR_MODE === 'live' ? `
 app.log.info(`기상청    : 격자 nx ${env.KMA_NX} / ny ${env.KMA_NY}${env.KMA_SERVICE_KEY ? '' : '  ⚠ 서비스키가 비어 있어 기상청 조회가 실패합니다'}`);
 app.log.info(
   env.COMPUTE_MODE === 'http'
-    ? `연산 서버 : http (${env.COMPUTE_BASE_URL})`
+    ? `연산 서버 : http (${env.COMPUTE_BASE_URL})  가시화 데이터(viz): ${env.COMPUTE_VIZ ? '켜짐' : '꺼짐'}`
     : '연산 서버 : mock (목업 파일 — 실제 연산 결과가 아닙니다)',
 );
 app.log.info('상태 점검 : check.bat  (또는 npm run doctor)');

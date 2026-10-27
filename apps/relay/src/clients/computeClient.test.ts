@@ -29,6 +29,35 @@ describe('buildComputeRequestBody', () => {
   });
 });
 
+describe('viz(v1.3.3, COMPUTE_VIZ)', () => {
+  it('기본(꺼짐)이면 viz 필드를 아예 넣지 않는다 — v1.3.2 서버 거부 방지', () => {
+    expect(buildComputeRequestBody(INPUTS)).not.toHaveProperty('viz');
+    expect(
+      buildForecastRequestBody(INPUTS, { forecastFrom: '2026-10-05T15:25:00', forecastIssuedAt: '2026-10-05T14:00:00' }),
+    ).not.toHaveProperty('viz');
+  });
+
+  it('켜면 current·forecast 둘 다 viz: true', () => {
+    expect(buildComputeRequestBody(INPUTS, true).viz).toBe(true);
+    expect(
+      buildForecastRequestBody(INPUTS, { forecastFrom: '2026-10-05T15:25:00', forecastIssuedAt: '2026-10-05T14:00:00' }, true).viz,
+    ).toBe(true);
+  });
+
+  it('http 클라이언트가 opts.viz를 요청 본문에 싣는다', async () => {
+    const bodies: unknown[] = [];
+    vi.stubGlobal('fetch', async (_url: string, init: { body: string }) => {
+      bodies.push(JSON.parse(init.body));
+      return new Response(JSON.stringify({ status: 'error', code: 'SERVER', message: 'x' }), { status: 500 });
+    });
+    await createHttpComputeClient({ ...OPTS, viz: true }).requestCurrent(INPUTS);
+    await createHttpComputeClient(OPTS).requestCurrent(INPUTS);
+    vi.unstubAllGlobals();
+    expect(bodies[0]).toHaveProperty('viz', true);
+    expect(bodies[1]).not.toHaveProperty('viz');
+  });
+});
+
 describe('buildForecastRequestBody', () => {
   it('forecast_from·forecast_issued_at을 최상위에 담는다(타임존 없는 문자열)', () => {
     const body = buildForecastRequestBody(INPUTS, {
@@ -85,6 +114,21 @@ describe('createHttpComputeClient — v3 응답 파일 수용', () => {
     expect(result.frames.length).toBe(145);
     expect(result.range).toBeDefined();
     expect(result.geometryId).toBe('pig-nh-v1');
+  });
+
+  // 2026-10-27 온도 측 v1.3.3 실제 응답(viz: true). forecast_issued_at이 null로 온다 —
+  // 문자열만 받던 스키마는 응답 전체를 형식 오류로 만들었다.
+  it('v1.3.3: grid.flow(grid와 같은 개수)·supply를 살리고 forecast_issued_at null을 받는다', async () => {
+    stubFetchWithFile('sample_response_forecast.json');
+    const result = await createHttpComputeClient(OPTS).requestForecast(INPUTS, {
+      forecastFrom: '2026-10-05T15:25:00',
+      forecastIssuedAt: '2026-10-05T14:00:00',
+    });
+    if (!result.ok) throw new Error(result.message);
+    const f = result.frames[0];
+    expect(f?.grid.flow?.length).toBe(f?.grid.temp.length);
+    expect(f?.supply?.airflow_m3h).toBeGreaterThan(0);
+    expect(result.forecastIssuedAt).toBeUndefined();
   });
 });
 
