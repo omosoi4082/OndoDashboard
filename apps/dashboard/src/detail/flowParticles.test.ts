@@ -275,7 +275,7 @@ describe('stepParticles — 급기구 출발·배기구 소멸·멈춤 시 급�
     place(st, 0, 0.5, 0.5, 0.9);
     const down = { grid: GRID, flow: new Array<FlowVec>(8).fill([0, 0, -1, 1]) };
     stepParticles(st, NO_OUTLET, down, undefined, 0.5, 1);
-    expect(st.hist[2]).toBeCloseTo(0.78); // 판 윗면에 올라선다(Float32라 0.7799999)
+    expect(st.hist[2]).toBeCloseTo(0.8); // 판 윗면(0.78) 바로 위에 올라선다
   });
 
   it('overPartition: 판 선 위면 참, 멀면 거짓', () => {

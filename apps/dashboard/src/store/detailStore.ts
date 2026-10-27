@@ -130,21 +130,22 @@ export const useDetailStore = create<DetailState>((set) => ({
       particleSpeed: FLOW_PARTICLE_DEFAULT_SPEED,
       pointsVisible: defaultPointsVisible(mode),
       timelineFrameIndex: 0,
-      timelinePlaying: false,
+      // 모드에 들어가면 바로 재생한다(2026-10-27 사용자). 입자는 재생 중에만 흐르므로
+      // (FlowParticles.tsx) 멈춘 채로 시작하면 유동을 켜도 서 있다. 현재 모드는 타임라인이 없다.
+      timelinePlaying: mode !== 'current',
       expert: null,
     }),
   /**
-   * 분석 항목 전환. **유동을 고르면 타임라인이 맨 처음일 때 재생을 시작한다**(2026-10-27 사용자).
-   * 입자는 재생 중에만 흐르므로(FlowParticles.tsx — 온도 측 샘플 뷰어와 같은 방식), 그대로 두면
-   * 유동을 켜도 입자가 서 있다. 샘플도 열자마자 자동 재생으로 시작한다.
-   * 이미 보던 자리(index > 0)나 재생 중이면 건드리지 않는다 — 사용자가 멈춰 둔 것을 되살리지 않는다.
-   * 현재 모드는 타임라인도 입자도 없어 영향이 없다.
+   * 분석 항목 전환 — **온도·습도·유동 어느 것을 눌러도 처음부터 다시 재생한다**(2026-10-27 사용자:
+   * "온,습,유동 전부 탭해서 들어가면 리셋되서 처음부터 재생"). 모드 진입도 같다(setMode).
+   * 표현이 바뀌면 같은 구간을 처음부터 보게 되고, 입자는 재생 중에만 흐르므로 유동도 바로 돈다.
+   * 현재 모드는 타임라인이 없어 영향이 없다.
    */
   setValueField: (field) =>
     set((s) => ({
       valueField: field,
-      timelinePlaying:
-        field === 'flow' && s.mode !== 'current' && s.timelineFrameIndex === 0 ? true : s.timelinePlaying,
+      timelineFrameIndex: s.mode === 'current' ? s.timelineFrameIndex : 0,
+      timelinePlaying: s.mode !== 'current',
     })),
   setParticleColorField: (field) => set({ particleColorField: field }),
   setParticleSpeed: (speed) => set({ particleSpeed: speed }),

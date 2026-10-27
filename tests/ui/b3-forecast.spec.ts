@@ -40,6 +40,8 @@ test('B-3-3 막대 양 끝에 현재 시각과 마지막 시각이 적혀 있다
 });
 
 test('B-3-4 재생 버튼을 누르면 막대가 움직이고 3D 색이 바뀐다', async ({ page }) => {
+  // 2026-10-27부터 모드에 들어가면 바로 재생된다 — ▶ 동작을 보려면 먼저 초기화로 멈춰 둔다.
+  await timelineResetButton(page).click();
   const canvas = detail3dCanvas(page);
   const before = await snapshot(canvas);
   const startIndex = await sliderIndex(page);
@@ -51,6 +53,7 @@ test('B-3-4 재생 버튼을 누르면 막대가 움직이고 3D 색이 바뀐�
 });
 
 test('B-3-5 다시 누르면 멈춘다', async ({ page }) => {
+  await timelineResetButton(page).click();
   await playButton(page).click();
   await expect(async () => {
     expect(await sliderIndex(page)).toBeGreaterThan(0);
@@ -62,6 +65,8 @@ test('B-3-5 다시 누르면 멈춘다', async ({ page }) => {
 });
 
 test('B-3-6 막대를 끌면 3D와 2D가 같이 바뀐다', async ({ page }) => {
+  // 재생 중에 끌면 끈 자리가 바로 지나가 버린다 — 멈춰 두고 본다.
+  await timelineResetButton(page).click();
   const canvas = detail3dCanvas(page);
   const before = await snapshot(canvas);
   const moved = await dragTimeline(page, 0.7);

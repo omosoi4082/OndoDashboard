@@ -190,6 +190,12 @@ export function blockedByPartition(
  */
 const PARTITION_HALF_THICKNESS_M = 0.03;
 
+/**
+ * 판 윗면에 올려놓을 때 띄우는 높이(m). 윗면 높이에 정확히 두면 점이 판에 반쯤 박혀 보여
+ * "칸막이를 뚫고 지나간다"처럼 보인다(2026-10-27 사용자, 제어 모드에서 확인).
+ */
+const PARTITION_CLEAR_M = 0.02;
+
 /** (x, y)가 칸막이 판이 서 있는 자리(선분에서 반두께 안)인지 — 판을 수직으로 지나가지 못하게 할 때 쓴다. */
 export function overPartition(
   wall: PartitionWall | undefined,
@@ -399,8 +405,16 @@ export function stepParticles(
       }
       // 판 자리로 내려오면 윗면에 올려놓는다 — 수평만 막으면 칸막이 바로 위에 떨어진 입자가
       // 판을 그대로 통과했다(2026-10-27 사용자 "입자가 뚫고 지나가는데"). 30초 모의에서 16개.
-      if (partition !== undefined && z < partition.height && overPartition(partition, x, y)) {
-        z = partition.height;
+      // 위에서 판 자리로 내려오면 윗면 바로 위에 올려놓는다 — 수평만 막으면 칸막이 바로 위에
+      // 떨어진 입자가 판을 그대로 통과했다(2026-10-27 사용자). 아래에서 옆으로 파고드는 경우는
+      // 위 수평 차단이 이미 막으므로 여기서 들어 올리면 안 된다(들어 올리면 벽을 넘어가 버린다).
+      if (
+        partition !== undefined &&
+        z0 >= partition.height &&
+        z < partition.height + PARTITION_CLEAR_M &&
+        overPartition(partition, x, y)
+      ) {
+        z = partition.height + PARTITION_CLEAR_M;
       }
       if (atOutlet(geometry, x, y, z)) {
         exited = true;
