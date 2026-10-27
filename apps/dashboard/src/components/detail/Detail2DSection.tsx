@@ -28,11 +28,13 @@ function formatTick(v: number): string {
 // 평면도:범례 가로 배분 — 2026-10-10 사용자 요청: "평면도 70% 간격에 중앙 배치, 범례는
 // 30% 간격에 중앙 배치, 이상하면 60/40으로 바꿀 것". 비율 하나만 바꾸면 전체에 반영된다.
 const PLAN_WIDTH_SHARE = 0.6;
-// 레이아웃 고정 여백(px) — 가로세로 비율 맞춤 계산에 쓴다. Tailwind 클래스(w-7=28, h-3=12,
-// gap-1=4)와 값이 어긋나지 않게 같이 바꿔야 한다.
+// 레이아웃 고정 여백(px) — 가로세로 비율 맞춤 계산에 쓴다. Tailwind 클래스(w-7=28, h-3=12)와
+// 값이 어긋나지 않게 같이 바꿔야 한다.
+// 2026-10-27 사용자: "사각 프레임 패딩 없이, 숫자와 단면도 사이 갭도 없이" — 바깥 테두리 패딩과
+// 축 숫자~단면 사이 간격을 모두 0으로 뒀다(아래 flex gap-0·right-0도 같은 요청이다).
 const Y_AXIS_GUTTER_PX = 28;
 const X_AXIS_ROW_PX = 12;
-const ROW_GAP_PX = 4;
+const ROW_GAP_PX = 0;
 
 export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps): ReactElement {
   const valueField = useDetailStore((s) => s.valueField);
@@ -124,7 +126,7 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
   const fittedCanvasW = fittedCanvasH * (viewW / viewH);
 
   return (
-    <div className="flex h-full gap-2.5 rounded-lg border border-ondo-border bg-ondo-surface p-2.5">
+    <div className="flex h-full gap-2.5 rounded-lg border border-ondo-border bg-ondo-surface">
       {/* 실제 치수 비율대로 맞춘 박스를 이 영역 안에서 가운데 정렬한다(남는 공간은 레터박스). */}
       <div
         ref={areaRef}
@@ -132,13 +134,13 @@ export function Detail2DSection({ geometry, frame, range }: Detail2DSectionProps
         style={{ width: `${PLAN_WIDTH_SHARE * 100}%` }}
       >
         <div style={{ width: fittedCanvasW + Y_AXIS_GUTTER_PX + ROW_GAP_PX }}>
-          <div className="flex gap-1" style={{ height: fittedCanvasH }}>
+          <div className="flex gap-0" style={{ height: fittedCanvasH }}>
             {/* Y축 칫수(m) — 아래 X축 행의 marginLeft와 폭을 맞춰야 눈금이 캔버스와 정렬된다. */}
             <div className="relative shrink-0" style={{ width: Y_AXIS_GUTTER_PX }}>
               {yTicks.map((v) => (
                 <span
                   key={v}
-                  className="absolute right-1 -translate-y-1/2 whitespace-nowrap text-[9px] text-white/50"
+                  className="absolute right-0 -translate-y-1/2 whitespace-nowrap text-[9px] text-white/50"
                   style={{ top: `${((viewMinY + viewH - v) / viewH) * 100}%` }}
                 >
                   {formatTick(v)}m
