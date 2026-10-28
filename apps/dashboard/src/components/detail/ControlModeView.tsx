@@ -86,6 +86,7 @@ export function ControlModeView(): ReactElement {
   const setControl = useDetailStore((s) => s.setControl);
   const timelineFrameIndex = useDetailStore((s) => s.timelineFrameIndex);
   const stopTimeline = useDetailStore((s) => s.stop);
+  const resetViewSettings = useDetailStore((s) => s.resetViewSettings);
 
   // 기본값 에너지 최적화(01-functional-spec.md 4.4).
   const [target, setTarget] = useState<ControlTarget>('energy');
@@ -113,6 +114,9 @@ export function ControlModeView(): ReactElement {
     if (next === target) return;
     // 다른 최적화 결과라 재생 위치를 이어 가면 혼란스럽다 — 처음으로 되돌리고 멈춘다(2026-10-27 사용자).
     stopTimeline();
+    // 분석 항목(온도)·배속(1배)·단면 높이(기본)도 모드에 처음 들어왔을 때와 같게 되돌린다
+    // (2026-10-29 사용자 — store의 resetViewSettings 주석 참고).
+    resetViewSettings();
     setIsLoading(true);
     setTarget(next);
   }

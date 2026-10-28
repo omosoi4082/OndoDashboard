@@ -21,7 +21,7 @@ export const CLOCK_TICK_INTERVAL_MS = 1000;
  * "높이에 따른 확대 축소 필요없을 것 같은데"). Detail3DView가 이 값을 캔버스 가로세로비로 나눠
  * 거리를 정한다 — Three.js 원근 카메라의 화각(fov 45°)은 **세로** 기준이라, 그냥 두면 3D 박스가
  * 낮은 모드일수록 모델이 작게 그려졌다. 박스 세로는 모드마다 다르고 가로는 778로 같다:
- *   현재 778×844 / 예측 778×777 / 제어 778×728 (1920×1080 크롬 실측) → 제어가 현재보다 14 % 작았다.
+ *   현재 798×844 / 예측 798×777 / 제어 798×728 (1920×1080 크롬 실측) → 제어가 현재보다 14 % 작았다.
  *
  * 값 이력: 포팅 원본 1.6 → 2.2(2026-10-28 사용자 "가까이에서 시작해서 단면 판이 안 보이는데 조금
  * 밀어줘"). 2.6은 카메라가 천장 위로 올라가 위쪽이 텅 빈 띠로 보여서 뺐다(세로 기준이던 시절).
@@ -31,12 +31,12 @@ export const CLOCK_TICK_INTERVAL_MS = 1000;
 export const CAMERA_MARGIN_FACTOR = 2.5;
 
 /**
- * 상세 패널(6) 3D 프레이밍 기준 캔버스 비율 — **현재 모드 3D 박스(778 × 844)**.
+ * 상세 패널(6) 3D 프레이밍 기준 캔버스 비율 — **현재 모드 3D 박스(798 × 844)**.
  * 기준 세로 화각(DETAIL_CAMERA_FOV_DEG)과 CAMERA_MARGIN_FACTOR가 모두 이 비율에서의 값이다.
  * 3D 박스 가로는 네 모드가 같고(778) 세로만 다르므로(현재 844 / 예측 777 / 제어 728),
  * 이 기준 하나로 네 모드를 똑같이 맞춘다 — Detail3DView 주석 참고.
  */
-export const DETAIL_FRAME_REF_ASPECT = 778 / 844;
+export const DETAIL_FRAME_REF_ASPECT = 798 / 844;
 
 /**
  * 상세 패널(6) 3D 카메라 세로 화각(°) — DETAIL_FRAME_REF_ASPECT 비율에서의 값이다.
@@ -86,7 +86,7 @@ export const DETAIL_CAMERA_DIRECTION: Vector3Tuple = [0.462, 0.12, -0.45];
  *    MAIN_SCENE_TOP_PX를 쓴다).
  *
  * 화면에서 몇 px 올라가는지는 카메라 거리와 화각에서 나온다 — 지금 값(방 4.5×4.0×2.8,
- * CAMERA_MARGIN_FACTOR 2.03, fov 45°, 캔버스 778×844)이면 **1 m ≈ 102 px**이다.
+ * CAMERA_MARGIN_FACTOR 2.2, fov 45°, 캔버스 798×844)이면 **1 m ≈ 97 px**이다.
  * 사용자가 드래그로 옮기는 건 그대로다(이 값은 처음 프레이밍에만 쓴다).
  */
 export const DETAIL_VIEW_LIFT_M = 0.4;
@@ -100,7 +100,7 @@ export const DETAIL_VIEW_LIFT_M = 0.4;
  * "화면 왼쪽"은 카메라가 보는 방향에서 구한다(시선 × 위쪽 = 화면 오른쪽 벡터). 늘 수평이라
  * 높이는 건드리지 않는다. 각도(DETAIL_CAMERA_DIRECTION)를 바꿔도 따라 돈다.
  *
- * 0.3 m ≈ 28 px(방 4.5×4.0×2.8, CAMERA_MARGIN_FACTOR 2.2, fov 45°, 캔버스 778×844 기준).
+ * 0.3 m ≈ 28 px(방 4.5×4.0×2.8, CAMERA_MARGIN_FACTOR 2.2, fov 45°, 캔버스 798×844 기준).
  * 그냥 두면 방이 왼쪽 끝에 닿고 오른쪽에 60 px이 남아서 그만큼 가운데로 보낸 값이다.
  *
  * 타입을 number로 못박는다 — 리터럴 타입(0.3)으로 좁혀지면 Detail3DView의 `!== 0` 분기가
@@ -189,10 +189,10 @@ export const OUTDOOR_CLUSTER_SCALE = 0.8;
 // 화면 폭이라, 상세 패널에 가려지지 않는 "보이는 영역"의 중앙을 계산할 때)가 공유한다.
 // 둘 중 하나만 바꾸면 어긋나므로 반드시 같이 바꿀 것.
 //
-// 2026-10-28 사용자 지시로 788 → 820. 안쪽 3D·2D 내용은 고정 폭을 버리고 남는 폭을 전부
-// 쓰므로(DetailSections.tsx `w-full`) 이 값만 바꾸면 3D 캔버스가 같이 넓어진다:
-//   패널 820 − 오른쪽 여백 20(App.tsx pr-5) = 카드 800 − 카드 패딩 10+10 = **내용 780**.
-export const DETAIL_PANEL_WIDTH_PX = 820;
+// 2026-10-28 사용자 지시로 788 → 820, 2026-10-29 **840**. 안쪽 3D·2D 내용은 고정 폭을 버리고
+// 남는 폭을 전부 쓰므로(DetailSections.tsx `w-full`) 이 값만 바꾸면 3D 캔버스가 같이 넓어진다:
+//   패널 840 − 오른쪽 여백 20(App.tsx pr-5) = 카드 820 − 카드 패딩 10+10 = **내용 800**.
+export const DETAIL_PANEL_WIDTH_PX = 840;
 
 // 상세 패널(6) 2D 수평단면 높이(m) — relay .env의 SECTION_Z_M(기본 0.5, docs/02-relay-api.md
 // 5장)과 같은 값을 유지해야 한다. 대시보드는 .env를 읽지 않으므로 상수로 따로 두고, 값을

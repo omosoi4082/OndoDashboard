@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useDetailStore } from './detailStore.js';
+import { SECTION_Z_M } from '../config/constants.js';
 
 describe('detailStore setMode', () => {
   beforeEach(() => {
@@ -59,6 +60,24 @@ describe('detailStore setValueField', () => {
     useDetailStore.getState().setParticleSpeed(10);
     useDetailStore.getState().setValueField('rh');
     expect(useDetailStore.getState().particleSpeed).toBe(10);
+  });
+
+  // 2026-10-29 사용자: "제어모드에 에너지, 환경 탭 넘어갈때 배속 온,습도 리셋안되
+  // 기본 1배속이고 기본 온도 선택이야", "단면높이도 리셋안되네".
+  it('resetViewSettings: 분석 항목·배속·단면 높이를 기본값으로 되돌린다', () => {
+    useDetailStore.getState().setValueField('rh');
+    useDetailStore.getState().setParticleSpeed(10);
+    useDetailStore.getState().setSectionZ(2.1);
+    useDetailStore.getState().resetViewSettings();
+    expect(useDetailStore.getState().valueField).toBe('temp');
+    expect(useDetailStore.getState().particleSpeed).toBe(1);
+    expect(useDetailStore.getState().sectionZ).toBe(SECTION_Z_M);
+  });
+
+  it('resetViewSettings: 포인트 표시는 건드리지 않는다', () => {
+    useDetailStore.getState().setPointsVisible(false);
+    useDetailStore.getState().resetViewSettings();
+    expect(useDetailStore.getState().pointsVisible).toBe(false);
   });
 
   it('입자를 빈 방부터 다시 내보낸다(runId 증가)', () => {

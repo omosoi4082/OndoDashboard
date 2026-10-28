@@ -78,6 +78,8 @@ export interface DetailState {
 
   setGeometry: (geometry: Geometry) => void;
   setMode: (mode: DetailMode) => void;
+  /** 분석 항목·배속·단면 높이를 기본값으로 — 제어 모드 에너지/환경 전환에 쓴다. */
+  resetViewSettings: () => void;
   setValueField: (field: AnalysisField) => void;
   setParticleSpeed: (speed: FlowParticleSpeed) => void;
   setSectionZ: (z: number) => void;
@@ -149,6 +151,18 @@ export const useDetailStore = create<DetailState>((set) => ({
       timelineRunId: 0,
       expert: null,
     }),
+  /**
+   * 분석 항목·배속·단면 높이를 기본값으로 되돌린다 — 제어 모드에서 **에너지 ↔ 환경**을
+   * 전환할 때 쓴다(2026-10-29 사용자: "제어모드에 에너지, 환경 탭 넘어갈때 배속 온,습도
+   * 리셋안되 기본 1배속이고 기본 온도 선택이야", "단면높이도 리셋안되네").
+   *
+   * 모드 전환(setMode)과 같은 값으로 돌린다 — 최적화 목표가 다른 결과라서, 보던 설정을
+   * 그대로 이어 가면 두 결과를 비교할 때 기준이 달라진다. 재생 위치는 ControlModeView가
+   * stop()으로 따로 처음으로 되돌린다. 포인트 표시는 건드리지 않는다(모드별 기본값이라
+   * 제어 모드 안에서 바뀔 이유가 없다).
+   */
+  resetViewSettings: () =>
+    set({ valueField: 'temp', particleSpeed: FLOW_PARTICLE_DEFAULT_SPEED, sectionZ: SECTION_Z_M }),
   /**
    * 분석 항목 전환 — **온도·습도·유동 어느 것을 눌러도 처음부터 다시 재생한다**(2026-10-27 사용자:
    * "온,습,유동 전부 탭해서 들어가면 리셋되서 처음부터 재생"). 모드 진입도 같다(setMode).

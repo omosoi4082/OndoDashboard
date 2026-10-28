@@ -1,13 +1,15 @@
-// B-5. 제어 모드 — 테스트-체크리스트.md B-5의 7개 항목.
+// B-5. 제어 모드 — 테스트-체크리스트.md B-5의 8개 항목.
 // 7번은 2026-10-19에 붙인 '참고용' 알림이다 — 목업의 quality.in_range가 false인 구간에서만 뜬다.
 import { expect, test } from '@playwright/test';
 import {
+  analysisButton,
   detail3dCanvas,
   dragTimeline,
   expectCanvasNotBlank,
   modeTab,
   openDashboard,
   openMode,
+  particleSpeedButton,
   playButton,
   resetAndPause,
   timelineResetButton,
@@ -62,6 +64,29 @@ test('B-5-5 환경 최적화를 누르면 다시 불러와 화면이 갱신된�
   expect(cls ?? '', '환경 최적화가 선택 상태가 아닙니다').toContain('#3c5880');
   await waitForDetail3D(page);
   await expectCanvasNotBlank(detail3dCanvas(page), '환경 최적화 3D');
+});
+
+test('B-5-8 에너지↔환경을 바꾸면 배속·분석 항목·단면 높이가 기본으로 돌아온다', async ({ page }) => {
+  // 2026-10-29 사용자: 최적화 목표가 다른 결과라 보던 설정을 이어 가면 두 결과를 비교할 때
+  // 기준이 달라진다 — 모드에 처음 들어왔을 때와 같게 되돌린다.
+  await analysisButton(page, '습도').click();
+  await particleSpeedButton(page, 10).click();
+  const slider = page.getByRole('slider', { name: '단면 높이' });
+  await slider.fill('2.1');
+
+  await targetButton(page, '환경 최적화').click();
+  await waitForDetail3D(page);
+
+  // 선택 표시는 배경색 클래스다(B-2-6과 같은 방식) — 이 버튼엔 aria-pressed가 없다.
+  expect(
+    (await analysisButton(page, '온도').getAttribute('class')) ?? '',
+    '분석 항목이 온도로 돌아오지 않았습니다',
+  ).toContain('#3b3c42');
+  expect(
+    await particleSpeedButton(page, 1).getAttribute('aria-pressed'),
+    '배속이 1배로 돌아오지 않았습니다',
+  ).toBe('true');
+  expect(await slider.inputValue(), '단면 높이가 기본(0.5m)으로 돌아오지 않았습니다').toBe('0.5');
 });
 
 test('B-5-6 재생하면 그래프의 세로선도 같이 움직인다', async ({ page }) => {
