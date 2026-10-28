@@ -17,7 +17,7 @@ export const CLOCK_TICK_INTERVAL_MS = 1000;
 // 상세 패널(6) 3D 카메라 초기 프레이밍 여유(배율) — 개발자 결정. 2026-10-28 1.6 → 2.2(사용자: "가까이에서
 // 시작해서 단면 판이 안 보이는데 조금 밀어줘") — 방 바깥 단면 테가 앞쪽에 보인다. 2.6은 카메라가 천장
 // 위로 올라가 위쪽이 텅 빈 띠로 보여서 뺐다(1920×1080 크롬 실측).
-export const CAMERA_MARGIN_FACTOR = 2.2;
+export const CAMERA_MARGIN_FACTOR = 2.4;
 
 // 메인 화면(4) 3D 카메라 초기 프레이밍 여유(배율) — technical-review/pig-farm-cfd-demo의
 // overviewScene.js OVERVIEW_MARGIN_FACTOR 1.6을 그대로 포팅했다가, 2026-10-26 레이아웃 (1)로
@@ -43,7 +43,28 @@ export const OVERVIEW_CAMERA_DIRECTION: Vector3Tuple = [0.14, 0.1, 0.21];
 // 31°는 그대로). 네 방위를 전부 찍어 메인과 대조해 골랐다 — 메인에서는 급기구 3개가 왼→오로
 // 내려가고 배기팬이 왼쪽 벽, Y자 칸막이가 오른쪽 아래로 뻗는데, 이 값만 셋을 모두 만족한다
 // (180°는 급기구가 거꾸로 올라가고, −90°는 배기팬이 오른쪽에 붙어 거울상이 된다).
-export const DETAIL_CAMERA_DIRECTION: Vector3Tuple = [0.462, 0.12, -0.45];
+export const DETAIL_CAMERA_DIRECTION: Vector3Tuple = [0.5, 0.05, -0.45];
+
+/**
+ * 상세 패널(6) 3D 모델을 화면에서 **위로 올리는 양(m)** — 2026-10-28 사용자 "상세 모델링을
+ * 전체적으로 조금 위로 올리고 싶은데". 양수면 위로, 음수면 아래로. 0이면 처음 프레이밍 그대로.
+ *
+ * 방식은 **카메라 평행 이동(pan)**이다 — 카메라 위치와 OrbitControls target을 둘 다 같은 양만큼
+ * 아래로 내린다. 그러면 방 중심이 화면 중앙보다 그만큼 위에 찍힌다. 각도·거리·화각이 안 변해서
+ * 확대나 찌그러짐이 없다.
+ *
+ * 다른 방법을 안 쓴 이유:
+ *  - 메인 화면처럼 캔버스를 CSS로 밀어 올리기(MAIN_SCENE_TOP_PX): 상세 3D는 테두리 있는 박스
+ *    안이라 위가 잘리고 아래에 빈 띠가 생긴다.
+ *  - setViewOffset으로 투영을 트는 방법(OVERVIEW_VIEW_SHIFT_Y_PX): 세로 화각이 가상 프레임
+ *    기준이 되어 모델이 같이 확대되고 aspect를 수동 관리해야 한다(그 상수도 결국 0으로 두고
+ *    MAIN_SCENE_TOP_PX를 쓴다).
+ *
+ * 화면에서 몇 px 올라가는지는 카메라 거리와 화각에서 나온다 — 지금 값(방 4.5×4.0×2.8,
+ * CAMERA_MARGIN_FACTOR 2.4, fov 45°, 캔버스 높이 844px)이면 **1 m ≈ 94 px**이다.
+ * 사용자가 드래그로 옮기는 건 그대로다(이 값은 처음 프레이밍에만 쓴다).
+ */
+export const DETAIL_VIEW_LIFT_M = 0.35;
 
 // 메인 화면(4) 3D 모델을 보이는 영역 중앙에서 더 **왼쪽으로** 밀어내는 양(px) — CameraRig의
 // setViewOffset에 상세 패널 폭과 함께 더해진다. 0이면 "상세 패널에 안 가려지는 영역의 정중앙"
@@ -53,7 +74,7 @@ export const DETAIL_CAMERA_DIRECTION: Vector3Tuple = [0.462, 0.12, -0.45];
 // 비켜 두지만, 축사가 가로로 길어 오른쪽 끝(비육돈방)이 패널 가장자리에 닿는다.
 // 이 값을 Δ만큼 올리면 모델이 Δ/2 px 왼쪽으로 간다 — 광학 중심이 (w − p)/2 이므로.
 // 곁들여 시야각이 조금 넓어져 모델이 미세하게 작아진다(aspect = (w + p) / h).
-export const OVERVIEW_VIEW_SHIFT_PX = 180;
+export const OVERVIEW_VIEW_SHIFT_PX = 280;
 
 // 메인 화면(4) 3D 모델을 화면에서 **위로** 올리는 양(px) — 가로(OVERVIEW_VIEW_SHIFT_PX)와 같은
 // setViewOffset 요령을 세로에 쓴다. 캔버스보다 이 값만큼 높은 가상 프레임의 "아래쪽" 구간을

@@ -16,7 +16,12 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import type { DetailBase, DetailFrame, Geometry } from '@ondo/shared';
 import { sizeZUpToYUp, zUpToYUp } from '../../scene/coords.js';
 import { computeCameraFrame } from '../../scene/cameraFraming.js';
-import { CAMERA_MARGIN_FACTOR, DETAIL_CAMERA_DIRECTION, DETAIL_LIGHT_SCALE } from '../../config/constants.js';
+import {
+  CAMERA_MARGIN_FACTOR,
+  DETAIL_CAMERA_DIRECTION,
+  DETAIL_LIGHT_SCALE,
+  DETAIL_VIEW_LIFT_M,
+} from '../../config/constants.js';
 import { useDetailStore } from '../../store/detailStore.js';
 import { getFieldUnit, getPointScalar } from '../../detail/pointSelection.js';
 import { formatValueOrDash } from '../../utils/formatValue.js';
@@ -73,6 +78,10 @@ function CameraFraming({ roomSize }: { roomSize: readonly [number, number, numbe
     const [w, h, d] = sizeZUpToYUp(roomSize);
     const box = new THREE.Box3(new THREE.Vector3(0, 0, -d), new THREE.Vector3(w, h, 0));
     const frame = computeCameraFrame(box, CAMERA_MARGIN_FACTOR, undefined, DETAIL_CAMERA_DIRECTION);
+    // 모델을 화면에서 위로 올린다 — 카메라와 회전 중심을 같은 양만큼 **아래로** 내리는
+    // 평행 이동이라 각도·거리가 그대로다(config/constants.ts DETAIL_VIEW_LIFT_M 주석).
+    frame.position.y -= DETAIL_VIEW_LIFT_M;
+    frame.target.y -= DETAIL_VIEW_LIFT_M;
 
     camera.position.copy(frame.position);
     if (camera instanceof THREE.PerspectiveCamera) {
