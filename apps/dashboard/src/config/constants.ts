@@ -112,7 +112,11 @@ export const OUTDOOR_CLUSTER_SCALE = 0.8;
 // 상세보기 패널(6) 고정 폭 — App.tsx 레이아웃과 scene/CameraRig.tsx(메인 3D 캔버스가 전체
 // 화면 폭이라, 상세 패널에 가려지지 않는 "보이는 영역"의 중앙을 계산할 때)가 공유한다.
 // 둘 중 하나만 바꾸면 어긋나므로 반드시 같이 바꿀 것.
-export const DETAIL_PANEL_WIDTH_PX = 788;
+//
+// 2026-10-28 사용자 지시로 788 → 820. 안쪽 3D·2D 내용은 고정 폭을 버리고 남는 폭을 전부
+// 쓰므로(DetailSections.tsx `w-full`) 이 값만 바꾸면 3D 캔버스가 같이 넓어진다:
+//   패널 820 − 오른쪽 여백 20(App.tsx pr-5) = 카드 800 − 카드 패딩 10+10 = **내용 780**.
+export const DETAIL_PANEL_WIDTH_PX = 820;
 
 // 상세 패널(6) 2D 수평단면 높이(m) — relay .env의 SECTION_Z_M(기본 0.5, docs/02-relay-api.md
 // 5장)과 같은 값을 유지해야 한다. 대시보드는 .env를 읽지 않으므로 상수로 따로 두고, 값을

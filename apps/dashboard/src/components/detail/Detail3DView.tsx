@@ -30,10 +30,12 @@ import { SectionPlane } from '../../scene/SectionPlane.js';
 
 // 3D 뷰 오버레이 범례 틀 — 2026-10-14 사용자 지정(56×180), 디자인
 // docs/design/UI/04_제어모드_디자인_범례추가.png 실측과 같다(패널 56×180, 오른쪽 여백 약
-// 12px, 세로 가운데). 막대는 시안의 15px에 맞춰 16px로 두고 남는 폭을 눈금 라벨에 준다.
+// 12px, 세로 가운데). 막대는 시안의 15px에 맞춰 16px였다.
+// 2026-10-28 사용자: "범례 색 표시하는 곳 가로를 10분의 2 줄여 줘, 얇게" — 색 막대만
+// 16 → 13px(0.8배). 틀 56px은 그대로라 줄어든 3px은 눈금 라벨 쪽 여유가 된다.
 const LEGEND_WIDTH_PX = 56;
 const LEGEND_HEIGHT_PX = 180;
-const LEGEND_BAR_WIDTH_PX = 16;
+const LEGEND_BAR_WIDTH_PX = 13;
 /** 범례 아래 끝 ~ 2D 단면 그림 위 끝 간격(px) — 개발자 결정. */
 const LEGEND_SECTION_GAP_PX = 8;
 
