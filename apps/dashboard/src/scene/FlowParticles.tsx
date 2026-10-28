@@ -1,5 +1,6 @@
 // 유동 입자 애니메이션 — 2026-10-26 온도 측 요청으로 유동 표현을 화살표(FlowCylinders)에서
-// 바꿨다. 입자가 급기구에서 나와 유속(grid.flow가 있으면 그것, 없으면 flowGrid)을 따라 흐르고, 색은 그 자리의 온도 또는
+// 바꿨다. 처음에 방 전체를 입자로 채우고(seedRoom), 그 뒤 새 입자는 급기구에서 나온다 —
+// 유속(grid.flow가 있으면 그것, 없으면 flowGrid)을 따라 흐르고, 색은 그 자리의 온도 또는
 // 습도(grid 삼선형 보간)다. 움직임 계산은 detail/flowParticles.ts(순수 로직), 여기서는
 // 매 프레임 버퍼만 갱신한다 — 지오메트리·머티리얼은 다시 만들지 않는다.
 //
@@ -15,6 +16,7 @@ import { colormapRGB01, normalize } from '../detail/colormap.js';
 import {
   createParticles,
   sampleScalar,
+  seedRoom,
   stepParticles,
   velocityFieldOf,
   type ParticleOptions,
@@ -41,7 +43,11 @@ interface FlowParticlesProps {
 }
 
 const LUT_SIZE = 256;
-/** 급기구에서 막 나온 입자가 서서히 나타나는 시간(화면 초) — 갑자기 튀어나와 보이지 않게. */
+/**
+ * 막 놓인 입자가 서서히 나타나는 시간(화면 초) — 갑자기 튀어나와 보이지 않게. 급기구에서 나온
+ * 입자와, 멈춰서 방 안 다른 곳에서 다시 출발한 입자 둘 다에 걸린다(2026-10-27 "사방에서 생겨
+ * 보인다"를 줄이는 장치 — 2026-10-28 회신 2번으로 방 안 재출발 규칙이 돌아왔다).
+ */
 const FADE_S = 0.4;
 const HEAD_ALPHA = 0.95;
 /**
@@ -155,10 +161,15 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
   frameRef.current = frame;
   /** 마지막으로 입자를 움직인 프레임 — 멈춘 채로 막대만 옮겼는지 판단한다. */
   const lastSteppedFrame = useRef(frame);
-  // 빈 방에서 시작해 급기구에서 나온 입자로 채워진다(안내문 "급기구에서 출발").
-  // timelineRunId가 올라가면(초기화·모드 전환·분석 항목 전환) 다시 빈 방부터 시작한다.
+  // 처음부터 **방 전체에 입자가 있는 상태**로 시작한다(seedRoom — 2026-10-28 사용자
+  // "원래 방전체에 입자가있어야되는거네"). 급기구에서 나오는 입자는 그 뒤로 들어오는 새 공기다.
+  // timelineRunId가 올라가면(초기화·모드 전환·분석 항목 전환) 방을 다시 채우고 처음부터 흐른다.
   const runId = useDetailStore((s) => s.timelineRunId);
-  const state = useMemo(() => createParticles(opts), [opts, runId]);
+  const state = useMemo(() => {
+    const next = createParticles(opts);
+    seedRoom(next, geometry);
+    return next;
+  }, [opts, runId, geometry]);
 
   const { headGeom, trailGeom } = useMemo(() => {
     const count = state.capacity;
@@ -201,7 +212,8 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
     // 탭 전환 등으로 프레임 간격이 크게 벌어지면 입자가 한 번에 튀지 않게 자른다.
     const dt = Math.min(delta, 0.1);
     // 배속은 매 프레임 스토어에서 바로 읽는다 — 바꿔도 입자를 새로 뿌리지 않는다.
-    const speed = useDetailStore.getState().particleSpeed;
+    // 현재 모드는 타임라인이 없어 배속 버튼도 없다 → 늘 1배(실제 속도)다(2026-10-28 사용자).
+    const speed = mode === 'current' ? 1 : useDetailStore.getState().particleSpeed;
     if (playing) {
       stepParticles(state, geometry, velocityFieldOf(geometry, f), f.supply, dt, speed);
       lastSteppedFrame.current = f;

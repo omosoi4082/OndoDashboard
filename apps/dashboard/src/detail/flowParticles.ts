@@ -3,9 +3,10 @@
 // 기준은 온도 데이터(grid.flow·supply)와 자돈방 안내문(mock/응답형식_추가안내_v1.3.3.txt
 // "화면 구현 참고")이다. 샘플 HTML(Datacenter_v3_1_M2_3D열유동_뷰어.html)은 참고만 한다
 // (2026-10-27 사용자 "데이터를 바탕으로 만들어야지, html은 말 그대로 참고만").
-//   - 출발: 급기구 사각형 안 천장 바로 아래에서만, 급기 풍량에 비례한 개수(처음에도 방은 비어 있다).
+//   - 처음: 방 전체에 입자를 채워 둔다(seedRoom) — 화면을 열었을 때 이미 방에 있던 공기다.
+//   - 출발: 새 입자는 급기구 사각형 안 천장 바로 아래에서만, 급기 풍량에 비례한 개수.
 //   - 소멸: 배기구 앞에 들어오면 원 중심으로 빨아들여, 벽면의 원 중심에 닿을 때 지운다(atOutlet·outletCapture).
-//   - 멈춤: 벽·바닥 점이 0이라 그 근처에서 멈춘 입자는 급기구로 되돌린다(판정 값은 샘플 HTML 참고).
+//   - 멈춤: 벽·바닥 점이 0이라 그 근처에서 멈춘 입자는 방 안 아무 곳에서 다시 출발시킨다(placeInRoom).
 //   - 유속·온도·습도는 격자 8점 삼선형 보간, 실제 속도의 1·3·10배, 칸막이(0.78 m)는 통과하지 못한다.
 // 좌표는 전부 데이터 좌표(z-up, m)다 — Three.js 변환은 그리는 쪽(zUpToYUp)에서 한다.
 //
@@ -294,9 +295,23 @@ export interface ParticleOptions {
 }
 
 /**
- * 멈춤: |u|+|v|+|w| < STUCK_SPEED 상태가 STUCK_HOLD_S(실제 초) 이어지면 급기구로 되돌린다.
- * grid.flow는 벽·바닥 점이 0이라 그 근처로 간 입자는 속도가 0으로 줄어 그대로 멈춘다(바닥에
- * 쌓여 보였다). 값은 샘플 HTML을 참고했다.
+ * 멈춤: **한 걸음에 실제로 움직인 거리 ÷ 실제 시간**이 STUCK_SPEED 미만인 상태가
+ * STUCK_HOLD_S(실제 초) 이어지면 **방 안 아무 곳에서 다시 출발시킨다**(placeInRoom).
+ *
+ * 유속 값이 아니라 실제 이동량으로 보는 이유: 벽·바닥에 눌린 입자는 유속 값은 남아 있는데
+ * (288점 flowGrid는 바닥까지 닿지 않아 가장 가까운 노드 값을 쓴다) 벽 자르기(WALL_MARGIN_M)로
+ * 이동이 지워져 제자리에 쌓인다 — 유속으로만 보면 "멈춤"으로 안 잡혀 바닥에 깔려 보였다
+ * (전문가 목업 5분 모의에서 바닥에 1,100개). 온도 측 표현도 "일정 시간 **멈춰 있으면**"이다.
+ *
+ * 면에 붙어 **미끄러지는** 입자도 같이 센다(onSurface). 제어 목업은 바닥 쪽으로 쓸어내리는
+ * 유동이라 바닥에 닿은 입자가 수평으로는 계속 움직여(0.02 m/s 넘게) 이동량만으로는 안 잡혔다 —
+ * 5분 모의에서 바닥에 붙은 채 기어가는 입자가 1,044개였다. 온도 측이 걱정한 "실제보다 빠른
+ * 바닥 기류처럼 보이는" 모양이 바로 이것이다(2026-10-28 회신 2번).
+ *
+ * 왜 급기구가 아니라 방 안인가(2026-10-28 온도 측 회신 2번): "바닥·천장·다른 벽에 붙은 입자…
+ * 그런 입자는 일정 시간 멈춰 있으면 다시 출발시키는 정도면 충분합니다" — 샘플 HTML의 규칙
+ * 그대로다(0.02 m/s 미만 25초 → 방 안 아무 곳). 급기구로만 되돌리면 유속이 0에 가까운 아래쪽이
+ * 영구히 빈다(실제 응답 10분 모의: 아래 1.2 m에 전체의 15 %). 값도 샘플 HTML을 따랐다.
  */
 const STUCK_SPEED = 0.02;
 const STUCK_HOLD_S = 25;
@@ -349,6 +364,20 @@ const OUTLET_CAPTURE_R_FACTOR = 1.5;
 /** 벽면의 원 중심에서 이 거리(m) 안에 들어오면 빠져나간 것으로 본다. */
 const OUTLET_EXIT_M = 0.03;
 
+/**
+ * 방 면(바닥·천장·옆벽)에 닿아 있는지 — 멈춤 판정에 쓴다(STUCK_HOLD_S 주석).
+ * 배기구가 있는 벽은 뺀다: 거기 붙은 입자는 벽을 따라 배기구로 쓸려 나가는 게 맞다
+ * (OUTLET_WALL_PULL_MS). 판정 띠는 벽 자르기 여유의 두 배다.
+ */
+function onSurface(geometry: Geometry, x: number, y: number, z: number): boolean {
+  const [W, D, H] = geometry.room.size;
+  const m = WALL_MARGIN_M * 2;
+  if (z <= m || z >= H - m) return true;
+  if (x <= m || x >= W - m) return true;
+  if (y >= D - m) return true;
+  return y <= m && geometry.room.outlet.wall !== 'y=0';
+}
+
 function place(state: ParticleState, p: number, x: number, y: number, z: number): void {
   const o = p * state.opts.trail * 3;
   state.hist[o] = x;
@@ -373,7 +402,43 @@ function placeAtInlet(state: ParticleState, p: number, geometry: Geometry, inlet
   place(state, p, x, y, z);
 }
 
-/** 빈 방으로 시작한다 — 입자는 stepParticles가 급기구에서 넣는다. */
+/**
+ * 방 안 아무 곳 — 칸막이 판 자리는 피한다. 처음 방을 채울 때(seedRoom)와 멈춘 입자를 다시
+ * 출발시킬 때(stepParticles) 쓴다. 근거는 STUCK_HOLD_S 주석(2026-10-28 온도 측 회신 2번).
+ */
+function placeInRoom(state: ParticleState, p: number, geometry: Geometry, rand: Rand): void {
+  const [W, D, H] = geometry.room.size;
+  const { partition } = state.opts;
+  let x = W / 2;
+  let y = D / 2;
+  let z = H / 2;
+  // 칸막이 판 두께 안에 걸리면 다시 뽑는다. 몇 번 안에 못 피하면 그대로 둔다(멈춤 규칙이 치운다).
+  for (let tries = 0; tries < 8; tries++) {
+    x = WALL_MARGIN_M + rand() * (W - 2 * WALL_MARGIN_M);
+    y = WALL_MARGIN_M + rand() * (D - 2 * WALL_MARGIN_M);
+    z = WALL_MARGIN_M + rand() * (H - 2 * WALL_MARGIN_M);
+    if (partition === undefined || z > partition.height || !overPartition(partition, x, y)) break;
+  }
+  place(state, p, x, y, z);
+}
+
+/**
+ * 화면을 열었을 때 **방 전체에 입자가 있는 상태**로 만든다 — 자리를 전부 방 안 아무 곳에 채운다.
+ *
+ * 왜(2026-10-28 사용자: "원래 방전체에 입자가있어야되는거네"): 급기구에서만 채우면 1배속에서
+ * 방이 차는 데 2~3분이 걸리고, 다 차도 급기구→배기구 띠(z 1.2~2.0)에만 몰린다 — 방 안 평균
+ * 유속이 0.02 m/s라 아래쪽까지 입자가 가지 못한다(실제 응답 10분 모의: z 0.0~1.2 m에 15 %).
+ * 온도 측 샘플 HTML도 처음에 방 전체에 뿌린다(seedAll). 급기구 출발 규칙은 그대로다 — 그건
+ * **새로 들어오는 공기**이고, 여기서 채우는 것은 **이미 방에 있던 공기**다.
+ *
+ * 2026-10-27에 이 규칙을 뺐던 이유("입자가 사방에서 생겨 보인다")는 멈춘 입자를 방 아무 곳에
+ * 다시 놓는 규칙 때문이었는데, 그 규칙은 온도 측이 2026-10-28 회신 2번에서 그대로 쓰라고 했다.
+ */
+export function seedRoom(state: ParticleState, geometry: Geometry, rand: Rand = Math.random): void {
+  for (let p = 0; p < state.capacity; p++) placeInRoom(state, p, geometry, rand);
+}
+
+/** 빈 방으로 만든다 — 방 전체를 채우려면 seedRoom을 이어서 부른다(FlowParticles.tsx). */
 export function createParticles(opts: ParticleOptions): ParticleState {
   const capacity = opts.count;
   return {
@@ -509,6 +574,10 @@ export function stepParticles(
     let y = state.hist[o + 1] ?? 0;
     let z = state.hist[o + 2] ?? 0;
     let exited = false;
+    // 멈춤 판정에 쓸 출발 위치 — 실제로 움직인 거리를 재려고 둔다(STUCK_HOLD_S 주석).
+    const sx = x;
+    const sy = y;
+    const sz = z;
     for (let sub = 0; sub < nsub; sub++) {
       sampleVelocity(fg, flow, x, y, z, vA);
       sampleVelocity(fg, flow, x + 0.5 * hs * vA[0], y + 0.5 * hs * vA[1], z + 0.5 * hs * vA[2], vB);
@@ -586,12 +655,13 @@ export function stepParticles(
       placeAtInlet(state, p, geometry, inletVelocity, h, rand);
       continue;
     }
-    // 멈춤 — 마지막 단계의 유속(|u|+|v|+|w|)으로 판정하고, 오래 멈추면 급기구로 되돌린다.
-    const spd = Math.abs(vB[0]) + Math.abs(vB[1]) + Math.abs(vB[2]);
-    if (spd < STUCK_SPEED) {
+    // 멈춤 — 실제로 움직인 거리로 판정하고, 오래 멈추면 방 안 아무 곳에서 다시 출발시킨다
+    // (STUCK_HOLD_S 주석 — 2026-10-28 온도 측 회신 2번).
+    const spd = Math.hypot(x - sx, y - sy, z - sz) / h;
+    if (spd < STUCK_SPEED || onSurface(geometry, x, y, z)) {
       state.stuck[p] = (state.stuck[p] ?? 0) + h;
-      if ((state.stuck[p] ?? 0) > STUCK_HOLD_S && inlets.length > 0) {
-        placeAtInlet(state, p, geometry, inletVelocity, h, rand);
+      if ((state.stuck[p] ?? 0) > STUCK_HOLD_S) {
+        placeInRoom(state, p, geometry, rand);
         continue;
       }
     } else {

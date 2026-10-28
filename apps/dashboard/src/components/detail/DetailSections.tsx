@@ -84,11 +84,17 @@ function PointsToggle(): ReactElement {
 }
 
 // 입자·타임라인 배속 — 온도 측 샘플이 쓴 1·3·10배(mock/응답형식_추가안내_v1.3.3.txt).
-// 2026-10-28부터 네 모드 모두 입자가 늘 있어 항상 보인다(전에는 유동일 때만, 현재 모드 제외).
-// 입자 색 토글(온도/습도)은 같은 날 없앴다 — 입자 색은 분석 항목을 따른다.
-function ParticleSpeedToggle(): ReactElement {
+// 입자 색 토글(온도/습도)은 2026-10-28 없앴다 — 입자 색은 분석 항목을 따른다.
+//
+// **현재 모드에서는 보이지 않는다**(2026-10-28 사용자: "현재모드에 배속 없이 기본 1로…
+// 배속은 타임라인이 있을 때만"). 현재 모드는 한 시각만 보여 주고 타임라인이 없어서, 배속을
+// 올려도 바뀌는 건 입자 속도뿐이고 시간이 빨리 흐르는 것처럼 오해할 수 있다. FlowParticles.tsx가
+// 현재 모드를 늘 1배로 돌리므로 여기 버튼만 숨긴다.
+function ParticleSpeedToggle(): ReactElement | null {
+  const mode = useDetailStore((s) => s.mode);
   const speed = useDetailStore((s) => s.particleSpeed);
   const setSpeed = useDetailStore((s) => s.setParticleSpeed);
+  if (mode === 'current') return null;
   return (
     <div className="flex items-center gap-2 text-xs text-white">
       배속

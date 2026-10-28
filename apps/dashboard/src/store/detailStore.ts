@@ -153,8 +153,8 @@ export const useDetailStore = create<DetailState>((set) => ({
    * 분석 항목 전환 — **온도·습도·유동 어느 것을 눌러도 처음부터 다시 재생한다**(2026-10-27 사용자:
    * "온,습,유동 전부 탭해서 들어가면 리셋되서 처음부터 재생"). 모드 진입도 같다(setMode).
    * 표현이 바뀌면 같은 구간을 처음부터 보게 되고, 입자는 재생 중에만 흐르므로 유동도 바로 돈다.
-   * 현재 모드는 타임라인이 없어 재생 위치는 그대로지만, 입자는 빈 방부터 다시 나온다(runId).
-   * 배속은 그대로 둔다 — 배속 버튼이 늘 보이므로(2026-10-28) 고른 값이 눈에 보인다.
+   * 현재 모드는 타임라인이 없어 재생 위치는 그대로지만, 입자는 방을 다시 채우고 시작한다(runId).
+   * 배속은 그대로 둔다 — 배속 버튼이 보이는 모드에서는(현재 모드 제외) 고른 값이 눈에 보인다.
    */
   setValueField: (field) =>
     set((s) => ({
@@ -185,7 +185,7 @@ export const useDetailStore = create<DetailState>((set) => ({
     set((s) => ({
       timelineFrameIndex: 0,
       timelinePlaying: s.mode !== 'current',
-      // 입자도 빈 방에서 급기구부터 다시 — 그래야 "처음부터"가 눈에 보인다(2026-10-27 사용자).
+      // 입자도 방을 다시 채우고 처음부터(2026-10-28 — 전에는 빈 방에서 급기구부터였다).
       timelineRunId: s.timelineRunId + 1,
     })),
   advanceTimeline: (frameCount) =>

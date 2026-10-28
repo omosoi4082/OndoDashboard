@@ -1,4 +1,5 @@
-// B-2. 현재 모드(오른쪽 패널, 기본 선택) — 테스트-체크리스트.md B-2의 11개 항목(11은 2026-10-28 단면 높이 슬라이더).
+// B-2. 현재 모드(오른쪽 패널, 기본 선택) — 테스트-체크리스트.md B-2의 12개 항목
+// (11은 2026-10-28 단면 높이 슬라이더, 12는 같은 날 "현재 모드엔 배속 버튼 없음").
 import { expect, test } from '@playwright/test';
 import {
   analysisButton,
@@ -11,6 +12,7 @@ import {
   hoverDetailPoint,
   modeTab,
   openDashboard,
+  particleSpeedButton,
   pointsToggle,
   snapshot,
   waitForDetail3D,
@@ -55,6 +57,14 @@ test('B-2-5 현재 모드에도 입자가 저절로 움직인다', async ({ page
   await page.waitForTimeout(2_000);
   const before = await snapshot(canvas);
   await expectCanvasChanged(canvas, before, '현재 모드 입자 애니메이션');
+});
+
+test('B-2-12 현재 모드에는 배속 버튼이 없다', async ({ page }) => {
+  // 2026-10-28 사용자: "현재모드에 배속 없이 기본 1로 … 배속은 타임라인이 있을 때만".
+  // 현재 모드는 한 시각만 보여 주므로 배속을 두면 시간이 빨리 흐르는 것처럼 오해할 수 있다.
+  for (const speed of [1, 3, 10] as const) {
+    await expect(particleSpeedButton(page, speed), `현재 모드에 ${speed}배 버튼이 남아 있습니다`).toHaveCount(0);
+  }
 });
 
 test('B-2-6 습도를 누르면 색이 바뀐다', async ({ page }) => {

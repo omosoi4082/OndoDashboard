@@ -390,7 +390,8 @@ export function watchConsoleErrors(page: Page): string[] {
   return errors;
 }
 
-/** "3D 자돈방" 제목 줄의 배속 버튼(1배·3배·10배). 네 모드 모두 늘 보인다(2026-10-28). */
+/** "3D 자돈방" 제목 줄의 배속 버튼(1배·3배·10배). **타임라인이 있는 모드에만** 있다 —
+ * 현재 모드에는 없고 늘 1배다(2026-10-28 사용자: "배속은 타임라인이 있을 때만"). */
 export function particleSpeedButton(page: Page, speed: 1 | 3 | 10): Locator {
   return detail3dSection(page).getByRole('button', { name: `${speed}배`, exact: true });
 }

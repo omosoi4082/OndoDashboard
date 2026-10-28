@@ -5,6 +5,7 @@ import {
   overPartition,
   createParticles,
   emitCountFor,
+  seedRoom,
   atOutlet,
   outletCapture,
   sampleScalar,
@@ -193,7 +194,7 @@ describe('칸막이 — 선분 교차', () => {
   });
 });
 
-describe('stepParticles — 급기구 출발·배기구 소멸·멈춤 시 급기구로', () => {
+describe('stepParticles — 처음 방 전체 채우기·급기구 출발·배기구 소멸·멈춤 시 방 안 재출발', () => {
   // 테스트 격자는 간격 1 m라 배기구 칸(atOutlet)이 방 전체를 덮는다 — 배기구 판정을 보는
   // 테스트 말고는 배기구를 y = 0이 아닌 벽으로 옮긴다.
   const NO_OUTLET: Geometry = { ...GEOMETRY, room: { ...GEOMETRY.room, outlet: { wall: 'x=0', x: 0, z: 0.5, d: 0.4 } } };
@@ -206,10 +207,33 @@ describe('stepParticles — 급기구 출발·배기구 소멸·멈춤 시 급�
   }
   const alive = (st: ParticleState): number => Array.from(st.histLen).filter((n) => n > 0).length;
 
-  it('처음엔 빈 방이다(방에 미리 뿌리지 않는다)', () => {
+  it('createParticles만으로는 빈 방이다(채우는 건 seedRoom이 한다)', () => {
     const st = createParticles({ ...OPTS, count: 4 });
     expect(st.capacity).toBe(4);
     expect(alive(st)).toBe(0);
+  });
+
+  // 2026-10-28 사용자 "원래 방전체에 입자가있어야되는거네" + 온도 측 회신 2번.
+  it('seedRoom: 자리를 전부 방 안에 채운다', () => {
+    const st = createParticles({ ...OPTS, count: 4 });
+    seedRoom(st, GEOMETRY, seq(0.1, 0.3, 0.5, 0.7, 0.9));
+    expect(alive(st)).toBe(4);
+    for (let p = 0; p < 4; p++) {
+      const o = p * OPTS.trail * 3;
+      for (let k = 0; k < 3; k++) {
+        expect(st.hist[o + k]).toBeGreaterThan(0);
+        expect(st.hist[o + k]).toBeLessThan(1); // 방 크기 1×1×1
+      }
+    }
+  });
+
+  it('seedRoom: 칸막이 판 자리에 걸리면 다시 뽑는다', () => {
+    const wall = { segments: [[[0.5, 0], [0.5, 1]]] as const, height: 0.78 };
+    const st = createParticles({ ...OPTS, count: 1, partition: wall });
+    // 첫 뽑기는 판 자리(x 0.5, z 0.3), 둘째 뽑기는 판에서 먼 자리(x 0.1)
+    seedRoom(st, GEOMETRY, seq(0.5, 0.5, 0.3, 0.1, 0.5, 0.3));
+    expect(overPartition(wall, st.hist[0] ?? 0, st.hist[1] ?? 0)).toBe(false);
+    expect(st.hist[0]).toBeCloseTo(0.1, 1);
   });
 
   it('급기 풍량만큼 급기구 사각형 안 천장 바로 아래에 넣는다', () => {
@@ -273,14 +297,18 @@ describe('stepParticles — 급기구 출발·배기구 소멸·멈춤 시 급�
     expect(st.hist[1]).toBeCloseTo(0.004);
   });
 
-  it('멈춤: 느린 상태가 25초(실제 시간) 넘게 이어지면 급기구로 되돌린다', () => {
+  // 2026-10-28 온도 측 회신 2번: "일정 시간 멈춰 있으면 다시 출발시키는 정도면 충분합니다"
+  // — 급기구가 아니라 방 안 아무 곳이다(샘플 HTML 규칙 그대로).
+  it('멈춤: 느린 상태가 25초(실제 시간) 넘게 이어지면 방 안 아무 곳에서 다시 출발시킨다', () => {
     const st = empty({ ...OPTS, count: 1 });
     place(st, 0, 0.3, 0.3, 0.05);
     stepParticles(st, NO_OUTLET, still, undefined, 20, 1, seq(0.5));
     expect(st.hist[2]).toBeCloseTo(0.05); // 20초 — 아직 그대로
     stepParticles(st, NO_OUTLET, still, undefined, 10, 1, seq(0.5));
-    expect(st.hist[0]).toBeCloseTo(0.5); // 급기구 중심
-    expect(st.hist[2]).toBeGreaterThan(0.9); // 천장 바로 아래
+    // rand 0.5 → 방 가운데. 급기구(천장 z ≈ 1)가 아니다.
+    expect(st.hist[0]).toBeCloseTo(0.5);
+    expect(st.hist[1]).toBeCloseTo(0.5);
+    expect(st.hist[2]).toBeCloseTo(0.5);
     expect(st.stuck[0]).toBe(0);
   });
 
