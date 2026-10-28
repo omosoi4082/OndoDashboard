@@ -14,8 +14,10 @@ export const CURRENT_DETAIL_POLL_INTERVAL_MS = 10 * 60 * 1000;
 // 상단 날짜·요일·시간 갱신 주기(01-functional-spec.md 2장 #2).
 export const CLOCK_TICK_INTERVAL_MS = 1000;
 
-// 상세 패널(6) 3D 카메라 초기 프레이밍 여유(배율) — 개발자 결정.
-export const CAMERA_MARGIN_FACTOR = 1.6;
+// 상세 패널(6) 3D 카메라 초기 프레이밍 여유(배율) — 개발자 결정. 2026-10-28 1.6 → 2.2(사용자: "가까이에서
+// 시작해서 단면 판이 안 보이는데 조금 밀어줘") — 방 바깥 단면 테가 앞쪽에 보인다. 2.6은 카메라가 천장
+// 위로 올라가 위쪽이 텅 빈 띠로 보여서 뺐다(1920×1080 크롬 실측).
+export const CAMERA_MARGIN_FACTOR = 2.2;
 
 // 메인 화면(4) 3D 카메라 초기 프레이밍 여유(배율) — technical-review/pig-farm-cfd-demo의
 // overviewScene.js OVERVIEW_MARGIN_FACTOR 1.6을 그대로 포팅했다가, 2026-10-26 레이아웃 (1)로
