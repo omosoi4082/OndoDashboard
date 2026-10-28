@@ -25,10 +25,10 @@ export const CLOCK_TICK_INTERVAL_MS = 1000;
  *
  * 값 이력: 포팅 원본 1.6 → 2.2(2026-10-28 사용자 "가까이에서 시작해서 단면 판이 안 보이는데 조금
  * 밀어줘"). 2.6은 카메라가 천장 위로 올라가 위쪽이 텅 빈 띠로 보여서 뺐다(세로 기준이던 시절).
- * 지금 값 **2.03** = 그 2.2 × 현재 모드 박스 비율 0.922 — 기준만 세로에서 가로로 바뀌었고
- * **현재 모드에서 보이는 크기는 2.2일 때와 같다**. 예측·제어가 현재 모드와 같은 크기로 커진다.
+ * 가로 기준으로 바꾸면서 2.03(= 2.2 × 0.922, 세로 기준 2.2와 같은 크기)을 거쳤다가,
+ * 2026-10-28 사용자 요청으로 **숫자 그대로 2.2**로 뒀다 — 세로 기준 2.2보다 8 % 작게 보인다.
  */
-export const CAMERA_MARGIN_FACTOR = 2.03;
+export const CAMERA_MARGIN_FACTOR = 2.2;
 
 // 메인 화면(4) 3D 카메라 초기 프레이밍 여유(배율) — technical-review/pig-farm-cfd-demo의
 // overviewScene.js OVERVIEW_MARGIN_FACTOR 1.6을 그대로 포팅했다가, 2026-10-26 레이아웃 (1)로
@@ -97,7 +97,8 @@ export const OVERLAY_CARD_SHADOW =
 // 비켜 두지만, 축사가 가로로 길어 오른쪽 끝(비육돈방)이 패널 가장자리에 닿는다.
 // 이 값을 Δ만큼 올리면 모델이 Δ/2 px 왼쪽으로 간다 — 광학 중심이 (w − p)/2 이므로.
 // 곁들여 시야각이 조금 넓어져 모델이 미세하게 작아진다(aspect = (w + p) / h).
-export const OVERVIEW_VIEW_SHIFT_PX = 180;
+// 2026-10-28 사용자 "메인 모델 좌측으로 조금" — 180 → 280(왼쪽으로 50 px).
+export const OVERVIEW_VIEW_SHIFT_PX = 280;
 
 // 메인 화면(4) 3D 모델을 화면에서 **위로** 올리는 양(px) — 가로(OVERVIEW_VIEW_SHIFT_PX)와 같은
 // setViewOffset 요령을 세로에 쓴다. 캔버스보다 이 값만큼 높은 가상 프레임의 "아래쪽" 구간을
