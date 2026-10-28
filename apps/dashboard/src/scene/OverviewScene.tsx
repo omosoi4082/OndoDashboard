@@ -27,25 +27,13 @@ import { okData } from '../api/client.js';
 import { RoomInfoPanel, RoomNameLabel } from '../components/RoomInfoPanel.js';
 
 // 실험군(EX) 자돈방 — 상세 패널 대상이자 메인 화면에서 유일하게 클릭 가능한 방
-// (01-functional-spec.md 2장 "3D 모델링 규칙").
+// (01-functional-spec.md 2장 "3D 모델링 규칙"). 카메라 회전 중심을 이 방 쪽으로
+// 치우치게 두는 기준이기도 하다(overviewScene.js, 2026-10-09).
+// 가중치 1.0 = 박스 전체 중심이 아니라 자돈방 중심에 완전히 고정(2026-10-10 사용자 요청 —
+// 전체화면 캔버스에서 고정 중심 회전이 불편하다는 피드백에 대한 1차 완화책. 드래그 지점으로
+// pivot을 옮기는 방식은 과거 폐기 이력이 있어 재시도 안 함, CameraRig.tsx 상단 주석 참고).
 const PRIMARY_ROOM_ID: RoomId = 'NH';
-
-/**
- * 카메라 회전 중심을 어디에 둘지 — 0 = **축사 모델 전체 중심**, 1 = 자돈방(EX) 중심,
- * 사이 값은 그 둘을 섞는다(scene/barnModel.ts computeRotationCenter의 lerp 가중치).
- *
- * 2026-10-28 사용자 "메인 모델 축을 자돈 말고 모델 중심으로 변경해 줘" → **0**.
- * 전에는 1이었다(2026-10-10 사용자 요청 — 전체화면 캔버스에서 고정 중심 회전이 불편하다는
- * 피드백의 1차 완화책). 되돌리려면 이 값만 1로 바꾸면 된다.
- *
- * 주의: 회전 중심을 옮기면 모델이 화면에서 차지하는 자리도 같이 움직인다 — OrbitControls는
- * 이 점을 "보이는 영역의 정중앙"에 투영하기 때문이다(CameraRig.tsx setViewOffset 주석).
- * 자돈방은 축사 한쪽 끝에 있어서, 0으로 두면 모델이 통째로 그 반대쪽으로 밀린다.
- * 잘려 보이면 OVERVIEW_CAMERA_MARGIN_FACTOR·OVERVIEW_VIEW_SHIFT_PX를 같이 조정한다.
- * (드래그 지점으로 pivot을 옮기는 방식은 과거 폐기 이력이 있어 재시도하지 않는다 —
- * CameraRig.tsx 상단 주석 참고.)
- */
-const ROTATION_CENTER_WEIGHT = 0;
+const ROTATION_CENTER_WEIGHT = 1;
 
 export function OverviewScene(): ReactElement {
   const { scene } = useGLTF(OVERVIEW_MODEL_URL);
