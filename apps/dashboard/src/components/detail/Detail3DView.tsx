@@ -21,6 +21,7 @@ import {
   DETAIL_CAMERA_DIRECTION,
   DETAIL_LIGHT_SCALE,
   DETAIL_VIEW_LIFT_M,
+  OVERLAY_CARD_SHADOW,
 } from '../../config/constants.js';
 import { useDetailStore } from '../../store/detailStore.js';
 import { getFieldUnit, getPointScalar } from '../../detail/pointSelection.js';
@@ -70,14 +71,23 @@ interface Detail3DViewProps {
 }
 
 function CameraFraming({ roomSize }: { roomSize: readonly [number, number, number] }): ReactElement {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const controlsRef = useRef<OrbitControlsImpl>(null);
+  /** 한 번만 프레이밍한다 — 창 크기가 바뀌어도 사용자가 돌려 둔 시점을 되돌리지 않는다. */
+  const framedRef = useRef(false);
 
   useEffect(() => {
+    // 캔버스 크기가 아직 0이면(레이아웃 전) 다음 호출에서 다시 시도한다.
+    if (framedRef.current || size.width <= 0 || size.height <= 0) return;
+    framedRef.current = true;
     // 방 박스는 Three.js에서 z −d~0(scene/coords.ts). 카메라는 +z 쪽(배기구 벽 y=0 앞)에 앉는다.
     const [w, h, d] = sizeZUpToYUp(roomSize);
     const box = new THREE.Box3(new THREE.Vector3(0, 0, -d), new THREE.Vector3(w, h, 0));
-    const frame = computeCameraFrame(box, CAMERA_MARGIN_FACTOR, undefined, DETAIL_CAMERA_DIRECTION);
+    // 가로 기준으로 거리를 잡는다 — fov가 세로 기준이라 그냥 두면 3D 박스가 낮은 모드(제어
+    // 778×728)가 높은 모드(현재 778×844)보다 14 % 작게 그려졌다. 가로는 셋 다 같으므로
+    // 가로세로비로 나누면 네 모드가 같은 크기로 보인다(constants.ts CAMERA_MARGIN_FACTOR 주석).
+    const aspect = size.width / size.height;
+    const frame = computeCameraFrame(box, CAMERA_MARGIN_FACTOR / aspect, undefined, DETAIL_CAMERA_DIRECTION);
     // 모델을 화면에서 위로 올린다 — 카메라와 회전 중심을 같은 양만큼 **아래로** 내리는
     // 평행 이동이라 각도·거리가 그대로다(config/constants.ts DETAIL_VIEW_LIFT_M 주석).
     frame.position.y -= DETAIL_VIEW_LIFT_M;
@@ -95,9 +105,10 @@ function CameraFraming({ roomSize }: { roomSize: readonly [number, number, numbe
       controls.update();
     }
     // roomSize는 geometry 기준 고정값 — 마운트 시 1회만 프레이밍한다(MainScene의
-    // CameraRig.tsx와 같은 패턴).
+    // CameraRig.tsx와 같은 패턴). size는 "유효한 크기가 잡힐 때까지 다시 시도"하려고 deps에
+    // 넣었고, 실제 재프레이밍은 framedRef가 막는다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera]);
+  }, [camera, size]);
 
   return <OrbitControls ref={controlsRef} enableDamping zoomToCursor makeDefault />;
 }
@@ -268,8 +279,7 @@ export function Detail3DView({
               style={{
                 padding: 6,
                 gap: 4,
-                boxShadow:
-                  '0 6px 12px rgba(0,0,0,0.48), 0 12px 32px rgba(0,0,0,0.32), 0 18px 56px rgba(0,0,0,0.2)',
+                boxShadow: OVERLAY_CARD_SHADOW,
               }}
             >
               {(
@@ -312,7 +322,7 @@ export function Detail3DView({
           <div
             data-testid="detail-legend"
             className="flex items-stretch rounded bg-[#141414]/50 p-1"
-            style={{ width: LEGEND_WIDTH_PX, height: LEGEND_HEIGHT_PX }}
+            style={{ width: LEGEND_WIDTH_PX, height: LEGEND_HEIGHT_PX, boxShadow: OVERLAY_CARD_SHADOW }}
           >
             <ColorLegend range={range} valueField={valueField} barWidthPx={LEGEND_BAR_WIDTH_PX} showUnit={false} />
           </div>

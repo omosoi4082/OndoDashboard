@@ -8,7 +8,7 @@
 import type { ReactElement } from 'react';
 import type { ControlBlock, DetailFrame } from '@ondo/shared';
 import { buildControlChartTicks, buildControlLinePath, controlPlaybackX } from '../../detail/controlChart.js';
-import { CONTROL_CHART_Y_MAX } from '../../config/constants.js';
+import { CONTROL_CHART_Y_MAX, OVERLAY_CARD_SHADOW } from '../../config/constants.js';
 
 interface ControlSummaryCardProps {
   frames: readonly DetailFrame[];
@@ -48,10 +48,8 @@ export function ControlSummaryCard({ frames, control, frameIndex }: ControlSumma
         // 패딩 15/14/12는 CSS 3-값 shorthand(top | left&right | bottom), 아래 패딩 12는
         // 2026-10-11 재확인됨(사용자: "그래프 바탕에서 내용에 아래 패딩이 12야").
         padding: '15px 14px 12px',
-        // "그래프 백그라운드참고.png"(2026-10-11 전달) Figma Effects 패널 실측 — 3겹 drop
-        // shadow(X0/Y6/blur12/48%, X0/Y12/blur32/32%, X0/Y18/blur56/20%)를 그대로 옮긴다.
-        boxShadow:
-          '0 6px 12px rgba(0,0,0,0.48), 0 12px 32px rgba(0,0,0,0.32), 0 18px 56px rgba(0,0,0,0.2)',
+        // 3D 위에 뜨는 카드 공통 그림자 — 이 카드 시안이 원본이다(config/constants.ts 주석).
+        boxShadow: OVERLAY_CARD_SHADOW,
         // backdrop-blur-sm은 시안에 없는 효과였다 — 원래 코드에 있던 걸 그대로 들고 온
         // 실수라 제거했다. 불투명도는 80%(2026-10-11 재확인 — "배경 투명도 80으로 해줘").
       }}

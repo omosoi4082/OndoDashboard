@@ -15,7 +15,11 @@ import { buildHeatmapImage } from '../../detail/heatmapImage.js';
 import { axisTicksWithEnd } from '../../detail/axisTicks.js';
 import { getFieldRange } from '../../detail/pointSelection.js';
 import { useDetailStore, type AnalysisField } from '../../store/detailStore.js';
-import { SECTION_INSET_WIDTH_PX, SECTION_PARTITION_SEGMENTS } from '../../config/constants.js';
+import {
+  OVERLAY_CARD_SHADOW,
+  SECTION_INSET_WIDTH_PX,
+  SECTION_PARTITION_SEGMENTS,
+} from '../../config/constants.js';
 
 interface Detail2DSectionProps {
   geometry: Geometry;
@@ -88,7 +92,8 @@ export function Detail2DSection({ geometry, frame, range, valueField }: Detail2D
   const canvasH = canvasW * (viewH / viewW);
 
   return (
-    <div data-testid="detail-section" className="rounded bg-[#141414]/50 p-1.5">
+    // 3D 위에 뜨는 카드 공통 그림자(2026-10-28 사용자) — 범례·그래프 카드와 같은 효과.
+    <div data-testid="detail-section" className="rounded bg-[#141414]/50 p-1.5" style={{ boxShadow: OVERLAY_CARD_SHADOW }}>
       <div className="mb-2 text-[10px] leading-none text-white/70">수평단면 {sectionZ.toFixed(1)}m</div>
       <div className="flex" style={{ height: canvasH, gap: Y_AXIS_GAP_PX }}>
         {/* Y축 칫수(m) — 아래 X축 줄의 marginLeft와 폭을 맞춰야 눈금이 캔버스와 정렬된다. */}
