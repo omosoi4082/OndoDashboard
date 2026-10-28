@@ -28,7 +28,21 @@ export const CLOCK_TICK_INTERVAL_MS = 1000;
  * 가로 기준으로 바꾸면서 2.03(= 2.2 × 0.922, 세로 기준 2.2와 같은 크기)을 거쳤다가,
  * 2026-10-28 사용자 요청으로 **숫자 그대로 2.2**로 뒀다 — 세로 기준 2.2보다 8 % 작게 보인다.
  */
-export const CAMERA_MARGIN_FACTOR = 2.2;
+export const CAMERA_MARGIN_FACTOR = 2.5;
+
+/**
+ * 상세 패널(6) 3D 프레이밍 기준 캔버스 비율 — **현재 모드 3D 박스(778 × 844)**.
+ * 기준 세로 화각(DETAIL_CAMERA_FOV_DEG)과 CAMERA_MARGIN_FACTOR가 모두 이 비율에서의 값이다.
+ * 3D 박스 가로는 네 모드가 같고(778) 세로만 다르므로(현재 844 / 예측 777 / 제어 728),
+ * 이 기준 하나로 네 모드를 똑같이 맞춘다 — Detail3DView 주석 참고.
+ */
+export const DETAIL_FRAME_REF_ASPECT = 778 / 844;
+
+/**
+ * 상세 패널(6) 3D 카메라 세로 화각(°) — DETAIL_FRAME_REF_ASPECT 비율에서의 값이다.
+ * 실제 화각은 Detail3DView가 캔버스 비율에 맞춰 매번 다시 계산한다(가로 화각을 고정하려고).
+ */
+export const DETAIL_CAMERA_FOV_DEG = 45;
 
 // 메인 화면(4) 3D 카메라 초기 프레이밍 여유(배율) — technical-review/pig-farm-cfd-demo의
 // overviewScene.js OVERVIEW_MARGIN_FACTOR 1.6을 그대로 포팅했다가, 2026-10-26 레이아웃 (1)로
@@ -75,7 +89,24 @@ export const DETAIL_CAMERA_DIRECTION: Vector3Tuple = [0.462, 0.12, -0.45];
  * CAMERA_MARGIN_FACTOR 2.03, fov 45°, 캔버스 778×844)이면 **1 m ≈ 102 px**이다.
  * 사용자가 드래그로 옮기는 건 그대로다(이 값은 처음 프레이밍에만 쓴다).
  */
-export const DETAIL_VIEW_LIFT_M = 0.35;
+export const DETAIL_VIEW_LIFT_M = 0.4;
+
+/**
+ * 상세 패널(6) 3D 모델을 화면에서 **오른쪽으로 보내는 양(m)** — 2026-10-28 사용자 "상세 모델링을
+ * 우측으로 당기고 싶은데". 양수면 오른쪽, 음수면 왼쪽. 0이면 처음 프레이밍 그대로.
+ * DETAIL_VIEW_LIFT_M(위아래)과 같은 짝이고 방식도 같다 — 카메라와 OrbitControls target을
+ * **화면 왼쪽 방향으로** 같이 옮기는 평행 이동이라 각도·거리·화각이 안 변한다.
+ *
+ * "화면 왼쪽"은 카메라가 보는 방향에서 구한다(시선 × 위쪽 = 화면 오른쪽 벡터). 늘 수평이라
+ * 높이는 건드리지 않는다. 각도(DETAIL_CAMERA_DIRECTION)를 바꿔도 따라 돈다.
+ *
+ * 0.3 m ≈ 28 px(방 4.5×4.0×2.8, CAMERA_MARGIN_FACTOR 2.2, fov 45°, 캔버스 778×844 기준).
+ * 그냥 두면 방이 왼쪽 끝에 닿고 오른쪽에 60 px이 남아서 그만큼 가운데로 보낸 값이다.
+ *
+ * 타입을 number로 못박는다 — 리터럴 타입(0.3)으로 좁혀지면 Detail3DView의 `!== 0` 분기가
+ * "겹치지 않는 비교"로 타입 오류가 난다(DETAIL_LIGHT_SCALE와 같은 이유).
+ */
+export const DETAIL_VIEW_SHIFT_M: number = 0.15;
 
 /**
  * 3D 위에 떠 있는 카드의 그림자 — 제어 모드 그래프 요약 카드(ControlSummaryCard) 시안

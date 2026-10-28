@@ -19,8 +19,11 @@ import { computeCameraFrame } from '../../scene/cameraFraming.js';
 import {
   CAMERA_MARGIN_FACTOR,
   DETAIL_CAMERA_DIRECTION,
+  DETAIL_CAMERA_FOV_DEG,
+  DETAIL_FRAME_REF_ASPECT,
   DETAIL_LIGHT_SCALE,
   DETAIL_VIEW_LIFT_M,
+  DETAIL_VIEW_SHIFT_M,
   OVERLAY_CARD_SHADOW,
 } from '../../config/constants.js';
 import { useDetailStore } from '../../store/detailStore.js';
@@ -70,28 +73,62 @@ interface Detail3DViewProps {
   notice?: string | null;
 }
 
+/**
+ * 캔버스 비율에 맞춘 세로 화각(°) — **가로 화각을 기준값에 고정**한다.
+ *
+ * 왜: Three.js 원근 카메라의 fov는 세로 기준인데 3D 박스 세로가 모드마다 다르다
+ * (현재 778×844 / 예측 778×777 / 제어 778×728, 가로는 같다). 그냥 두면 낮은 모드일수록
+ * 모델이 작게 그려진다. 세로 화각을 비율에 반비례시키면 가로로 담기는 폭이 늘 같아진다:
+ *   tan(fov/2) × aspect = tan(기준fov/2) × 기준비율  (양변이 가로 반각 탄젠트)
+ */
+function fovForAspect(aspect: number): number {
+  const tanHalfHorizontal = Math.tan((DETAIL_CAMERA_FOV_DEG * Math.PI) / 360) * DETAIL_FRAME_REF_ASPECT;
+  return (2 * Math.atan(tanHalfHorizontal / aspect) * 180) / Math.PI;
+}
+
 function CameraFraming({ roomSize }: { roomSize: readonly [number, number, number] }): ReactElement {
   const { camera, size } = useThree();
   const controlsRef = useRef<OrbitControlsImpl>(null);
-  /** 한 번만 프레이밍한다 — 창 크기가 바뀌어도 사용자가 돌려 둔 시점을 되돌리지 않는다. */
-  const framedRef = useRef(false);
+
+  // 화각은 캔버스 크기가 바뀔 때마다 다시 맞춘다 — 카메라 위치는 건드리지 않으므로
+  // 사용자가 돌려 둔 시점이나 줌이 흐트러지지 않는다.
+  useEffect(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera)) return;
+    const aspect = size.width / size.height;
+    if (!Number.isFinite(aspect) || aspect <= 0) return;
+    camera.fov = fovForAspect(aspect);
+    camera.updateProjectionMatrix();
+  }, [camera, size]);
 
   useEffect(() => {
-    // 캔버스 크기가 아직 0이면(레이아웃 전) 다음 호출에서 다시 시도한다.
-    if (framedRef.current || size.width <= 0 || size.height <= 0) return;
-    framedRef.current = true;
     // 방 박스는 Three.js에서 z −d~0(scene/coords.ts). 카메라는 +z 쪽(배기구 벽 y=0 앞)에 앉는다.
     const [w, h, d] = sizeZUpToYUp(roomSize);
     const box = new THREE.Box3(new THREE.Vector3(0, 0, -d), new THREE.Vector3(w, h, 0));
-    // 가로 기준으로 거리를 잡는다 — fov가 세로 기준이라 그냥 두면 3D 박스가 낮은 모드(제어
-    // 778×728)가 높은 모드(현재 778×844)보다 14 % 작게 그려졌다. 가로는 셋 다 같으므로
-    // 가로세로비로 나누면 네 모드가 같은 크기로 보인다(constants.ts CAMERA_MARGIN_FACTOR 주석).
-    const aspect = size.width / size.height;
-    const frame = computeCameraFrame(box, CAMERA_MARGIN_FACTOR / aspect, undefined, DETAIL_CAMERA_DIRECTION);
+    // 거리는 **캔버스 크기와 무관**하다(기준 비율로만 나눈다) — 네 모드에서 카메라가 방에서
+    // 똑같이 떨어져 있어야 원근(가까운 벽이 퍼지는 정도)까지 같아진다. 전에는 실제 비율로
+    // 나눠서 크기는 같은데 제어 모드 카메라만 1.1 m 더 가까웠고(8.01 → 6.90 m) 그게
+    // "제어가 확대돼 보인다"의 정체였다(2026-10-28 실측). 모드별 세로 차이는 화각이 맡는다.
+    const frame = computeCameraFrame(
+      box,
+      CAMERA_MARGIN_FACTOR / DETAIL_FRAME_REF_ASPECT,
+      undefined,
+      DETAIL_CAMERA_DIRECTION,
+    );
     // 모델을 화면에서 위로 올린다 — 카메라와 회전 중심을 같은 양만큼 **아래로** 내리는
     // 평행 이동이라 각도·거리가 그대로다(config/constants.ts DETAIL_VIEW_LIFT_M 주석).
     frame.position.y -= DETAIL_VIEW_LIFT_M;
     frame.target.y -= DETAIL_VIEW_LIFT_M;
+    // 같은 요령으로 가로도 옮긴다 — 화면 오른쪽 벡터(시선 × 위쪽)의 **반대로** 밀면
+    // 모델이 오른쪽으로 간다(DETAIL_VIEW_SHIFT_M 주석).
+    if (DETAIL_VIEW_SHIFT_M !== 0) {
+      const forward = new THREE.Vector3().subVectors(frame.target, frame.position).normalize();
+      const pan = new THREE.Vector3()
+        .crossVectors(forward, camera.up)
+        .normalize()
+        .multiplyScalar(-DETAIL_VIEW_SHIFT_M);
+      frame.position.add(pan);
+      frame.target.add(pan);
+    }
 
     camera.position.copy(frame.position);
     if (camera instanceof THREE.PerspectiveCamera) {
@@ -105,10 +142,9 @@ function CameraFraming({ roomSize }: { roomSize: readonly [number, number, numbe
       controls.update();
     }
     // roomSize는 geometry 기준 고정값 — 마운트 시 1회만 프레이밍한다(MainScene의
-    // CameraRig.tsx와 같은 패턴). size는 "유효한 크기가 잡힐 때까지 다시 시도"하려고 deps에
-    // 넣었고, 실제 재프레이밍은 framedRef가 막는다.
+    // CameraRig.tsx와 같은 패턴). 캔버스 크기를 안 쓰므로 레이아웃이 늦게 잡혀도 안전하다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [camera, size]);
+  }, [camera]);
 
   return <OrbitControls ref={controlsRef} enableDamping zoomToCursor makeDefault />;
 }
@@ -235,7 +271,11 @@ export function Detail3DView({
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-lg border border-ondo-border bg-ondo-surface">
-      <Canvas shadows="soft" gl={{ antialias: true, logarithmicDepthBuffer: true }} camera={{ fov: 45, near: 0.1, far: 100 }}>
+      <Canvas
+        shadows="soft"
+        gl={{ antialias: true, logarithmicDepthBuffer: true }}
+        camera={{ fov: DETAIL_CAMERA_FOV_DEG, near: 0.1, far: 100 }}
+      >
         <color attach="background" args={['#232328']} />
 
         <CameraFraming roomSize={geometry.room.size} />
