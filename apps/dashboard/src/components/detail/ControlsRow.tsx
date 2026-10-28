@@ -1,20 +1,20 @@
-// 상세 패널 모드별 컨트롤 중 공통부(01-functional-spec.md 3장): 10·15·22·29 유동/습도/온도 토글
-// (기본 온도). 디자인(docs/06-design-guide.md)대로 "분석 항목" 줄에 3D 온도/3D 유동/3D 습도
-// 순서의 아이콘 버튼으로 두고 아래에 구분선을 긋는다. 포인트 on/off(11·16·23·30)는 "3D 자돈방"
+// 상세 패널 모드별 컨트롤 중 공통부(01-functional-spec.md 3장): 10·15·22·29 온도/습도 토글
+// (기본 온도). 디자인(docs/06-design-guide.md)대로 "분석 항목" 줄에 아이콘 버튼으로 두고 아래에
+// 구분선을 긋는다. '유동'은 2026-10-28 온도 측 회신 1번 + 사용자 결정으로 뺐다 — 공기 흐름은
+// 네 모드 모두 늘 보이는 입자로 나타내고, 입자 색이 이 온도/습도를 따른다. 포인트 on/off(11·16·23·30)는 "3D 자돈방"
 // 제목 줄로 옮겼다(DetailSections.tsx의 PointsToggle).
 // 토글 전환은 받은 데이터로만 다시 그린다(재요청 없음) — 그냥 zustand 값만 바꾼다.
 import type { ReactElement } from 'react';
-import { TemperatureIcon, WaterDropIcon, WindFlowIcon } from '../../icons/designIcons.js';
-import { useDetailStore, type ValueField } from '../../store/detailStore.js';
+import { TemperatureIcon, WaterDropIcon } from '../../icons/designIcons.js';
+import { useDetailStore, type AnalysisField } from '../../store/detailStore.js';
 
 type AnalysisIcon = (props: { size?: number }) => ReactElement;
 
 // 라벨은 "3D 온도" 등에서 "3D " 접두어를 뺐다(2026-10-10 Figma node 374:25295
 // "03_전문가모드_디자인_01" 재확인 — 전문가 모드 쪽만 새로 받은 시안이라 다른 모드도
 // 같이 바뀌는지는 미확인, 공유 컴포넌트라 일단 전체 반영하고 05-open-questions.md #41에 기록).
-const VALUE_FIELDS: ReadonlyArray<{ id: ValueField; label: string; Icon: AnalysisIcon }> = [
+const VALUE_FIELDS: ReadonlyArray<{ id: AnalysisField; label: string; Icon: AnalysisIcon }> = [
   { id: 'temp', label: '온도', Icon: TemperatureIcon },
-  { id: 'flow', label: '유동', Icon: WindFlowIcon },
   { id: 'rh', label: '습도', Icon: WaterDropIcon },
 ];
 

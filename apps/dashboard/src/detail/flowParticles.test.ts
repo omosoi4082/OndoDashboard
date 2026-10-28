@@ -6,6 +6,7 @@ import {
   createParticles,
   emitCountFor,
   atOutlet,
+  outletCapture,
   sampleScalar,
   sampleVelocity,
   segmentsCross,
@@ -143,6 +144,29 @@ describe('atOutlet — 배기구 격자점이 걸친 격자 한 칸', () => {
     expect(atOutlet(REAL, 2.6, 0.02, 1.6)).toBe(false);
     expect(atOutlet(REAL, 2.25, 0.02, 1.1)).toBe(false);
     expect(atOutlet(REAL, 2.25, 0.3, 1.6)).toBe(false);
+  });
+
+  it("'circle'은 벽면의 원 중심에 닿아야 나간다(테두리·벽 앞에서는 안 나간다)", () => {
+    expect(atOutlet(REAL, 2.25, 0.01, 1.61, 'circle')).toBe(true);
+    expect(atOutlet(REAL, 2.25, 0.01, 1.42, 'circle')).toBe(false); // 원 아래 테두리
+    expect(atOutlet(REAL, 2.25, 0.2, 1.6, 'circle')).toBe(false); // 벽 앞 허공
+  });
+
+  it('흡입 범위 — 벽에서 한 칸, 반지름 1.5배(테두리 바로 아래까지)', () => {
+    expect(outletCapture(REAL, 2.25, 0.1, 1.32)).toBe(true); // 중심 아래 0.28 m
+    expect(outletCapture(REAL, 2.25, 0.1, 1.25)).toBe(false);
+    expect(outletCapture(REAL, 2.25, 0.3, 1.6)).toBe(false);
+  });
+
+  it("'circle': 원 아래 테두리로 올라온 입자는 원 중심으로 끌려가 거기서 사라진다", () => {
+    const zero = { grid: REAL.grid, flow: new Array<FlowVec>(19 * 17 * 8).fill([0, 0, 0, 0]) };
+    const st = createParticles({ ...OPTS, count: 1, outletHit: 'circle' });
+    place(st, 0, 2.25, 0.02, 1.38);
+    stepParticles(st, REAL, zero, undefined, 0.1, 1); // 0.06 m 끌려감 — 아직 남아 있다
+    expect(st.histLen[0]).toBe(2);
+    expect(st.hist[2]).toBeGreaterThan(1.38); // 위(중심 쪽)로 올라갔다
+    stepParticles(st, REAL, zero, undefined, 1, 1);
+    expect(st.histLen[0]).toBe(0);
   });
 });
 

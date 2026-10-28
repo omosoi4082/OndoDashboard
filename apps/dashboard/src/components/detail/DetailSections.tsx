@@ -5,7 +5,7 @@ import { History } from 'lucide-react';
 import type { DetailFrame } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { Timeline } from './Timeline.js';
-import { FLOW_PARTICLE_SPEEDS } from '../../config/constants.js';
+import { FLOW_PARTICLE_SPEEDS, SECTION_Z_MAX_M, SECTION_Z_MIN_M, SECTION_Z_STEP_M } from '../../config/constants.js';
 
 /** 상세 패널 스크롤 영역 — "3D 자돈방"부터 "2D 수평단면"까지만 스크롤되고, 그 위의
  * 분석 항목·시간 설정·전문가 입력폼·제어 토글 같은 버튼류는 스크롤 밖에 고정된다
@@ -83,49 +83,12 @@ function PointsToggle(): ReactElement {
   );
 }
 
-// 유동 입자 색 기준(온도/습도) — 유동을 골랐을 때만 "3D 자돈방" 제목 줄에 보인다
-// (2026-10-26 온도 측 요청 "입자 색을 온도 / 습도 두 가지로 바꿔 볼 수 있는 기능").
-function ParticleColorToggle(): ReactElement | null {
-  const mode = useDetailStore((s) => s.mode);
-  const valueField = useDetailStore((s) => s.valueField);
-  const field = useDetailStore((s) => s.particleColorField);
-  const setField = useDetailStore((s) => s.setParticleColorField);
-  // 현재 모드에는 입자가 없다(125개 포인트만, docs/01 "3D 표현 규칙") — 버튼도 숨긴다(2026-10-27 사용자).
-  if (valueField !== 'flow' || mode === 'current') return null;
-  const options = [
-    { id: 'temp', label: '온도' },
-    { id: 'rh', label: '습도' },
-  ] as const;
-  return (
-    <div className="flex items-center gap-2 text-xs text-white">
-      입자 색
-      <div className="flex overflow-hidden rounded-md border border-ondo-border">
-        {options.map(({ id, label }) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={field === id}
-            onClick={() => setField(id)}
-            className={`h-6 px-3 text-xs transition-colors ${
-              field === id ? 'bg-[#3b3c42] text-white' : 'bg-ondo-surface-2 text-ondo-muted hover:text-white'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// 유동 입자 배속 — 온도 측 샘플이 쓴 1·3·10배(mock/응답형식_추가안내_v1.3.3.txt). 유동일 때만 보인다.
-function ParticleSpeedToggle(): ReactElement | null {
-  const mode = useDetailStore((s) => s.mode);
-  const valueField = useDetailStore((s) => s.valueField);
+// 입자·타임라인 배속 — 온도 측 샘플이 쓴 1·3·10배(mock/응답형식_추가안내_v1.3.3.txt).
+// 2026-10-28부터 네 모드 모두 입자가 늘 있어 항상 보인다(전에는 유동일 때만, 현재 모드 제외).
+// 입자 색 토글(온도/습도)은 같은 날 없앴다 — 입자 색은 분석 항목을 따른다.
+function ParticleSpeedToggle(): ReactElement {
   const speed = useDetailStore((s) => s.particleSpeed);
   const setSpeed = useDetailStore((s) => s.setParticleSpeed);
-  // 현재 모드에는 입자가 없어 배속도 의미가 없다(2026-10-27 사용자).
-  if (valueField !== 'flow' || mode === 'current') return null;
   return (
     <div className="flex items-center gap-2 text-xs text-white">
       배속
@@ -148,6 +111,29 @@ function ParticleSpeedToggle(): ReactElement | null {
   );
 }
 
+// 단면 높이 슬라이더(2026-10-28 사용자: "슬라이드, 배속 버튼 앞에다가") — 끌면 3D의 반투명 테가
+// 그 높이로 오르내리고 오른쪽 단면 그림 색이 그 높이 값으로 바뀐다(온도 측 샘플 뷰어 방식).
+function SectionHeightSlider(): ReactElement {
+  const z = useDetailStore((s) => s.sectionZ);
+  const setZ = useDetailStore((s) => s.setSectionZ);
+  return (
+    <label className="flex items-center gap-2 text-xs text-white">
+      단면 높이
+      <input
+        type="range"
+        aria-label="단면 높이"
+        min={SECTION_Z_MIN_M}
+        max={SECTION_Z_MAX_M}
+        step={SECTION_Z_STEP_M}
+        value={z}
+        onChange={(e) => setZ(Number(e.target.value))}
+        className="h-1 w-[110px] cursor-pointer accent-ondo-accent-on"
+      />
+      <span className="w-[34px] tabular-nums text-ondo-muted">{z.toFixed(1)} m</span>
+    </label>
+  );
+}
+
 function SectionTitle({ title, right }: { title: string; right?: ReactNode }): ReactElement {
   return (
     <div className="flex h-6 shrink-0 items-center justify-between">
@@ -160,11 +146,9 @@ function SectionTitle({ title, right }: { title: string; right?: ReactNode }): R
 /** "3D 자돈방"(12·18·25·32) 제목 줄(포인트 토글 포함) + 3D 뷰 박스. 가로는 728 고정
  * (2026-10-11 사용자 재확인) — 스크롤바와의 간격은 DetailScrollBody 주석 참고.
  *
- * 세로는 2026-10-26부터 가변이다(온도 추가요청 레이아웃 (5) "스크롤 없이 한 화면에"):
- * 고정 424px이면 1080 모니터(브라우저 실제 viewport 945px)에서 스크롤이 났고, 픽셀로
- * 줄여도 다른 해상도에서 또 어긋난다. 그래서 스크롤 영역에 남는 세로를 3D:2D가
- * **424 : 240**(기존 고정값 비율 ≈ 64 : 36)으로 나눠 갖는다 — flex grow 값에 그 숫자를
- * 그대로 쓴다(basis 0이라 grow 비율 = 높이 비율).
+ * 세로는 2026-10-26부터 가변이다(온도 추가요청 레이아웃 (5) "스크롤 없이 한 화면에").
+ * 처음엔 아래 "2D 수평단면" 칸과 424 : 240으로 나눠 가졌는데, 2026-10-28 2D 칸을 없애고
+ * (단면은 3D 안 오른쪽 범례 아래에 겹친다 — Detail3DView.tsx) **남는 세로를 3D가 전부** 쓴다.
  * min-h는 더 줄면 3D가 쓸모없어지는 하한이고(개발자 결정), 창이 그보다 작으면
  * DetailScrollBody의 overflow-y-auto가 받아 예전처럼 스크롤된다.
  * 안쪽 박스는 h-full + min-h-0 — flex 열에서 h-full은 "남은 높이 전부"로 줄어들고,
@@ -175,29 +159,14 @@ export function Detail3DSection({ children }: { children: ReactNode }): ReactEle
       <SectionTitle
         title="3D 자돈방"
         right={
-          /* 배속·입자 색·포인트 표시 사이 간격 10 → 18px (2026-10-27 사용자 "갭을 8씩 더줘").
-             유동이 아닐 때는 포인트 표시 한 개만 남아 이 간격이 드러나지 않는다. */
+          /* 단면 높이·배속·포인트 표시 사이 간격 18px (2026-10-27 사용자 "갭을 8씩 더줘"). */
           <div className="flex items-center gap-[18px]">
+            <SectionHeightSlider />
             <ParticleSpeedToggle />
-            <ParticleColorToggle />
             <PointsToggle />
           </div>
         }
       />
-      <div className="h-full min-h-0 w-[728px]">{children}</div>
-    </section>
-  );
-}
-
-/** "2D 수평단면"(13·19·26·33) 제목 줄 + 단면 박스. 3D 영역과 같은 너비(728px, 2026-10-11
- * 사용자: "2d영역도 같게 맞춰줘"). 세로는 Detail3DSection과 같은 이유로 가변이며
- * 기존 고정값 240을 grow 값으로 써서 3D와 424:240 비율을 유지한다(2026-10-26 (5)).
- * 단면 캔버스는 박스가 낮아져도 방 실제 비율대로 레터박스된다(Detail2DSection의
- * fittedCanvasW/H 계산, 2026-10-11 "컨테이너 모양대로 늘어나던 문제" 수정분). */
-export function Detail2DBox({ children }: { children: ReactNode }): ReactElement {
-  return (
-    <section className="flex min-h-[150px] flex-col gap-2.5" style={{ flex: '240 1 0' }}>
-      <SectionTitle title="2D 수평단면" />
       <div className="h-full min-h-0 w-[728px]">{children}</div>
     </section>
   );

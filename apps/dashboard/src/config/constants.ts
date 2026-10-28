@@ -154,6 +154,31 @@ export const PARTITION_HEIGHT_M = 0.78;
 // 해소된 사항이라 기본 true로 둔다. 플래그 자체는 명세 문구 대비용으로 남겨둔다.
 export const SHOW_2D_IN_CURRENT = true;
 
+/**
+ * 3D 안에 겹치는 2D 수평단면 그림의 단면 폭(px) — 높이는 방 비율(4.5 × 4.0 m)대로 정해진다.
+ * 2026-10-28 사용자 결정: 2D 칸을 없애고 3D 오른쪽 범례(56 × 180) 바로 아래에 둔다. 개발자 결정
+ * 값이라 화면을 보고 바꾸면 된다.
+ */
+export const SECTION_INSET_WIDTH_PX = 150;
+
+/**
+ * 단면 높이 슬라이더(2026-10-28 사용자: 온도 측 샘플 뷰어처럼 슬라이더로 단면 높이를 옮긴다) —
+ * 범위·간격(m). 바닥(0)·천장(2.8)에 딱 붙으면 3D 판이 바닥·천장과 겹쳐 깜박이므로 0.1 m 안쪽까지.
+ * 층 사이 높이는 위아래 grid 층을 섞은 값이다(sectionGrid.ts interpolateZLayer). 개발자 결정 값.
+ */
+export const SECTION_Z_MIN_M = 0.1;
+export const SECTION_Z_MAX_M = 2.7;
+export const SECTION_Z_STEP_M = 0.1;
+
+/**
+ * 3D 단면 높이 표시 판 — 방 **바깥에만** 두르는 반투명 테(2026-10-28 사용자: "모델링 안으로는 안 보이고
+ * 밖에만, 반투명"). 방 안 입자·돼지를 가리지 않고, 색은 오른쪽 단면 그림에만 칠한다.
+ * 테 폭(m)·면 투명도·테두리 선 투명도는 개발자 결정 값.
+ */
+export const SECTION_PLANE_MARGIN_M = 0.35;
+export const SECTION_PLANE_OPACITY = 0.22;
+export const SECTION_PLANE_EDGE_OPACITY = 0.7;
+
 // 예측·전문가·제어 모드 타임라인(17·24·31) 재생 속도 — 기본값 "프레임당 0.5초"
 // (01-functional-spec.md 4.5, 05-open-questions.md #20 "개발자 결정: 상수 분리").
 export const TIMELINE_FRAME_DURATION_MS = 500;
@@ -243,7 +268,6 @@ export const FLOW_PARTICLE_SIZE_M = 0.05;
  */
 export const FLOW_PARTICLE_MIN_PX = 1.5;
 export const FLOW_PARTICLE_MAX_PX = 7;
-/** 배속 선택지 — 안내문의 1·3·10배. 화면 1초 = 실제 몇 초. */
 /**
  * 입자 수명(화면 초) — 이 시간이 지나면 급기구에서 다시 내보낸다(2026-10-27 사용자).
  * 왜: 유속이 288점뿐인 전문가·제어 목업은 방 안 흐름이 한 곳으로 수렴해서, 그냥 두면 입자가
@@ -264,13 +288,18 @@ export const FLOW_PARTICLE_MAX_AGE_S = 20;
  * 'cell'로 두고, 온도 측에 어느 쪽이 맞는지 확인 요청 중이다(2026-10-28). 답이 오면 한 줄로 바꾼다.
  */
 export const FLOW_PARTICLE_OUTLET_HIT: OutletHit = 'circle';
+/**
+ * 배속 선택지 — 안내문의 1·3·10배. 화면 1초 = 실제 몇 초. 입자와 타임라인 재생에 함께 걸린다
+ * (타임라인 프레임 간격 = TIMELINE_FRAME_DURATION_MS ÷ 배속, 2026-10-28 사용자).
+ */
 export const FLOW_PARTICLE_SPEEDS = [1, 3, 10] as const;
 export type FlowParticleSpeed = (typeof FLOW_PARTICLE_SPEEDS)[number];
 /**
- * 기본 배속 10배 — grid.flow 방 안 유속이 평균 0.02 m/s(95 %가 0.05 이하)라 1·3배로는 거의 멈춰
- * 보이고, 빈 방에서 시작해 급기구 입자로 차는 데 3배는 1분 넘게 걸린다(10배는 약 30초).
+ * 기본 배속 1배(2026-10-28 사용자) — 온도 측 안내 "방 안 유속이 작아서 샘플은 입자를 실제 속도의
+ * 1·3·10배로 움직였습니다"와 샘플 뷰어의 배속·타임라인 연동에 맞췄다. 1배는 실제 속도라 방 안
+ * 평균 0.02 m/s로 거의 멈춰 보인다 — 빠르게 보려면 3·10배를 고른다. 전에는 그 이유로 10배였다.
  */
-export const FLOW_PARTICLE_DEFAULT_SPEED: FlowParticleSpeed = 10;
+export const FLOW_PARTICLE_DEFAULT_SPEED: FlowParticleSpeed = 1;
 /**
  * supply가 없을 때(viz 꺼짐·구버전 서버) 쓰는 급기 풍량(m³/h) — 온도 측 2026-10-27:
  * 환기팬 가동률에 따라 보통 약 770~1,240 m³/h, 그 최댓값.

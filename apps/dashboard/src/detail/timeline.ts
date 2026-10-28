@@ -19,6 +19,15 @@ export function advanceTimelineFrame(currentIndex: number, frameCount: number): 
   return { frameIndex: next, playing: true };
 }
 
+/**
+ * 재생 중 프레임 하나를 보여 주는 시간(ms) = 기본 간격 ÷ 배속. 온도 측 샘플 뷰어는 시계 하나를
+ * `실제 경과 × 배속`으로 돌려 타임라인·유동장·입자가 같이 빨라진다(2026-10-28 사용자).
+ * 입자도 같은 배속으로 움직이므로(FlowParticles.tsx) 둘의 비율이 배속과 상관없이 같다.
+ */
+export function timelineTickMs(speed: number, baseMs: number): number {
+  return speed > 0 ? baseMs / speed : baseMs;
+}
+
 /** 임의의 인덱스를 0~frameCount-1 범위로 자른다(드래그 입력 등 바깥값 방어). */
 export function clampTimelineFrameIndex(index: number, frameCount: number): number {
   if (frameCount <= 0) return 0;

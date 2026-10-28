@@ -48,7 +48,7 @@ const HEAD_ALPHA = 0.95;
  * 멈춘 채로 막대를 옮겼을 때(= 프레임만 바뀌었을 때) 입자를 따라오게 하는 걸음 수(1/60초 단위).
  * 2026-10-27 사용자: "막대를 끌면 등치면처럼 정지 상태에서도 갱신돼야 하지 않나".
  * 등치면·2D는 그 시각 값으로 다시 그려지는데 입자만 서 있으면 한 화면이 서로 다른 시각을 보여준다.
- * 12걸음이면 기본 10배속에서 약 2초치 흐름이라 눈에 띄게 바뀌고, 한 번에 25 ms 안팎이라 끌어도 끊기지 않는다.
+ * 12걸음이면 10배속에서 약 2초치 흐름이라 눈에 띄게 바뀌고, 한 번에 25 ms 안팎이라 끌어도 끊기지 않는다.
  */
 const SCRUB_CATCHUP_STEPS = 12;
 const TRAIL_ALPHA = 0.6;
@@ -129,7 +129,8 @@ function makeHeadMaterial(map: THREE.Texture): THREE.PointsMaterial {
 }
 
 export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): ReactElement {
-  const colorField = useDetailStore((s) => s.particleColorField);
+  // 입자 색 = 분석 항목(온도/습도). 입자 색 토글은 2026-10-28 없앴다(온도 측 회신 1번).
+  const colorField = useDetailStore((s) => s.valueField);
 
   const [W, D, H] = geometry.room.size;
   const roomVolumeM3 = W * D * H;
@@ -194,7 +195,9 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
     // 타임라인이 멈춰 있으면 입자도 멈춘다(2026-10-27 사용자 — 온도 측 샘플 뷰어와 같은 방식:
     // advance(playing ? dtReal*speed : 0)). 멈춘 동안에도 버퍼는 한 번 더 갱신해야 색 기준을
     // 바꿨을 때 반영되므로, 아래 색 갱신은 그대로 두고 이동만 건너뛴다.
-    const playing = useDetailStore.getState().timelinePlaying;
+    // 현재 모드는 타임라인이 없는 한 시각이라 늘 흐른다(2026-10-28 — 네 모드 모두 입자를 보여 준다).
+    const { timelinePlaying, mode } = useDetailStore.getState();
+    const playing = mode === 'current' || timelinePlaying;
     // 탭 전환 등으로 프레임 간격이 크게 벌어지면 입자가 한 번에 튀지 않게 자른다.
     const dt = Math.min(delta, 0.1);
     // 배속은 매 프레임 스토어에서 바로 읽는다 — 바꿔도 입자를 새로 뿌리지 않는다.

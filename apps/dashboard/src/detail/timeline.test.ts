@@ -6,7 +6,21 @@ import {
   formatFrameDateTime,
   formatFrameTime,
   hourTickIndices,
+  timelineTickMs,
 } from './timeline.js';
+
+describe('timelineTickMs', () => {
+  it('배속만큼 프레임 간격이 짧아진다(1·3·10배)', () => {
+    expect(timelineTickMs(1, 500)).toBe(500);
+    expect(timelineTickMs(3, 500)).toBeCloseTo(166.67, 2);
+    expect(timelineTickMs(10, 500)).toBe(50);
+  });
+
+  it('0 이하 배속은 기본 간격으로 본다', () => {
+    expect(timelineTickMs(0, 500)).toBe(500);
+    expect(timelineTickMs(-3, 500)).toBe(500);
+  });
+});
 
 describe('advanceTimelineFrame', () => {
   it('재생 중이면 프레임을 1개 전진하고 playing을 유지한다', () => {

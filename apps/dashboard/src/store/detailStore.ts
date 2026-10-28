@@ -7,25 +7,30 @@ import type { ApiResponse, ControlDetail, CurrentDetail, ExpertDetail, ForecastD
 import { advanceTimelineFrame } from '../detail/timeline.js';
 import { keepLastGoodOnComputeFailure } from '../detail/keepLastGood.js';
 import { formatFrameDateTime } from '../detail/timeline.js';
-import { FLOW_PARTICLE_DEFAULT_SPEED, type FlowParticleSpeed } from '../config/constants.js';
+import { FLOW_PARTICLE_DEFAULT_SPEED, SECTION_Z_M, type FlowParticleSpeed } from '../config/constants.js';
 
 // 01-functional-spec.md 1장: 모드 탭(현재/예측/전문가/제어). shared의 각 Detail*의
 // mode 리터럴을 그대로 모아 쓴다(타입 복제가 아니라 참조).
 export type DetailMode = 'current' | 'forecast' | 'expert' | 'control';
 
-// 10·15·22·29 유동/습도/온도 토글 — 기본값 온도(01-functional-spec.md 3장).
+// 색 기준이 될 수 있는 값 — 색표(colormap)·범례·포인트 값 조회가 쓴다. 'flow'는 유속 크기(FlowCylinders 등).
 export type ValueField = 'temp' | 'rh' | 'flow';
 
-/** 유동 입자 색 기준(2026-10-26 온도 측 요청 "입자 색을 온도 / 습도 두 가지로") — 기본 온도. */
-export type ParticleColorField = 'temp' | 'rh';
+/**
+ * 10·15·22·29 분석 항목 — **온도 / 습도** 두 개, 기본 온도(01-functional-spec.md 3장).
+ * 2026-10-28 온도 측 회신 1번 + 사용자 결정으로 '유동'을 뺐다: 네 모드 모두 입자를 늘 보여 주고
+ * 입자 색·2D 단면·범례가 이 값 하나를 따른다(전에는 유동일 때만 입자, 입자 색은 따로 골랐다).
+ */
+export type AnalysisField = 'temp' | 'rh';
 
 export interface DetailState {
   geometry: Geometry | null;
   mode: DetailMode;
-  valueField: ValueField;
-  particleColorField: ParticleColorField;
-  /** 유동 입자 배속(온도 측 샘플 1·3·10배) — 기본 10배. */
+  valueField: AnalysisField;
+  /** 유동 입자·타임라인 재생 배속(온도 측 샘플 1·3·10배) — 기본 1배. */
   particleSpeed: FlowParticleSpeed;
+  /** 2D 수평단면 높이(m) — "3D 자돈방" 줄 슬라이더(2026-10-28). 기본 SECTION_Z_M, 모드를 바꾸면 기본으로. */
+  sectionZ: number;
   /** 11·16·23·30 포인트 on/off — 기본값 on. */
   pointsVisible: boolean;
   /** GET /api/detail/current 응답 — M4. null = 아직 응답을 받지 못함(최초 로딩). */
@@ -73,9 +78,9 @@ export interface DetailState {
 
   setGeometry: (geometry: Geometry) => void;
   setMode: (mode: DetailMode) => void;
-  setValueField: (field: ValueField) => void;
-  setParticleColorField: (field: ParticleColorField) => void;
+  setValueField: (field: AnalysisField) => void;
   setParticleSpeed: (speed: FlowParticleSpeed) => void;
+  setSectionZ: (z: number) => void;
   setPointsVisible: (visible: boolean) => void;
   setCurrent: (current: ApiResponse<CurrentDetail>) => void;
   setForecast: (forecast: ApiResponse<ForecastDetail>) => void;
@@ -107,8 +112,8 @@ export const useDetailStore = create<DetailState>((set) => ({
   geometry: null,
   mode: 'current',
   valueField: 'temp',
-  particleColorField: 'temp',
   particleSpeed: FLOW_PARTICLE_DEFAULT_SPEED,
+  sectionZ: SECTION_Z_M,
   pointsVisible: defaultPointsVisible('current'),
   current: null,
   currentStaleNotice: null,
@@ -134,9 +139,8 @@ export const useDetailStore = create<DetailState>((set) => ({
     set({
       mode,
       valueField: 'temp',
-      // 입자 색도 모드마다 기본(온도)으로 — 습도로 바꾼 채 다른 탭에 가면 그대로 남았다(2026-10-27 사용자).
-      particleColorField: 'temp',
       particleSpeed: FLOW_PARTICLE_DEFAULT_SPEED,
+      sectionZ: SECTION_Z_M,
       pointsVisible: defaultPointsVisible(mode),
       timelineFrameIndex: 0,
       // 모드에 들어가면 바로 재생한다(2026-10-27 사용자). 입자는 재생 중에만 흐르므로
@@ -149,7 +153,8 @@ export const useDetailStore = create<DetailState>((set) => ({
    * 분석 항목 전환 — **온도·습도·유동 어느 것을 눌러도 처음부터 다시 재생한다**(2026-10-27 사용자:
    * "온,습,유동 전부 탭해서 들어가면 리셋되서 처음부터 재생"). 모드 진입도 같다(setMode).
    * 표현이 바뀌면 같은 구간을 처음부터 보게 되고, 입자는 재생 중에만 흐르므로 유동도 바로 돈다.
-   * 현재 모드는 타임라인이 없어 영향이 없다.
+   * 현재 모드는 타임라인이 없어 재생 위치는 그대로지만, 입자는 빈 방부터 다시 나온다(runId).
+   * 배속은 그대로 둔다 — 배속 버튼이 늘 보이므로(2026-10-28) 고른 값이 눈에 보인다.
    */
   setValueField: (field) =>
     set((s) => ({
@@ -158,8 +163,8 @@ export const useDetailStore = create<DetailState>((set) => ({
       timelinePlaying: s.mode !== 'current',
       timelineRunId: s.timelineRunId + 1,
     })),
-  setParticleColorField: (field) => set({ particleColorField: field }),
   setParticleSpeed: (speed) => set({ particleSpeed: speed }),
+  setSectionZ: (z) => set({ sectionZ: z }),
   setPointsVisible: (visible) => set({ pointsVisible: visible }),
   // 연산 서버 실패 시 이전 정상 결과를 유지할지는 순수 함수로 판단한다(D-4).
   setCurrent: (next) =>

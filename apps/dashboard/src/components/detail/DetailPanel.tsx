@@ -14,9 +14,8 @@ import { SHOW_2D_IN_CURRENT } from '../../config/constants.js';
 import { ModeTabs } from './ModeTabs.js';
 import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
-import { Detail2DSection } from './Detail2DSection.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
-import { Detail2DBox, Detail3DSection, DetailScrollBody } from './DetailSections.js';
+import { Detail3DSection, DetailScrollBody } from './DetailSections.js';
 import { ForecastDetailView } from './ForecastDetailView.js';
 import { ExpertModeView } from './ExpertModeView.js';
 import { ControlModeView } from './ControlModeView.js';
@@ -65,13 +64,9 @@ export function DetailPanel(): ReactElement {
                     frame={current.data.frames[0]}
                     range={current.data.range}
                     notice={currentStaleNotice ?? qualityNotice(current.data.frames[0])}
+                    showSection={SHOW_2D_IN_CURRENT}
                   />
                 </Detail3DSection>
-                {SHOW_2D_IN_CURRENT && (
-                  <Detail2DBox>
-                    <Detail2DSection geometry={geometry} frame={current.data.frames[0]} range={current.data.range} />
-                  </Detail2DBox>
-                )}
               </>
             )}
           </DetailScrollBody>

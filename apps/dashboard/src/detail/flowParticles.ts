@@ -4,7 +4,7 @@
 // "화면 구현 참고")이다. 샘플 HTML(Datacenter_v3_1_M2_3D열유동_뷰어.html)은 참고만 한다
 // (2026-10-27 사용자 "데이터를 바탕으로 만들어야지, html은 말 그대로 참고만").
 //   - 출발: 급기구 사각형 안 천장 바로 아래에서만, 급기 풍량에 비례한 개수(처음에도 방은 비어 있다).
-//   - 소멸: 배기구에 닿으면(판정 범위는 배기구 격자 한 칸 — atOutlet).
+//   - 소멸: 배기구 앞에 들어오면 원 중심으로 빨아들여, 벽면의 원 중심에 닿을 때 지운다(atOutlet·outletCapture).
 //   - 멈춤: 벽·바닥 점이 0이라 그 근처에서 멈춘 입자는 급기구로 되돌린다(판정 값은 샘플 HTML 참고).
 //   - 유속·온도·습도는 격자 8점 삼선형 보간, 실제 속도의 1·3·10배, 칸막이(0.78 m)는 통과하지 못한다.
 // 좌표는 전부 데이터 좌표(z-up, m)다 — Three.js 변환은 그리는 쪽(zUpToYUp)에서 한다.
@@ -333,6 +333,22 @@ const WALL_MARGIN_M = 0.004;
  */
 const OUTLET_WALL_PULL_MS = 0.4;
 
+/**
+ * 배기구 흡입 — 배기구 앞(벽에서 격자 한 칸 0.25 m 안, 원 반지름의 OUTLET_CAPTURE_R_FACTOR배 안)에 들어온
+ * 입자를 **벽면의 원 중심으로 끌어당기는 속도(m/s, 실제 시간)**. 유속에 더해진다.
+ *
+ * 왜(2026-10-28 사용자: "원 안으로 빠지는 게 아니라 원 약간 밑에서 빠지는 것 같아"): 전에는 원 테두리
+ * 안쪽(벽에서 0.25 m까지)에 닿는 순간 지웠다. 실제 응답 1분 모의(10배·4,000개)에서 나간 입자 14,580개 중
+ * 약 54 %가 원 아래 가장자리 높이(z 1.35~1.45, 중심 1.6)에서, 약 2,700개는 벽 앞 0.25 m 허공에서 사라졌다 —
+ * 아래 벽을 타고 올라온 입자가 테두리에 닿자마자 지워진 것이다. 이제는 중심까지 끌려 들어가 사라진다.
+ * 값은 개발자 결정(급기구 속도 0.5 m/s 안팎과 비슷하게 — 끌려 들어가는 모양이 보일 만큼).
+ */
+const OUTLET_SUCTION_MS = 0.6;
+/** 흡입 범위 반지름 = 배기구 반지름 × 이 값 — 테두리 바로 밖(아래)에서 올라오는 입자까지 잡는다. */
+const OUTLET_CAPTURE_R_FACTOR = 1.5;
+/** 벽면의 원 중심에서 이 거리(m) 안에 들어오면 빠져나간 것으로 본다. */
+const OUTLET_EXIT_M = 0.03;
+
 function place(state: ParticleState, p: number, x: number, y: number, z: number): void {
   const o = p * state.opts.trail * 3;
   state.hist[o] = x;
@@ -389,6 +405,16 @@ export function createParticles(opts: ParticleOptions): ParticleState {
  */
 export type OutletHit = 'circle' | 'cell';
 
+/** 배기구 흡입 범위 안인지('circle' 판정에서만 쓴다 — OUTLET_SUCTION_MS 주석 참고). */
+export function outletCapture(geometry: Geometry, x: number, y: number, z: number): boolean {
+  const out = geometry.room.outlet;
+  if (out.wall !== 'y=0') return false;
+  const r = (out.d / 2) * OUTLET_CAPTURE_R_FACTOR;
+  const dx = x - out.x;
+  const dz = z - out.z;
+  return y <= geometry.grid.origin[1] + geometry.grid.spacing[1] && dx * dx + dz * dz <= r * r;
+}
+
 export function atOutlet(
   geometry: Geometry,
   x: number,
@@ -400,11 +426,11 @@ export function atOutlet(
   if (out.wall !== 'y=0') return false;
   const { origin, spacing } = geometry.grid;
   if (hit === 'circle') {
-    // 벽에서 한 칸 안쪽까지 들어온 입자가 배기구 원(지름 d) 안이면 빨려 나간 것으로 본다.
-    const r = out.d / 2;
+    // 벽면의 원 중심에 닿아야 나간다 — 흡입(outletCapture)이 그리로 끌고 간다(2026-10-28).
     const dx = x - out.x;
+    const dy = Math.max(y, 0);
     const dz = z - out.z;
-    return y <= origin[1] + spacing[1] && dx * dx + dz * dz <= r * r;
+    return dx * dx + dy * dy + dz * dz <= OUTLET_EXIT_M * OUTLET_EXIT_M;
   }
   // 배기구 중심에 가장 가까운 격자점 — 그 점에서 앞뒤로 한 칸.
   const nodeX = origin[0] + Math.round((out.x - origin[0]) / spacing[0]) * spacing[0];
@@ -517,6 +543,19 @@ export function stepParticles(
         overPartition(partition, x, y)
       ) {
         z = partition.height + PARTITION_CLEAR_M;
+      }
+      // 배기구 앞에 들어오면 벽면의 원 중심으로 끌어당긴다(OUTLET_SUCTION_MS 주석 참고).
+      if (outletHit === 'circle' && outletCapture(geometry, x, y, z)) {
+        const dx = outlet.x - x;
+        const dy = -Math.max(y, 0);
+        const dz = outlet.z - z;
+        const d = Math.hypot(dx, dy, dz);
+        if (d > 1e-6) {
+          const stepM = Math.min(d, OUTLET_SUCTION_MS * hs);
+          x += (dx / d) * stepM;
+          y += (dy / d) * stepM;
+          z += (dz / d) * stepM;
+        }
       }
       if (atOutlet(geometry, x, y, z, outletHit)) {
         exited = true;

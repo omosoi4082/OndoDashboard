@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bilinearUpsample2x, extractZLayer, nearestZIndex } from './sectionGrid.js';
+import { bilinearUpsample2x, extractZLayer, interpolateZLayer, nearestZIndex } from './sectionGrid.js';
 import type { GridDef } from '@ondo/shared';
 
 describe('nearestZIndex', () => {
@@ -72,5 +72,28 @@ describe('bilinearUpsample2x', () => {
 
   it('빈 입력은 빈 배열', () => {
     expect(bilinearUpsample2x([])).toEqual([]);
+  });
+});
+
+describe('interpolateZLayer', () => {
+  // k=0 층 값 0~3, k=1 층 값 10~13(간격 1 m)
+  const grid: GridDef = { origin: [0, 0, 0], spacing: [1, 1, 1], size: [2, 2, 2] };
+  const values = [0, 1, 2, 3, 10, 11, 12, 13];
+
+  it('층 높이와 같으면 그 층 그대로', () => {
+    expect(interpolateZLayer(values, grid, 0)).toEqual(extractZLayer(values, grid, 0));
+    expect(interpolateZLayer(values, grid, 1)).toEqual(extractZLayer(values, grid, 1));
+  });
+
+  it('층 사이는 위아래 층을 선형으로 섞는다', () => {
+    expect(interpolateZLayer(values, grid, 0.25)).toEqual([
+      [2.5, 4.5],
+      [3.5, 5.5],
+    ]);
+  });
+
+  it('범위 밖은 가장 가까운 끝 층', () => {
+    expect(interpolateZLayer(values, grid, -1)).toEqual(extractZLayer(values, grid, 0));
+    expect(interpolateZLayer(values, grid, 5)).toEqual(extractZLayer(values, grid, 1));
   });
 });

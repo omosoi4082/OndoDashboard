@@ -1,4 +1,4 @@
-// B-2. 현재 모드(오른쪽 패널, 기본 선택) — 테스트-체크리스트.md B-2의 10개 항목.
+// B-2. 현재 모드(오른쪽 패널, 기본 선택) — 테스트-체크리스트.md B-2의 11개 항목(11은 2026-10-28 단면 높이 슬라이더).
 import { expect, test } from '@playwright/test';
 import {
   analysisButton,
@@ -47,13 +47,14 @@ test('B-2-4 포인트에 마우스를 올리면 X·Y·Z·VALUE 툴팁이 뜬다'
   }
 });
 
-test('B-2-5 분석 항목에서 유동을 누르면 색이 바뀐다', async ({ page }) => {
+test('B-2-5 현재 모드에도 입자가 저절로 움직인다', async ({ page }) => {
+  // 2026-10-28 온도 측 회신 1번: 네 모드 모두 입자를 보여 준다. 현재 모드는 타임라인이 없어 늘 흐른다.
+  // 아무것도 누르지 않았는데 화면이 달라지면 돌고 있는 것이다. 분석 항목에 '유동'이 없는지도 본다.
+  await expect(page.getByRole('button', { name: '유동', exact: true }), '유동 버튼이 남아 있습니다').toHaveCount(0);
   const canvas = detail3dCanvas(page);
+  await page.waitForTimeout(2_000);
   const before = await snapshot(canvas);
-  await analysisButton(page, '유동').click();
-  const cls = await analysisButton(page, '유동').getAttribute('class');
-  expect(cls ?? '', '유동 버튼이 선택 상태가 아닙니다').toContain('#3b3c42');
-  await expectCanvasChanged(canvas, before, '분석 항목 → 유동');
+  await expectCanvasChanged(canvas, before, '현재 모드 입자 애니메이션');
 });
 
 test('B-2-6 습도를 누르면 색이 바뀐다', async ({ page }) => {
@@ -95,9 +96,30 @@ test('B-2-9 다시 켜면 점이 나온다', async ({ page }) => {
   await expectCanvasChanged(canvas, before, '포인트 표시 다시 켜기');
 });
 
-test('B-2-10 아래로 스크롤하면 2D 수평단면이 보인다', async ({ page }) => {
+test('B-2-10 3D 오른쪽 범례 아래에 2D 수평단면이 보인다', async ({ page }) => {
+  // 2026-10-28: 아래 2D 칸을 없애고 3D 안에 겹쳤다 — 범례보다 아래, 오른쪽 끝이 범례와 같은 줄.
+  const legend = await page.getByTestId('detail-legend').boundingBox();
+  const section = await detail2dSection(page).boundingBox();
+  expect(legend && section, '범례나 단면 위치를 찾지 못했습니다').toBeTruthy();
+  if (legend && section) {
+    expect(section.y, '단면이 범례 아래에 있지 않습니다').toBeGreaterThanOrEqual(legend.y + legend.height);
+    expect(Math.abs(section.x + section.width - (legend.x + legend.width)), '단면 오른쪽 끝이 범례와 맞지 않습니다').toBeLessThan(2);
+  }
   await expect(detail2dSection(page)).toBeVisible();
   // 히트맵 픽셀 + 칸막이·축 눈금·범례로 본다. 용량 기준(expectCanvasNotBlank)은 단면이
   // 한 색일 때 정상 화면을 빈 화면으로 판정한다(2026-10-22 온도 측 B-2-10, helpers.ts 참고).
+  await expect2DSectionDrawn(page);
+});
+
+test('B-2-11 단면 높이 슬라이더를 옮기면 단면 높이와 3D 판이 바뀐다', async ({ page }) => {
+  // 2026-10-28 사용자: 온도 측 샘플처럼 슬라이더로 단면 높이를 옮긴다(배속 앞). 3D에는 방 바깥
+  // 반투명 테가 그 높이로 움직이고, 단면 그림 제목의 높이가 바뀐다. 기본은 0.5 m.
+  const slider = page.getByRole('slider', { name: '단면 높이' });
+  await expect(slider, '단면 높이 슬라이더가 보이지 않습니다').toBeVisible();
+  await expect(detail2dSection(page)).toContainText('0.5m');
+  const canvas = detail3dCanvas(page);
+  await slider.fill('2.5');
+  await expect(detail2dSection(page), '단면 높이가 바뀌지 않았습니다').toContainText('2.5m');
+  await expectCanvasNotBlank(canvas, '단면 높이 2.5 m');
   await expect2DSectionDrawn(page);
 });

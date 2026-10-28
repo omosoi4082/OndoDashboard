@@ -21,7 +21,13 @@ import { Pause, Play } from 'lucide-react';
 import type { DetailFrame } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { TIMELINE_FRAME_DURATION_MS } from '../../config/constants.js';
-import { formatElapsedFrameTime, formatFrameDateTime, formatFrameTime, hourTickIndices } from '../../detail/timeline.js';
+import {
+  formatElapsedFrameTime,
+  formatFrameDateTime,
+  formatFrameTime,
+  hourTickIndices,
+  timelineTickMs,
+} from '../../detail/timeline.js';
 
 interface TimelineProps {
   frames: readonly DetailFrame[];
@@ -36,6 +42,7 @@ export function Timeline({ frames, elapsedLabels = false }: TimelineProps): Reac
   const play = useDetailStore((s) => s.play);
   const pause = useDetailStore((s) => s.pause);
   const advanceTimeline = useDetailStore((s) => s.advanceTimeline);
+  const speed = useDetailStore((s) => s.particleSpeed);
   const [isDragging, setIsDragging] = useState(false);
 
   const frameCount = frames.length;
@@ -48,16 +55,17 @@ export function Timeline({ frames, elapsedLabels = false }: TimelineProps): Reac
   // 처음과 끝은 시안에 없음").
   const hourTicks = hourTickIndices(frameCount).filter((idx) => idx !== 0 && idx !== frameCount - 1);
 
-  // 재생 중엔 TIMELINE_FRAME_DURATION_MS마다 프레임을 1개 전진한다(추가 API 요청 없음 —
+  // 재생 중엔 TIMELINE_FRAME_DURATION_MS ÷ 배속마다 프레임을 1개 전진한다(추가 API 요청 없음 —
   // 이미 받은 frames 배열 인덱스만 바꾼다). 마지막 프레임 도달 시 advanceTimeline 내부에서
-  // 자동으로 정지한다(detail/timeline.ts의 advanceTimelineFrame).
+  // 자동으로 정지한다(detail/timeline.ts의 advanceTimelineFrame). 재생 중 배속을 바꾸면 간격만
+  // 바뀌고 보던 프레임은 그대로다(2026-10-28 사용자 — 샘플 뷰어처럼 배속에 타임라인도 따른다).
   useEffect(() => {
     if (!playing || frameCount === 0) return;
     const timer = setInterval(() => {
       advanceTimeline(frameCount);
-    }, TIMELINE_FRAME_DURATION_MS);
+    }, timelineTickMs(speed, TIMELINE_FRAME_DURATION_MS));
     return () => clearInterval(timer);
-  }, [playing, frameCount, advanceTimeline]);
+  }, [playing, frameCount, speed, advanceTimeline]);
 
   return (
     // mr-[19px]: 이 열(재생 버튼 + 트랙 + 라벨)을 통째로 오른쪽 여백만큼 왼쪽으로 미는 값이다.

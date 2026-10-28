@@ -1,24 +1,20 @@
 // 제어 모드(27~34, 01-functional-spec.md 4.4) — 탭 선택 시(target=energy 기본)와 에너지/
 // 환경 최적화 버튼 전환 시 둘 다 GET /api/detail/control을 다시 호출한다(예측 모드의
 // "탭당 1회"와 다른 패턴이라 useForecastDetailOnDemand를 쓰지 않고 이 컴포넌트가 직접
-// target을 상태로 들고 effect에서 관리한다). 3D/2D/타임라인은 ForecastDetailView와 같은
+// target을 상태로 들고 effect에서 관리한다). 3D/타임라인은 ForecastDetailView와 같은
 // 구조를 재사용하고, 3D 영역(32) 위에 환기량 비교 그래프 카드(34, C안)를
 // Detail3DView의 htmlOverlay 슬롯으로 얹는다.
 import { useEffect, useState, type ReactElement } from 'react';
 import type { ControlDetail } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
 import { qualityNotice } from '../../detail/qualityNotice.js';
-import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { fetchDetailControl } from '../../api/endpoints.js';
 import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
-import { Detail2DSection } from './Detail2DSection.js';
-import { Detail2DBox, Detail3DSection, DetailScrollBody, TimelineSection } from './DetailSections.js';
+import { Detail3DSection, DetailScrollBody, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ControlSummaryCard } from './ControlSummaryCard.js';
-import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
-import { FlowVisualization } from '../../scene/FlowVisualization.js';
 
 type ControlTarget = ControlDetail['target'];
 
@@ -88,7 +84,6 @@ export function ControlModeView(): ReactElement {
   const geometry = useDetailStore((s) => s.geometry);
   const control = useDetailStore((s) => s.control);
   const setControl = useDetailStore((s) => s.setControl);
-  const valueField = useDetailStore((s) => s.valueField);
   const timelineFrameIndex = useDetailStore((s) => s.timelineFrameIndex);
   const stopTimeline = useDetailStore((s) => s.stop);
 
@@ -123,7 +118,6 @@ export function ControlModeView(): ReactElement {
   }
 
   const controlFrames = !isLoading && control && control.status !== 'error' ? control.data.frames : null;
-  const isosurfaceCache = useIsosurfaceCache(geometry, controlFrames);
 
   if (!geometry) {
     return <DetailAreaMessage text="형상 데이터를 불러오는 중입니다..." isError={false} />;
@@ -161,24 +155,9 @@ export function ControlModeView(): ReactElement {
                 frame={frame}
                 range={control.data.range}
                 notice={qualityNotice(frame)}
-                overlay={
-                  valueField === 'flow' ? (
-                    <FlowVisualization geometry={geometry} frame={frame} range={control.data.range} />
-                  ) : (
-                    <IsosurfaceVolume
-                      geometry={geometry}
-                      range={control.data.range}
-                      valueField={valueField}
-                      frameCache={isosurfaceCache.getFrame(frameIndex)}
-                    />
-                  )
-                }
                 htmlOverlay={<ControlSummaryCard frames={control.data.frames} control={control.data.control} frameIndex={frameIndex} />}
               />
             </Detail3DSection>
-            <Detail2DBox>
-              <Detail2DSection geometry={geometry} frame={frame} range={control.data.range} />
-            </Detail2DBox>
           </>
         )}
       </DetailScrollBody>

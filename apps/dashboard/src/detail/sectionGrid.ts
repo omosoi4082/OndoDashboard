@@ -78,3 +78,20 @@ export function bilinearUpsample2x(layer: readonly number[][]): number[][] {
   }
   return out;
 }
+
+/**
+ * 높이 z(m)의 x·y 평면 — 위아래 두 z층을 선형으로 섞는다(2026-10-28 단면 높이 슬라이더).
+ * grid 층 간격이 0.4 m라 그 사이 높이는 보간값이다. 층 높이와 같으면 그 층 값 그대로,
+ * grid 범위 밖이면 가장 가까운 끝 층. 결과는 extractZLayer와 같은 layer[i][j].
+ */
+export function interpolateZLayer(values: readonly number[], grid: GridDef, z: number): number[][] {
+  const nz = grid.size[2];
+  const f = Math.min(Math.max((z - grid.origin[2]) / grid.spacing[2], 0), nz - 1);
+  const k0 = Math.floor(f);
+  const k1 = Math.min(k0 + 1, nz - 1);
+  const t = f - k0;
+  const lower = extractZLayer(values, grid, k0);
+  if (t === 0 || k1 === k0) return lower;
+  const upper = extractZLayer(values, grid, k1);
+  return lower.map((row, i) => row.map((v, j) => v + ((upper[i]?.[j] ?? v) - v) * t));
+}

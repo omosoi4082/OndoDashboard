@@ -5,7 +5,7 @@
 // 2026-10-17 새 시안(docs/design/UI/전문가 모드 새 디자인/) 반영 — **화면이 둘로 나뉜다**:
 //   input  : 패널 전체가 입력 표(ExpertInputForm). 분석 항목·타임라인·3D·2D 없음(시안 01~04-1).
 //   result : 맨 윗줄에 "필수값 설정 … [필수값 수정]" 한 줄만 남고 그 아래 분석 항목 + 타임라인 +
-//            3D + 2D(시안 05). ForecastDetailView와 같은 구조로 145프레임을 재생한다(중복 구현 금지).
+//            3D(시안 05. 2D 단면은 2026-10-28부터 3D 안에 겹친 그림). ForecastDetailView와 같은 구조로 145프레임을 재생한다(중복 구현 금지).
 // 전에는 입력 표가 결과 위에 상시 붙어 있었다. 오가는 길은 [필수값 수정] → input, [<] → result.
 // 적용에 성공하면 자동으로 result로 넘어간다(시안 04 → 05 흐름).
 // [<]는 "취소"다 — 적용하지 않은 편집(초기화로 비운 칸 포함)은 버리고 마지막으로 적용한 값으로
@@ -17,7 +17,6 @@
 // 더 이상 쓰지 않는다 — 그 자리에 입력 표 자체가 보이는 것이 시안의 빈 상태다.
 import { useState, type ReactElement } from 'react';
 import { useDetailStore } from '../../store/detailStore.js';
-import { useIsosurfaceCache } from '../../hooks/useIsosurfaceCache.js';
 import { clampTimelineFrameIndex } from '../../detail/timeline.js';
 import { fetchDetailExpert } from '../../api/endpoints.js';
 import { validateExpertRows, type ExpertInputFieldRange, type ExpertRowDraft } from '../../detail/expertInputValidation.js';
@@ -34,13 +33,10 @@ import {
 } from '../../config/constants.js';
 import { ControlsRow } from './ControlsRow.js';
 import { Detail3DView, EmptyDetail3D } from './Detail3DView.js';
-import { Detail2DSection } from './Detail2DSection.js';
-import { Detail2DBox, Detail3DSection, DetailScrollBody, TimelineSection } from './DetailSections.js';
+import { Detail3DSection, DetailScrollBody, TimelineSection } from './DetailSections.js';
 import { DetailAreaMessage } from './DetailAreaMessage.js';
 import { ExpertInputForm } from './ExpertInputForm.js';
 import { ExpertResultHeader } from './ExpertResultHeader.js';
-import { IsosurfaceVolume } from '../../scene/IsosurfaceVolume.js';
-import { FlowVisualization } from '../../scene/FlowVisualization.js';
 
 const EXPERT_INPUT_RANGE: ExpertInputFieldRange = {
   tempMin: EXPERT_TEMP_MIN,
@@ -55,7 +51,6 @@ export function ExpertModeView(): ReactElement {
   const geometry = useDetailStore((s) => s.geometry);
   const expert = useDetailStore((s) => s.expert);
   const setExpert = useDetailStore((s) => s.setExpert);
-  const valueField = useDetailStore((s) => s.valueField);
   const timelineFrameIndex = useDetailStore((s) => s.timelineFrameIndex);
 
   // 행 라벨은 "0시"~"23시" 고정이다(2026-10-17 시안). 표는 빈 칸으로 시작한다.
@@ -73,9 +68,6 @@ export function ExpertModeView(): ReactElement {
   // 입력 전·로딩 중엔 expertFrames를 null로 둬서 아래 렌더링이 "포인트 없음" 상태를
   // 그대로 따르게 한다(이전 입력 결과가 남아 있어도 로딩 중엔 보여주지 않는다).
   const expertFrames = !isLoading && expert && expert.status !== 'error' ? expert.data.frames : null;
-  // 등치면 Worker는 항상 돌려 둔다(ForecastDetailView와 같은 이유 — 유동 선택 중이라도
-  // 온도/습도로 전환 시 끊기지 않게).
-  const isosurfaceCache = useIsosurfaceCache(geometry, expertFrames);
 
   function handleSubmit(): void {
     if (validation.values === null) return;
@@ -170,23 +162,8 @@ export function ExpertModeView(): ReactElement {
                 frame={frame}
                 range={expert.data.range}
                 notice={qualityNotice(frame)}
-                overlay={
-                  valueField === 'flow' ? (
-                    <FlowVisualization geometry={geometry} frame={frame} range={expert.data.range} />
-                  ) : (
-                    <IsosurfaceVolume
-                      geometry={geometry}
-                      range={expert.data.range}
-                      valueField={valueField}
-                      frameCache={isosurfaceCache.getFrame(frameIndex)}
-                    />
-                  )
-                }
               />
             </Detail3DSection>
-            <Detail2DBox>
-              <Detail2DSection geometry={geometry} frame={frame} range={expert.data.range} />
-            </Detail2DBox>
           </>
         )}
       </DetailScrollBody>

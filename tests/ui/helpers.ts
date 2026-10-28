@@ -1,7 +1,7 @@
 // 화면 자동 점검 공용 도구 — 선택자와 "3D가 바뀌었는지" 판정을 한곳에 모은다.
 //
 // 선택자 방침: **체크리스트에 적힌 한국어 문구를 그대로 찾는다.** 사람이 "분석 항목에서
-// 유동을 클릭"하는 것과 테스트가 보는 것이 같아야, 문구가 바뀌면 둘 다 같이 바뀐다.
+// 습도를 클릭"하는 것과 테스트가 보는 것이 같아야, 문구가 바뀌면 둘 다 같이 바뀐다.
 // 텍스트가 없는 요소(색 범례, 3D 배경 레이어)에만 data-testid를 쓴다.
 //
 // 3D 판정 방침: 캔버스 안은 DOM이 없어 "색이 바뀌었다"를 직접 읽을 수 없다. 캔버스 영역을
@@ -35,8 +35,8 @@ export function modeTab(page: Page, label: string): Locator {
   return page.getByRole('button', { name: label, exact: true });
 }
 
-/** "분석 항목" 줄의 온도/유동/습도 버튼. */
-export function analysisButton(page: Page, label: '온도' | '유동' | '습도'): Locator {
+/** "분석 항목" 줄의 온도/습도 버튼(2026-10-28 '유동'을 뺐다 — 입자가 늘 보인다). */
+export function analysisButton(page: Page, label: '온도' | '습도'): Locator {
   return page.getByRole('button', { name: label, exact: true });
 }
 
@@ -49,9 +49,9 @@ export function detail3dCanvas(page: Page): Locator {
   return detail3dSection(page).locator('canvas').first();
 }
 
-/** "2D 수평단면" 섹션. */
+/** 3D 안 오른쪽 범례 아래에 겹친 2D 수평단면 그림(2026-10-28부터 — 전에는 아래 "2D 수평단면" 칸). */
 export function detail2dSection(page: Page): Locator {
-  return page.locator('section').filter({ hasText: '2D 수평단면' });
+  return page.getByTestId('detail-section');
 }
 
 export function detail2dCanvas(page: Page): Locator {
@@ -214,7 +214,8 @@ export async function expectCanvasNotBlank(target: Locator, what: string): Promi
  *     buildHeatmapImage가 모든 픽셀의 alpha를 255로 채우므로, 한 번도 그리지 않은 canvas는
  *     기본 크기(300×150)에 전부 투명으로 남아 여기서 걸린다. 색 개수는 적어 두기만 하고
  *     판정에 쓰지 않는다 — 그게 이번 오판의 원인이었다.
- *  2. 칸막이 선(겹친 SVG)  3. X·Y축 눈금(HTML 글자)  4. 색 범례(ColorLegend의 그라데이션 막대)
+ *  2. 칸막이 선(겹친 SVG)  3. X·Y축 눈금(HTML 글자)  4. 색 범례 — 2026-10-28부터 단면은 범례를 따로
+ *     두지 않고 3D 범례(detail-legend) 하나를 같이 읽는다. 그래서 그 범례가 보이는지를 본다.
  */
 export async function expect2DSectionDrawn(page: Page, what = '2D 수평단면'): Promise<void> {
   const section = detail2dSection(page);
@@ -252,12 +253,7 @@ export async function expect2DSectionDrawn(page: Page, what = '2D 수평단면')
     section.getByText(/^\d+(\.\d+)?m$/),
     `${what} — 축 눈금(m)이 보이지 않습니다`,
   ).not.toHaveCount(0);
-  // 색 범례(ColorLegend)는 글씨가 아니라 그라데이션 막대라 inline style로 찾는다 —
-  // 2D 단면 안에서 linear-gradient를 쓰는 요소는 범례 막대뿐이다.
-  await expect(
-    section.locator('div[style*="linear-gradient"]').first(),
-    `${what} — 색 범례가 보이지 않습니다`,
-  ).toBeVisible();
+  await expect(page.getByTestId('detail-legend'), `${what} — 색 범례가 보이지 않습니다`).toBeVisible();
 }
 
 /**
@@ -394,19 +390,13 @@ export function watchConsoleErrors(page: Page): string[] {
   return errors;
 }
 
-/** "3D 자돈방" 제목 줄의 "입자 색" 온도/습도 버튼 — 유동을 골랐을 때만 보인다.
- * 분석 항목 줄에도 같은 글씨의 버튼이 있어(ControlsRow) 반드시 3D 섹션 안으로 좁힌다. */
-export function particleColorButton(page: Page, label: '온도' | '습도'): Locator {
-  return detail3dSection(page).getByRole('button', { name: label, exact: true });
-}
-
-/** "3D 자돈방" 제목 줄의 배속 버튼(1배·3배·10배). 유동일 때만 보인다. */
+/** "3D 자돈방" 제목 줄의 배속 버튼(1배·3배·10배). 네 모드 모두 늘 보인다(2026-10-28). */
 export function particleSpeedButton(page: Page, speed: 1 | 3 | 10): Locator {
   return detail3dSection(page).getByRole('button', { name: `${speed}배`, exact: true });
 }
 
-/** 색 범례에 적힌 눈금 값들(공백 정리한 한 줄). 입자 색을 바꾸면 이 값이 온도 범위에서
- * 습도 범위로 바뀌므로, 색이 실제로 다른 기준을 따르는지 글자로 확인할 수 있다. */
+/** 색 범례에 적힌 눈금 값들(공백 정리한 한 줄). 분석 항목을 습도로 바꾸면 이 값이 온도 범위에서
+ * 습도 범위로 바뀌므로, 입자 색이 실제로 다른 기준을 따르는지 글자로 확인할 수 있다. */
 export async function legendTicks(page: Page): Promise<string> {
   return (await page.getByTestId('detail-legend').innerText()).replace(/\s+/g, ' ').trim();
 }

@@ -2,8 +2,10 @@
 // scene/cameraFraming.ts(technical-review/pig-farm-cfd-demo의 overviewScene.js에서 이미
 // 포팅해 둔 순수 함수, docs/07-starter-kit-assets.md)를 그대로 재사용한다. 배경 모델은
 // detailScene.js를 포팅한 scene/detailRoomModel.ts(돼지 있는 실측 자돈방 p1.glb + 컷어웨이
-// 셰이더)를 쓴다. 125개 포인트는 PointsInstanced(InstancedMesh 1개), 유동 토글 선택 시
-// 호버 포인트에 FlowArrow를 띄운다. frame이 null이면(데이터 전·로딩·오류) 방 모델과 중립색
+// 셰이더)를 쓴다. 125개 포인트는 PointsInstanced(InstancedMesh 1개)다.
+// 2026-10-28(온도 측 회신 1번 + 사용자 결정)부터 **네 모드 모두** 유동 입자(FlowVisualization)와
+// 2D 수평단면 그림(Detail2DSection, 오른쪽 범례 아래)을 이 컴포넌트가 직접 그린다 — 등치면·
+// 아래쪽 2D 칸·유동 호버 화살표는 없앴다. frame이 null이면(데이터 전·로딩·오류) 방 모델과 중립색
 // 포인트만 그리고 message를 3D 위에 겹쳐 띄운다(01-functional-spec.md 3장 "데이터가 없을 때").
 import { Suspense, useEffect, useMemo, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import { Canvas, useThree } from '@react-three/fiber';
@@ -16,13 +18,15 @@ import { sizeZUpToYUp, zUpToYUp } from '../../scene/coords.js';
 import { computeCameraFrame } from '../../scene/cameraFraming.js';
 import { CAMERA_MARGIN_FACTOR, DETAIL_CAMERA_DIRECTION, DETAIL_LIGHT_SCALE } from '../../config/constants.js';
 import { useDetailStore } from '../../store/detailStore.js';
-import { getFieldUnit, getPointFlow, getPointScalar } from '../../detail/pointSelection.js';
+import { getFieldUnit, getPointScalar } from '../../detail/pointSelection.js';
 import { formatValueOrDash } from '../../utils/formatValue.js';
 import { DETAIL_MODEL_URL, getOrPrepareDetailRoomModel } from '../../scene/detailRoomModel.js';
 import { PointsInstanced } from './PointsInstanced.js';
-import { FlowArrow } from './FlowArrow.js';
 import { Detail3DSection } from './DetailSections.js';
 import { ColorLegend } from './ColorLegend.js';
+import { Detail2DSection } from './Detail2DSection.js';
+import { FlowVisualization } from '../../scene/FlowVisualization.js';
+import { SectionPlane } from '../../scene/SectionPlane.js';
 
 // 3D 뷰 오버레이 범례 틀 — 2026-10-14 사용자 지정(56×180), 디자인
 // docs/design/UI/04_제어모드_디자인_범례추가.png 실측과 같다(패널 56×180, 오른쪽 여백 약
@@ -30,19 +34,17 @@ import { ColorLegend } from './ColorLegend.js';
 const LEGEND_WIDTH_PX = 56;
 const LEGEND_HEIGHT_PX = 180;
 const LEGEND_BAR_WIDTH_PX = 16;
+/** 범례 아래 끝 ~ 2D 단면 그림 위 끝 간격(px) — 개발자 결정. */
+const LEGEND_SECTION_GAP_PX = 8;
 
 interface Detail3DViewProps {
   geometry: Geometry;
   frame: DetailFrame | null;
   range: DetailBase['range'] | null;
   /**
-   * 예측·전문가·제어 모드 전용 추가 표현(IsosurfaceVolume 또는 FlowCylinders) — 카메라·
-   * 조명·방 모델·125개 포인트·호버는 이 컴포넌트가 그대로 맡고, 모드별로 다른 내용만
-   * 이 슬롯으로 끼워 넣는다(중복 구현 금지, docs/04-tasks.md M5). 현재 모드는 넘기지
-   * 않는다(01-functional-spec.md 3장 "현재 모드: 125개 포인트만"). <Canvas> 안(R3F 트리)에
-   * 렌더링되므로 Three.js 객체만 들어간다.
+   * 범례 아래 2D 수평단면 그림을 그릴지 — 현재 모드는 SHOW_2D_IN_CURRENT를 넘긴다(기본 true).
    */
-  overlay?: ReactNode;
+  showSection?: boolean;
   /**
    * 제어 모드(34) 환기량 비교 그래프 카드처럼 3D 영역 위에 얹는 평면 HTML 오버레이
    * (01-functional-spec.md 4.4 "32번 3D 영역 오버레이, C안") — overlay와 달리 <Canvas>
@@ -187,20 +189,17 @@ export function Detail3DView({
   geometry,
   frame,
   range,
-  overlay = null,
+  showSection = true,
   htmlOverlay = null,
   message = null,
   notice = null,
 }: Detail3DViewProps): ReactElement {
+  // 입자 색·포인트 색·2D 단면·범례가 모두 이 값 하나(온도/습도)를 따른다(2026-10-28).
   const valueField = useDetailStore((s) => s.valueField);
-  const particleColorField = useDetailStore((s) => s.particleColorField);
-  // 유동은 입자 색이 온도·습도라 범례도 그 기준을 따른다(2026-10-26 입자 애니메이션).
-  const legendField = valueField === 'flow' ? particleColorField : valueField;
   const pointsVisible = useDetailStore((s) => s.pointsVisible);
   const [hoveredPointId, setHoveredPointId] = useState<number | null>(null);
 
   const hoveredPoint = hoveredPointId !== null ? geometry.points.find((p) => p.id === hoveredPointId) ?? null : null;
-  const hoveredFlow = hoveredPoint && frame ? getPointFlow(frame, hoveredPoint.id) : null;
 
   // 화살표를 피해 패널 위치를 특별 취급해보려던 시도(화살표 끝, 반대 방향, 안전 거리
   // 위 등) 전부 되돌렸다(2026-10-11 사용자: "지금 하는것도 이상해 그냥 처음에 온습도와
@@ -238,11 +237,10 @@ export function Detail3DView({
           />
         )}
 
-        {overlay}
+        {frame && range && <FlowVisualization geometry={geometry} frame={frame} range={range} />}
 
-        {valueField === 'flow' && hoveredPoint && hoveredFlow && range && (
-          <FlowArrow origin={hoveredPoint} flow={hoveredFlow} range={range.flow} />
-        )}
+        {/* 단면 높이 표시 — 방 바깥 반투명 테(2026-10-28, scene/SectionPlane.tsx). */}
+        {showSection && frame && range && <SectionPlane roomSize={geometry.room.size} />}
 
         {hoveredPoint && tooltipPosition && (
           <Html position={tooltipPosition} style={{ pointerEvents: 'none' }}>
@@ -274,7 +272,7 @@ export function Detail3DView({
                       ? formatValueOrDash(
                           getPointScalar(frame, valueField, hoveredPoint.id),
                           getFieldUnit(valueField),
-                          valueField === 'flow' ? 2 : 1,
+                          1,
                         )
                       : '-',
                   ],
@@ -290,17 +288,26 @@ export function Detail3DView({
         )}
       </Canvas>
 
-      {/* 색 범례(2026-10-14 B-8) — 2D 단면과 같은 ColorLegend를 오른쪽 가운데에 얹는다
-          (docs/design/UI/04_제어모드_디자인_범례추가.png, 2026-10-14 사용자 지정: 틀 56×180,
-          그래프 카드는 왼쪽 아래로). range가 없으면(데이터 전·로딩·오류, EmptyDetail3D)
-          그리지 않는다. */}
+      {/* 색 범례(2026-10-14 B-8, 틀 56×180) + 그 아래 2D 수평단면 — 한 열로 묶어 오른쪽 **아래**에 붙인다.
+          2026-10-28 사용자: "수평단면을 제어모드 그래프 아래 정렬에 맞게 내리고 범례도 같이 알맞게" —
+          단면 아래 끝이 제어 모드 그래프 카드(왼쪽 아래, bottom-3)와 같은 줄이고 범례는 단면 바로 위.
+          범례는 하나만 — 단면은 3D와 같은 색 범위라 따로 없다. range가 없으면(데이터 전·로딩·오류,
+          EmptyDetail3D) 둘 다 그리지 않는다. 네 모드 모두 같은 자리. */}
       {range && (
         <div
-          data-testid="detail-legend"
-          className="pointer-events-none absolute right-3 top-1/2 flex -translate-y-1/2 items-stretch rounded bg-[#141414]/50 p-1"
-          style={{ width: LEGEND_WIDTH_PX, height: LEGEND_HEIGHT_PX }}
+          className="pointer-events-none absolute bottom-3 right-3 flex flex-col items-end"
+          style={{ gap: LEGEND_SECTION_GAP_PX }}
         >
-          <ColorLegend range={range} valueField={legendField} barWidthPx={LEGEND_BAR_WIDTH_PX} showUnit={false} />
+          <div
+            data-testid="detail-legend"
+            className="flex items-stretch rounded bg-[#141414]/50 p-1"
+            style={{ width: LEGEND_WIDTH_PX, height: LEGEND_HEIGHT_PX }}
+          >
+            <ColorLegend range={range} valueField={valueField} barWidthPx={LEGEND_BAR_WIDTH_PX} showUnit={false} />
+          </div>
+          {showSection && frame && (
+            <Detail2DSection geometry={geometry} frame={frame} range={range} valueField={valueField} />
+          )}
         </div>
       )}
 
