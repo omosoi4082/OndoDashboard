@@ -8,6 +8,8 @@
 //            3D(시안 05. 2D 단면은 2026-10-28부터 3D 안에 겹친 그림). ForecastDetailView와 같은 구조로 145프레임을 재생한다(중복 구현 금지).
 // 전에는 입력 표가 결과 위에 상시 붙어 있었다. 오가는 길은 [필수값 수정] → input, [<] → result.
 // 적용에 성공하면 자동으로 result로 넘어간다(시안 04 → 05 흐름).
+// result로 들어가는 두 길(적용 성공, [<] 뒤로 가기)은 **결과 화면을 다시 여는 것**이므로 모드에
+// 처음 들어왔을 때와 같은 상태로 보여준다 — openResult() 참고(2026-10-29 사용자 보고).
 // [<]는 "취소"다 — 적용하지 않은 편집(초기화로 비운 칸 포함)은 버리고 마지막으로 적용한 값으로
 // 표를 되돌린다(2026-10-18 사용자 보고). 그러지 않으면 빈 표인 채로 결과 화면에 돌아가고,
 // 다시 [필수값 수정]을 눌렀을 때 보이는 결과와 표가 어긋난다. 뒤로 가기를 막는 쪽(빈 칸이면
@@ -52,6 +54,8 @@ export function ExpertModeView(): ReactElement {
   const expert = useDetailStore((s) => s.expert);
   const setExpert = useDetailStore((s) => s.setExpert);
   const timelineFrameIndex = useDetailStore((s) => s.timelineFrameIndex);
+  const stopTimeline = useDetailStore((s) => s.stop);
+  const resetViewSettings = useDetailStore((s) => s.resetViewSettings);
 
   // 행 라벨은 "0시"~"23시" 고정이다(2026-10-17 시안). 표는 빈 칸으로 시작한다.
   const rowLabels = expertRowLabels(EXPERT_INPUT_ROW_COUNT);
@@ -81,9 +85,21 @@ export function ExpertModeView(): ReactElement {
       setIsLoading(false);
       if (res.status !== 'error') {
         setAppliedDrafts(submitted);
-        setScreen('result');
+        openResult();
       }
     });
+  }
+
+  /** 결과 화면을 연다 — 적용 성공과 [<] 뒤로 가기가 함께 쓴다. 어느 쪽이든 결과 화면이 **다시
+   *  열리는** 것이라 보던 설정을 이어 가면 방금 들어온 화면인지 아까 보던 화면인지 알 수 없다.
+   *  모드에 처음 들어왔을 때와 같게 되돌린다 — 타임라인은 처음부터(stop), 분석 항목(온도)·
+   *  배속(1배)·단면 높이(기본)는 resetViewSettings. 제어 모드 에너지↔환경 전환과 같은 처리다
+   *  (2026-10-29 사용자: "적용 없이 뒤로가기했을 때도 창이 다시 열리는 거니깐 리셋으로 되야지 —
+   *  타임라인 리셋, 온도, 배속, 단높이 기본 설정"). */
+  function openResult(): void {
+    stopTimeline();
+    resetViewSettings();
+    setScreen('result');
   }
 
   /** [<] 뒤로 가기(시안 04-1) — 적용하지 않은 편집을 버리고 마지막으로 적용한 값으로 표를
@@ -91,7 +107,7 @@ export function ExpertModeView(): ReactElement {
   function handleBack(): void {
     if (appliedDrafts === null) return;
     setDrafts(appliedDrafts.map((row) => ({ ...row })));
-    setScreen('result');
+    openResult();
   }
 
   /** "초기화"(시안 02~04-1) — 입력 표를 빈 칸으로 되돌린다. 이미 받은 결과는 지우지 않는다

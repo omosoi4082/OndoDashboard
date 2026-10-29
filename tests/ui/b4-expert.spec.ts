@@ -1,8 +1,10 @@
-// B-4. 전문가 모드 — 테스트-체크리스트.md B-4의 16개 항목.
+// B-4. 전문가 모드 — 테스트-체크리스트.md B-4의 17개 항목.
 // 15·16은 2026-10-18에 고친 "뒤로 가기는 취소" 동작을 지키는 항목이다(ExpertModeView.tsx).
 import { expect, test } from '@playwright/test';
 import {
+  analysisButton,
   detail3dCanvas,
+  dragTimeline,
   expectCanvasNotBlank,
   expertApplyButton,
   expertBackButton,
@@ -14,6 +16,7 @@ import {
   fillExpertTable,
   openDashboard,
   openExpertInput,
+  particleSpeedButton,
   playButton,
   resetAndPause,
   timelineResetButton,
@@ -138,6 +141,36 @@ test('B-4-13 뒤로 가기를 누르면 결과 화면으로 돌아간다', async
   await expertEditButton(page).click();
   await expertBackButton(page).click();
   await expect(expertEditButton(page)).toBeVisible();
+});
+
+test('B-4-13b 뒤로 가기로 결과 화면에 돌아오면 배속·분석 항목·단면 높이·타임라인이 기본으로 돌아온다', async ({ page }) => {
+  // 2026-10-29 사용자: 적용 없이 뒤로 가도 결과 화면이 **다시 열리는** 것이라 모드에 처음
+  // 들어왔을 때와 같아야 한다(제어 모드 에너지↔환경 전환 B-5-8과 같은 처리).
+  await applyAndWaitResult(page);
+  await analysisButton(page, '습도').click();
+  await particleSpeedButton(page, 10).click();
+  const slider = page.getByRole('slider', { name: '단면 높이' });
+  await slider.fill('2.1');
+  // 타임라인도 뒤쪽으로 끌어 둔다 — 돌아왔을 때 앞쪽으로 되돌아가는지 본다.
+  const moved = await dragTimeline(page, 0.8);
+  expect(moved, '타임라인을 뒤쪽으로 끌지 못했습니다').toBeGreaterThan(60);
+
+  await expertEditButton(page).click();
+  await expertBackButton(page).click();
+  await waitForDetail3D(page);
+  // 돌아오면 처음부터 재생되므로(stop) 먼저 멈추고 위치를 읽는다.
+  await playButton(page).click();
+
+  expect(
+    (await analysisButton(page, '온도').getAttribute('class')) ?? '',
+    '분석 항목이 온도로 돌아오지 않았습니다',
+  ).toContain('#3b3c42');
+  expect(
+    await particleSpeedButton(page, 1).getAttribute('aria-pressed'),
+    '배속이 1배로 돌아오지 않았습니다',
+  ).toBe('true');
+  expect(await slider.inputValue(), '단면 높이가 기본(0.5m)으로 돌아오지 않았습니다').toBe('0.5');
+  expect(await sliderIndex(page), '타임라인이 처음으로 돌아오지 않았습니다').toBeLessThan(moved);
 });
 
 test('B-4-14 초기화를 누르면 표가 전부 빈 칸이 된다', async ({ page }) => {
