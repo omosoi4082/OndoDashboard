@@ -23,6 +23,13 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../../../../');
 const envPath = path.join(repoRoot, '.env');
 
+/**
+ * 납품본에는 `테스트-체크리스트.md`가 없다(점검 도구를 뺀다 — docs/08-development.md). 판정 문구가
+ * 그 파일을 가리키면 받는 쪽이 없는 파일을 찾게 되므로, 있을 때만 체크리스트로 안내한다
+ * (2026-10-29 — bat의 install.bat 안내를 10/22에 같은 이유로 바꿨다).
+ */
+const hasChecklist = existsSync(path.join(repoRoot, '테스트-체크리스트.md'));
+
 /** 서버가 안 떠 있을 때는 빨리 포기한다(기본 타임아웃은 상위 서버 호출용으로 길다). */
 const CONNECT_TIMEOUT_MS = 5_000;
 /** 상세 API는 연산 서버를 거치므로 오래 걸린다(예측 ~30초, 재시도가 끼면 더). */
@@ -516,14 +523,26 @@ async function main(): Promise<void> {
   console.log('');
   rule();
   if (failCount === 0 && warnCount === 0) {
-    console.log(' 판정: ✅ 모두 정상입니다. 테스트-체크리스트.md의 B부(화면 조작)로 넘어가세요.');
+    console.log(
+      hasChecklist
+        ? ' 판정: ✅ 모두 정상입니다. 테스트-체크리스트.md의 B부(화면 조작)로 넘어가세요.'
+        : ' 판정: ✅ 모두 정상입니다. 브라우저에서 화면을 확인해 주세요(README.md "화면 보는 법").',
+    );
   } else if (failCount === 0) {
     console.log(` 판정: ⚠️  정상이지만 확인할 점이 ${warnCount}건 있습니다 (위 ⚠️ 표시).`);
-    console.log(' 화면 테스트는 진행할 수 있습니다. 체크리스트 B부로 넘어가세요.');
+    console.log(
+      hasChecklist
+        ? ' 화면 테스트는 진행할 수 있습니다. 체크리스트 B부로 넘어가세요.'
+        : ' 화면은 그대로 쓸 수 있습니다. 브라우저에서 확인해 주세요.',
+    );
   } else {
     console.log(` 판정: ❌ 실패 ${failCount}건${warnCount > 0 ? `, 확인할 점 ${warnCount}건` : ''}.`);
     console.log(' 위 ❌ 항목의 "조치"를 따라 하세요. 조치해도 안 되면 이 창 내용을 그대로 복사해');
-    console.log(' 개발자에게 전달하세요(테스트-체크리스트.md 맨 뒤 "오류 보고" 참고).');
+    console.log(
+      hasChecklist
+        ? ' 개발자에게 전달하세요(테스트-체크리스트.md 맨 뒤 "오류 보고" 참고).'
+        : ' 개발자에게 전달하세요(README.md "안 될 때" 참고).',
+    );
   }
   rule();
   process.exit(failCount === 0 ? 0 : 1);

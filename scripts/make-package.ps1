@@ -2,6 +2,7 @@
 #
 # 사용법:  powershell -ExecutionPolicy Bypass -File scripts\make-package.ps1 [-OutDir <경로>] [-Zip]
 #          [-ComputeUrl http://192.168.10.91:9000]  ← 패키지 .env를 그 연산 서버로 맞춘다
+#          [-Viz on|off]                             ← 패키지 .env의 가시화 데이터(COMPUTE_VIZ)
 #          [-Delivery -KmaKeyExpiry 2027-10-31]     ← 납품본(점검 도구·체크리스트 제외)
 #
 # 하는 일
@@ -25,6 +26,10 @@ param(
   # 연산 서버 주소 — 주면 **패키지의 .env만** COMPUTE_MODE=http + 이 주소로 바꾼다.
   # 저장소 .env는 건드리지 않는다. 예: -ComputeUrl http://192.168.10.91:9000
   [string]$ComputeUrl = "",
+  # 가시화 데이터(v1.3.3 viz) — on이면 패키지 .env의 COMPUTE_VIZ=true. 손으로 넣다 빠뜨리기
+  # 쉬워 옵션으로 넣었다(2026-10-29 테스트 패키지는 압축 직전에 손으로 넣었다).
+  [ValidateSet('on', 'off')]
+  [string]$Viz = "",
   # 납품본 — 테스트용이 아니라 "쓰는 법"만 담는다(2026-10-22 사용자 지시).
   #   빼는 것 : 테스트-체크리스트.md, test-ui.bat, tests/, playwright.config.ts, @playwright/test
   #   바꾸는 것: README.md·CLAUDE-구동안내.md를 docs/delivery/ 의 사용 안내본으로
@@ -259,6 +264,31 @@ else {
     if ($mode -ne 'http') {
       Write-Host "    ! 패키지 .env의 연산 서버가 '$mode' 모드입니다 — 실제 연산 서버로 테스트할 패키지면 -ComputeUrl <주소>를 주세요." -ForegroundColor Yellow
     }
+  }
+}
+
+# ── 2-b-2. 패키지 .env의 가시화 데이터(COMPUTE_VIZ) ───────────────────────
+# -Viz on|off를 주면 **패키지의 .env만** 바꾼다. 줄이 없으면 COMPUTE_BASE_URL 다음에 넣는다
+# (저장소 .env에는 COMPUTE_VIZ 줄이 없다 — 기본 꺼짐, env.ts). 연산 서버가 http가 아니면
+# 값이 쓰이지 않으므로 알려만 준다.
+if ($Viz -ne "") {
+  $envPath = Join-Path $OutDir '.env'
+  if (-not (Test-Path $envPath)) { throw "패키지에 .env가 없어 가시화 데이터를 설정할 수 없습니다: $envPath" }
+  $vizValue = if ($Viz -eq 'on') { 'true' } else { 'false' }
+  $text = [System.IO.File]::ReadAllText($envPath)
+  if ($text -match '(?m)^COMPUTE_VIZ=') {
+    $text = [regex]::Replace($text, '(?m)^COMPUTE_VIZ=.*$', "COMPUTE_VIZ=$vizValue")
+  }
+  elseif ($text -match '(?m)^COMPUTE_BASE_URL=.*$') {
+    $text = [regex]::Replace($text, '(?m)^(COMPUTE_BASE_URL=.*)$',
+      "`$1`n# 가시화 데이터(연산 서버 v1.3.3 viz). 켜면 유속을 격자 2,584점으로 받는다 — setup.bat [2/3]`nCOMPUTE_VIZ=$vizValue", 1)
+  }
+  else { throw ".env에 COMPUTE_BASE_URL 줄이 없어 COMPUTE_VIZ를 넣을 자리를 찾지 못했습니다: $envPath" }
+  [System.IO.File]::WriteAllText($envPath, $text, (New-Object System.Text.UTF8Encoding $false))
+  $mode = ([regex]::Match($text, '(?m)^COMPUTE_MODE=(.*)$')).Groups[1].Value.Trim()
+  Write-Host "    - 가시화 데이터: $Viz (COMPUTE_VIZ=$vizValue) — 패키지 .env만 바꿨습니다"
+  if ($mode -ne 'http') {
+    Write-Host "    ! 연산 서버가 '$mode' 모드라 가시화 데이터 설정은 쓰이지 않습니다." -ForegroundColor Yellow
   }
 }
 
