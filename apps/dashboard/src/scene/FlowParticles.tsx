@@ -24,6 +24,7 @@ import {
 import { useDetailStore } from '../store/detailStore.js';
 import {
   FLOW_PARTICLE_COUNT,
+  FLOW_PARTICLE_EMIT_HEADROOM,
   FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H,
   FLOW_PARTICLE_MAX_AGE_S,
   FLOW_PARTICLE_OUTLET_HIT,
@@ -144,8 +145,9 @@ export function FlowParticles({ geometry, frame, range }: FlowParticlesProps): R
     () => ({
       count: FLOW_PARTICLE_COUNT,
       trail: FLOW_PARTICLE_TRAIL,
-      // 방 공기가 한 번 바뀔 만큼 들어오면 최대 개수가 찬다.
-      particlesPerM3: roomVolumeM3 > 0 ? FLOW_PARTICLE_COUNT / roomVolumeM3 : 0,
+      // 방 공기가 한 번 바뀔 만큼 들어오면 최대 개수가 찬다. 여유분(HEADROOM)은 배기구가
+      // 유량 균형보다 많이 빨아들이는 몫을 메운다 — 상수 주석 참고(2026-10-29).
+      particlesPerM3: roomVolumeM3 > 0 ? (FLOW_PARTICLE_COUNT / roomVolumeM3) * FLOW_PARTICLE_EMIT_HEADROOM : 0,
       fallbackAirflowM3h: FLOW_PARTICLE_FALLBACK_AIRFLOW_M3H,
       maxAgeS: FLOW_PARTICLE_MAX_AGE_S,
       outletHit: FLOW_PARTICLE_OUTLET_HIT,

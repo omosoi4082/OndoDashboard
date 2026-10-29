@@ -1,5 +1,8 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { DetailFrame, FlowVec, Geometry, GridDef } from '@ondo/shared';
+import { FLOW_PARTICLE_EMIT_HEADROOM } from '../config/constants.js';
 import {
   blockedByPartition,
   overPartition,
@@ -358,5 +361,48 @@ describe('stepParticles — 처음 방 전체 채우기·급기구 출발·배�
     const fast = { grid: GRID, flow: new Array<FlowVec>(8).fill([1, 0, 0, 1]) };
     stepParticles(st, NO_OUTLET, fast, undefined, 0.5, 1);
     expect(st.hist[0]).toBeLessThan(0.5);
+  });
+});
+
+/**
+ * 배속을 올려도 방이 비지 않아야 한다(2026-10-29 사용자: "10배에서 일시정지하고 1배로 한 다음에
+ * 재생하면 입자가 별로 없는데"). 배기구가 유량 균형보다 많이 빨아들여서 평형이 상한의 60%에
+ * 머물렀고, 그 평형까지 가는 시간이 배속에 반비례해 10배에서 특히 눈에 띄었다.
+ * FLOW_PARTICLE_EMIT_HEADROOM이 그 몫을 메운다 — 상수 주석 참고.
+ *
+ * 실제 형상·실제 유속(목업 현재 응답, grid.flow 2,584점)으로 돌린다. 화면과 같은 1/60초 틱이라
+ * 개수를 600으로 줄였다(현상은 비율이라 그대로 나온다 — 여유분 없이 63%, 있으면 100%).
+ */
+describe('급기 밀도 여유분 — 10배에서도 방이 차 있다', () => {
+  const root = fileURLToPath(new URL('../../../../', import.meta.url));
+  const realGeometry = JSON.parse(readFileSync(`${root}config/geometry.json`, 'utf8')) as Geometry;
+  const current = JSON.parse(readFileSync(`${root}mock/sample_response_current.json`, 'utf8')) as {
+    frames: DetailFrame[];
+  };
+
+  function liveCount(st: ParticleState): number {
+    let n = 0;
+    for (let p = 0; p < st.capacity; p++) if ((st.histLen[p] ?? 0) !== 0) n++;
+    return n;
+  }
+
+  it('10배로 40초를 돌려도 입자가 95% 넘게 남아 있다', () => {
+    const frame = current.frames[0] as DetailFrame;
+    const [W, D, H] = realGeometry.room.size;
+    const volume = W * D * H;
+    const count = 600;
+    const st = createParticles({
+      count,
+      trail: 18,
+      particlesPerM3: (count / volume) * FLOW_PARTICLE_EMIT_HEADROOM,
+      fallbackAirflowM3h: 1240,
+      outletHit: 'circle',
+    });
+    seedRoom(st, realGeometry);
+    const field = velocityFieldOf(realGeometry, frame);
+    for (let i = 0; i < 40 * 60; i++) {
+      stepParticles(st, realGeometry, field, frame.supply, 1 / 60, 10);
+    }
+    expect(liveCount(st) / count).toBeGreaterThan(0.95);
   });
 });
