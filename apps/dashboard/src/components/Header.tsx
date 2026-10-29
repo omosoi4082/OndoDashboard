@@ -24,13 +24,16 @@ export function Header(): ReactElement {
   return (
     <header className="pointer-events-none relative flex h-[56px] shrink-0 items-center justify-end px-[42px]">
       <img src="/assets/logo/logo-light.svg" alt="온도" className="absolute left-1/2 h-[42px] -translate-x-1/2" />
-      {/* 날짜·요일·시각 각각 별도 칸, 간격 12px, 전부 SemiBold(Figma node 307:10016~10019,
+      {/* 날짜·요일·시각 각각 별도 칸, 전부 SemiBold(Figma node 307:10016~10019,
           2026-10-10 재확인 — 기존엔 날짜+요일을 한 덩어리로 합치고 간격 18px·날짜만 medium이라
-          시안과 달랐음). */}
-      <div className="flex items-center gap-[12px] tabular-nums text-white">
-        <span className="text-[16px] font-semibold tracking-[-0.32px]">{formatHeaderDate(now)}</span>
-        <span className="text-[16px] font-semibold tracking-[-0.32px]">{formatHeaderWeekday(now)}</span>
-        <time className="text-[22px] font-semibold tracking-[1.32px]">{formatHeaderTime(now)}</time>
+          시안과 달랐음).
+          2026-10-29 사용자 지시로 이 덩어리 전체를 **10% 축소 두 번**(원래의 81% — 한 번으로는
+          "티가 안 난다"). 글자·자간·간격을 같은 비율로 줄여 시안의 비례를 유지한다
+          (16 → 13px, 22 → 17.8px, 간격 12 → 9.7px). 헤더 높이 56px와 로고는 그대로다. */}
+      <div className="flex items-center gap-[9.7px] tabular-nums text-white">
+        <span className="text-[13px] font-semibold tracking-[-0.26px]">{formatHeaderDate(now)}</span>
+        <span className="text-[13px] font-semibold tracking-[-0.26px]">{formatHeaderWeekday(now)}</span>
+        <time className="text-[17.8px] font-semibold tracking-[1.07px]">{formatHeaderTime(now)}</time>
       </div>
     </header>
   );
