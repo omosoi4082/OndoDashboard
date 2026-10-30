@@ -6,6 +6,7 @@ import type { ComputeClient } from './computeClient.js';
 import { createHttpComputeClient } from './computeClient.js';
 import { createMockComputeClient } from './mockComputeClient.js';
 import { withComputeRetry } from './computeRetry.js';
+import { withComputeQueue } from './computeQueue.js';
 
 export interface ComputeClientOpts {
   mode: 'mock' | 'http';
@@ -16,8 +17,10 @@ export interface ComputeClientOpts {
   timeoutMs: number;
   /** GET /v1/health 타임아웃(http 모드). */
   pingTimeoutMs: number;
-  /** SERVER·BUSY 오류 재시도 대기(http 모드, D-4). */
+  /** SERVER 오류 재시도 대기(http 모드, D-4). */
   retryDelayMs: number;
+  /** BUSY 오류 재시도 대기 순서(http 모드, 2026-10-30 온도 측 요청). */
+  busyRetryDelaysMs: readonly number[];
   /** 요청에 `viz: true`(v1.3.3)를 넣을지(http 모드). */
   viz: boolean;
 }
@@ -35,5 +38,10 @@ export function createComputeClient(opts: ComputeClientOpts): ComputeClient {
     pingTimeoutMs: opts.pingTimeoutMs,
     viz: opts.viz,
   });
-  return withComputeRetry(http, { delayMs: opts.retryDelayMs });
+  // 줄 세우기(한 번에 1건)를 먼저 씌우고 재시도를 그 바깥에 둔다 — BUSY 대기 중에 줄을
+  // 잡고 있으면 다른 화면이 그만큼 더 기다린다(clients/computeQueue.ts).
+  return withComputeRetry(withComputeQueue(http), {
+    delayMs: opts.retryDelayMs,
+    busyDelaysMs: opts.busyRetryDelaysMs,
+  });
 }

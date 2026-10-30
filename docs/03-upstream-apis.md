@@ -220,12 +220,13 @@
 - 오류(2026-10-13 온도 측 D-4 확정): `{ "request_id"?, "status": "error", "code": "BAD_REQUEST" | "SERVER" | "BUSY", "field"?, "message" }` + HTTP 4xx/5xx → `UPSTREAM_ERROR`. `code`는 구버전 목업에 없으므로 optional이며, 없거나 모르는 값이면 재시도하지 않는다.
   - `BAD_REQUEST`: 재시도하지 않는다. 메시지는 `예측 서버 요청 거부: <message> (항목: <field>)`(field 없으면 괄호 생략).
   - `SERVER`: `COMPUTE_RETRY_DELAY_MS`(기본 60000 = 1분) 뒤 1회 재시도. 그래도 실패하면 `예측 서버 오류`.
-  - `BUSY`: 같은 대기 뒤 재시도. 횟수는 온도 측이 정하지 않아 1회로 둔다. 그래도 실패하면 `예측 서버가 다른 계산 중이라 응답하지 못했습니다. 잠시 후 다시 시도해 주세요.`
+  - `BUSY`: `COMPUTE_BUSY_RETRY_DELAYS_MS`(기본 `15000,30000,60000`)의 대기를 차례로 쓰며 그 개수만큼 재시도한다(2026-10-30 온도 측 요청 "BUSY를 받으면 조금 더 길게 기다렸다 재시도"). 그래도 실패하면 `예측 서버가 다른 계산 중이라 응답하지 못했습니다. 잠시 후 다시 시도해 주세요.`
+  - `BUSY`를 애초에 덜 받도록, 중계 서버는 연산 서버 요청(`/v1/current`·`/v1/forecast`)을 **한 번에 1건만** 보낸다(`clients/computeQueue.ts`, 2026-10-30 온도 측 요청). 연산 서버가 한 번에 1건만 계산하므로, 화면이 여러 개 열려 있으면 둘째 요청이 바로 503 BUSY를 받는다. 줄 세우기는 재시도 **안쪽**에 둔다 — BUSY 대기 중에 줄을 잡고 있으면 다른 화면이 그만큼 더 기다린다. 진단용 `GET /v1/health`는 줄을 세우지 않는다.
   - `403 FORBIDDEN`(v1.3.2 5장): 허용 목록에 없는 IP에서 접속한 경우다. 재시도하지 않고
     `연산 서버가 이 PC의 접속을 허용하지 않습니다(IP 허용 목록 확인 필요)`로 표시한다 —
     온도 측에 중계 서버 PC의 내부 IP를 알려야 풀린다.
   - 타임아웃(`COMPUTE_TIMEOUT_MS`)·연결 실패: 재시도하지 않는다. `UPSTREAM_TIMEOUT`/`UPSTREAM_UNREACHABLE`, 메시지 `예측 서버 연결 안 됨`. 마지막 정상 결과 유지는 대시보드가 맡는다.
-  - 재시도는 `COMPUTE_MODE=http`에만 적용한다(`withComputeRetry`, mock은 code를 내지 않음). 재시도가 걸리면 relay 응답까지 최대 약 `2 × COMPUTE_TIMEOUT_MS + COMPUTE_RETRY_DELAY_MS`가 걸린다.
+  - 재시도와 줄 세우기는 `COMPUTE_MODE=http`에만 적용한다(`withComputeRetry`·`withComputeQueue`, mock은 code를 내지 않음). 재시도가 걸리면 relay 응답까지 `SERVER`는 최대 약 `2 × COMPUTE_TIMEOUT_MS + COMPUTE_RETRY_DELAY_MS`, `BUSY`는 `4 × COMPUTE_TIMEOUT_MS + 대기 합(기본 105초)`이 걸린다. 앞에 다른 요청이 줄 서 있으면 그만큼 더 걸린다.
 - 상태 확인(2026-10-13 D-5): `GET /v1/health`, HTTP 2xx면 살아 있음. `/api/health`의 `compute`에 쓴다(타임아웃 `UPSTREAM_TIMEOUT_MS`). mock 모드는 항상 `ok`.
 - 검증 범위 밖(외삽) 조건은 **오류가 아니라** 정상 응답의 `quality.in_range = false`로 온다
   (화면에 '참고용' 표시, 문장은 `warnings`).

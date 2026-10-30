@@ -62,6 +62,7 @@ const computeClient = createComputeClient({
   timeoutMs: env.COMPUTE_TIMEOUT_MS,
   pingTimeoutMs: env.UPSTREAM_TIMEOUT_MS,
   retryDelayMs: env.COMPUTE_RETRY_DELAY_MS,
+  busyRetryDelaysMs: env.COMPUTE_BUSY_RETRY_DELAYS_MS,
   viz: env.COMPUTE_VIZ,
 });
 

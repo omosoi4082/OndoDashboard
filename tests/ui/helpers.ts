@@ -63,9 +63,18 @@ export function pointsToggle(page: Page): Locator {
   return page.locator('input[role="switch"]').first();
 }
 
-/** 상세 패널에 떠 있는 빨간 오류 문구(없으면 null). 로딩이 끝나지 않는 원인을 바로 알려 준다. */
+/**
+ * 상세 패널에 떠 있는 빨간 오류 문구(없으면 null). 로딩이 끝나지 않는 원인을 바로 알려 준다.
+ *
+ * **상세 패널(aside) 안으로 범위를 좁혀야 한다**(2026-10-30). 페이지 전체에서 `.text-red-300`을
+ * 찾으면 **외기 패널의 "연결 끊김" 배지**(`OutdoorPanel.tsx`)나 방 카드의 "끊김"
+ * (`RoomInfoPanel.tsx`)까지 잡힌다. 그러면 상세 화면은 정상인데도 점검이 "상세 패널에 오류
+ * 문구가 떴습니다: 연결 끊김"으로 **거짓 실패**한다 — 실제로 10/30 전체 실행에서 제어 모드
+ * 4건(B-5-5~5-8)이 이렇게 실패했다. 66회 연속 접속으로 기상청 조회가 한 번 실패해 배지가
+ * 떠 있었을 뿐이고, 같은 항목만 다시 돌리면 8건 전부 통과했다.
+ */
 export async function detailErrorText(page: Page): Promise<string | null> {
-  const error = page.locator('.text-red-300').first();
+  const error = page.locator('aside .text-red-300').first();
   if (!(await error.isVisible().catch(() => false))) return null;
   return (await error.innerText()).replace(/\s+/g, ' ').trim();
 }

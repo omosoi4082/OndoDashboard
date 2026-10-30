@@ -70,6 +70,9 @@ const envSchema = z.object({
   // 연산 서버 SERVER·BUSY 오류 시 재시도 전 대기(2026-10-13 D-4 "1분 뒤 재시도", 1회).
   // GET /v1/health(D-5)는 진단용이라 COMPUTE_TIMEOUT_MS가 아니라 UPSTREAM_TIMEOUT_MS를 쓴다.
   COMPUTE_RETRY_DELAY_MS: z.coerce.number().int().nonnegative().default(60_000),
+  // BUSY(연산 서버가 다른 계산 중) 재시도 대기 순서. 적은 개수만큼 재시도한다
+  // (2026-10-30 온도 측 요청 — 요청 직렬화는 clients/computeQueue.ts).
+  COMPUTE_BUSY_RETRY_DELAYS_MS: numberList.default('15000,30000,60000'),
 
   GEOMETRY_FILE: z.string().min(1).default('./config/geometry.json'),
 

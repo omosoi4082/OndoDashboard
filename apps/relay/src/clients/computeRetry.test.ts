@@ -1,5 +1,6 @@
-// D-4(2026-10-13) 연산 서버 오류 재시도: SERVER·BUSY는 대기 후 1회 재시도, BAD_REQUEST·code 없음·
-// 타임아웃·연결 실패는 재시도하지 않는다. sleep을 주입해 실제로 기다리지 않는다.
+// D-4(2026-10-13) 연산 서버 오류 재시도: SERVER는 대기 후 1회 재시도, BUSY는 대기 표(기본
+// 15초→30초→1분, 2026-10-30)만큼 재시도, BAD_REQUEST·code 없음·타임아웃·연결 실패는
+// 재시도하지 않는다. sleep을 주입해 실제로 기다리지 않는다.
 import { describe, expect, it } from 'vitest';
 import type { ComputeClient, ComputeErrResult, ComputeOkResult, ComputeResult } from './computeClient.js';
 import {
@@ -108,7 +109,50 @@ describe('withComputeRetry', () => {
     expect(s.calls).toEqual(['forecast', 'forecast']);
   });
 
-  it('BUSY가 두 번 → 1회만 재시도하고 바쁨 문구', async () => {
+  it('BUSY 대기 표를 주면 적은 개수만큼 재시도하고 대기가 길어진다(2026-10-30)', async () => {
+    const s = scripted([BUSY, BUSY, BUSY, OK]);
+    const result = await withComputeRetry(s.client, {
+      delayMs: 60_000,
+      busyDelaysMs: [15_000, 30_000, 60_000],
+      sleep: s.sleep,
+    }).requestForecast([], {
+      forecastFrom: '2026-10-05T15:25:00',
+      forecastIssuedAt: '2026-10-05T14:00:00',
+    });
+    expect(result).toEqual(OK);
+    expect(s.calls.length).toBe(4);
+    expect(s.sleeps).toEqual([15_000, 30_000, 60_000]);
+  });
+
+  it('BUSY 대기 표를 다 쓰고도 BUSY면 바쁨 문구', async () => {
+    const s = scripted([BUSY, BUSY, BUSY, BUSY, OK]);
+    const result = await withComputeRetry(s.client, {
+      delayMs: 60_000,
+      busyDelaysMs: [10, 20],
+      sleep: s.sleep,
+    }).requestCurrent([]);
+    expect(s.calls.length).toBe(3);
+    expect(s.sleeps).toEqual([10, 20]);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toBe(BUSY_FINAL_MESSAGE);
+  });
+
+  it('BUSY 대기 표가 있어도 SERVER는 delayMs로 1회만 재시도', async () => {
+    const s = scripted([SERVER, SERVER]);
+    const result = await withComputeRetry(s.client, {
+      delayMs: 60_000,
+      busyDelaysMs: [10, 20, 30],
+      sleep: s.sleep,
+    }).requestCurrent([]);
+    expect(s.calls.length).toBe(2);
+    expect(s.sleeps).toEqual([60_000]);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.message).toBe(SERVER_FINAL_MESSAGE);
+  });
+
+  it('BUSY가 두 번 → 대기 표가 없으면 1회만 재시도하고 바쁨 문구', async () => {
     const s = scripted([BUSY, BUSY]);
     const result = await withComputeRetry(s.client, { delayMs: 10, sleep: s.sleep }).requestCurrent([]);
     expect(s.calls.length).toBe(2);

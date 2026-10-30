@@ -34,6 +34,7 @@ import { PointsInstanced } from './PointsInstanced.js';
 import { Detail3DSection } from './DetailSections.js';
 import { ColorLegend } from './ColorLegend.js';
 import { Detail2DSection } from './Detail2DSection.js';
+import { LoadingSpinner } from './DetailAreaMessage.js';
 import { FlowVisualization } from '../../scene/FlowVisualization.js';
 import { SectionPlane } from '../../scene/SectionPlane.js';
 
@@ -387,11 +388,12 @@ export function Detail3DView({
       {message && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-4">
           <div
-            className={`rounded-md border px-4 py-2 text-center text-sm backdrop-blur-sm ${
+            className={`flex items-center gap-2 rounded-md border px-4 py-2 text-center text-sm backdrop-blur-sm ${
               message.isError ? 'border-red-500/30 bg-red-950/60 text-red-300' : 'border-white/10 bg-black/50 text-white/70'
             }`}
           >
-            {message.text}
+            {!message.isError && <LoadingSpinner />}
+            {message.isError ? message.text : <span className="ondo-loading-text">{message.text}</span>}
           </div>
         </div>
       )}

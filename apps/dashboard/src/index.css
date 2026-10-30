@@ -66,3 +66,40 @@ body {
   height: 0;
   width: 0;
 }
+
+/* 로딩 문구에 빛이 스쳐 지나가는 효과(2026-10-30 사용자 — "글만 보이면 화면이 멈춘 것
+   같잖아", Claude Code의 "Puzzling…" 표시처럼). 예측 1건이 12~25초 걸리고 다른 요청 뒤에
+   줄을 서면 더 걸려서(relay clients/computeQueue.ts) 멎은 화면과 구분이 필요하다.
+   글자 자체를 가리개로 쓰는 방식(background-clip: text)이라 글자 모양 그대로 밝은 띠가 지난다.
+   색은 어두운 화면 한 가지만 쓰므로 흰색 투명도로 고정한다(color-scheme: dark). */
+@keyframes ondo-loading-sweep {
+  from {
+    background-position: 150% 0;
+  }
+  to {
+    background-position: -50% 0;
+  }
+}
+.ondo-loading-text {
+  background-image: linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.4) 0%,
+    rgba(255, 255, 255, 0.4) 42%,
+    rgba(255, 255, 255, 0.95) 50%,
+    rgba(255, 255, 255, 0.4) 58%,
+    rgba(255, 255, 255, 0.4) 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: ondo-loading-sweep 1.8s linear infinite;
+}
+/* 움직임을 줄이도록 설정한 PC에서는 애니메이션 없이 평소 글자색으로 둔다. */
+@media (prefers-reduced-motion: reduce) {
+  .ondo-loading-text {
+    animation: none;
+    background-image: none;
+    color: rgba(255, 255, 255, 0.6);
+  }
+}
