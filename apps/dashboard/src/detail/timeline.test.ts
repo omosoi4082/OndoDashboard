@@ -6,6 +6,7 @@ import {
   formatFrameDateTime,
   formatFrameTime,
   hourTickIndices,
+  timelineCatchupSteps,
   timelineTickMs,
 } from './timeline.js';
 
@@ -34,6 +35,49 @@ describe('advanceTimelineFrame', () => {
 
   it('frameCount가 0 이하면 0번에서 멈춘다', () => {
     expect(advanceTimelineFrame(0, 0)).toEqual({ frameIndex: 0, playing: false });
+  });
+
+  // 2026-10-30 B-3-12 — 틱이 밀리면 한 번에 여러 프레임을 건너뛴다.
+  it('steps만큼 한 번에 전진한다', () => {
+    expect(advanceTimelineFrame(0, 145, 3)).toEqual({ frameIndex: 3, playing: true });
+    expect(advanceTimelineFrame(10, 145, 20)).toEqual({ frameIndex: 30, playing: true });
+  });
+
+  it('건너뛴 결과가 끝을 넘으면 마지막 프레임에서 멈춘다', () => {
+    expect(advanceTimelineFrame(140, 145, 20)).toEqual({ frameIndex: 144, playing: false });
+  });
+
+  it('steps가 0이나 음수여도 최소 1프레임은 전진한다(멈춤 방지)', () => {
+    expect(advanceTimelineFrame(0, 145, 0)).toEqual({ frameIndex: 1, playing: true });
+    expect(advanceTimelineFrame(0, 145, -5)).toEqual({ frameIndex: 1, playing: true });
+  });
+});
+
+describe('timelineCatchupSteps', () => {
+  it('제때 울린 틱은 1프레임만 전진한다', () => {
+    expect(timelineCatchupSteps(500, 500, 1_000)).toEqual({ steps: 1, remainderMs: 0 });
+    expect(timelineCatchupSteps(50, 50, 1_000)).toEqual({ steps: 1, remainderMs: 0 });
+  });
+
+  // 온도 측 점검 PC에서 10배(틱 50ms)인데 실제로는 약 143ms마다 울렸다 → 2프레임 + 나머지 43ms.
+  it('틱이 밀린 만큼 여러 프레임을 건너뛴다', () => {
+    const { steps, remainderMs } = timelineCatchupSteps(143, 50, 1_000);
+    expect(steps).toBe(2);
+    expect(remainderMs).toBeCloseTo(43, 6);
+  });
+
+  it('한 프레임이 안 됐으면 전진하지 않고 나머지로 남긴다', () => {
+    expect(timelineCatchupSteps(30, 50, 1_000)).toEqual({ steps: 0, remainderMs: 30 });
+  });
+
+  it('탭을 오래 가려 둬도 상한까지만 따라잡는다(끝으로 순간이동 방지)', () => {
+    expect(timelineCatchupSteps(60_000, 50, 1_000)).toEqual({ steps: 20, remainderMs: 0 });
+    expect(timelineCatchupSteps(60_000, 500, 1_000)).toEqual({ steps: 2, remainderMs: 0 });
+  });
+
+  it('경과·간격이 0 이하면 전진하지 않는다', () => {
+    expect(timelineCatchupSteps(0, 50, 1_000)).toEqual({ steps: 0, remainderMs: 0 });
+    expect(timelineCatchupSteps(100, 0, 1_000)).toEqual({ steps: 0, remainderMs: 0 });
   });
 });
 

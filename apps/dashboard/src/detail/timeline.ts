@@ -7,14 +7,22 @@ export interface TimelineAdvanceResult {
 }
 
 /**
- * 재생 중 한 틱(TIMELINE_FRAME_DURATION_MS)마다 프레임을 1개 전진한다. 마지막 프레임에
- * 도달하면 그 자리에서 재생을 멈춘다(01-functional-spec.md 4.5: 정지 버튼만 "첫 프레임으로"
- * 되돌리고, 끝까지 재생되면 반복 재생 여부가 명세에 없어 가장 단순하게 "끝에서 정지"로 둔다
- * — docs/05-open-questions.md에 항목 추가).
+ * 재생 중 프레임을 `steps`개 전진한다. 마지막 프레임에 도달하면 그 자리에서 재생을 멈춘다
+ * (01-functional-spec.md 4.5: 정지 버튼만 "첫 프레임으로" 되돌리고, 끝까지 재생되면 반복 재생
+ * 여부가 명세에 없어 가장 단순하게 "끝에서 정지"로 둔다 — docs/05-open-questions.md에 항목 추가).
+ *
+ * `steps`는 timelineCatchupSteps가 실제 경과 시간에서 뽑아 준다. 예전엔 틱마다 무조건 1개씩
+ * 전진했는데, 10배(틱 50ms)에서는 3D 한 프레임 그리는 시간이 틱보다 길어 타이머가 밀렸고
+ * 결국 "배속이 아니라 렌더 속도"가 재생 속도를 정해 버렸다(2026-10-30 온도 측 자동 점검
+ * B-3-12 실패 — 2초 동안 1배 5프레임 / 10배 14프레임, 10배가 2.8배밖에 안 나왔다).
  */
-export function advanceTimelineFrame(currentIndex: number, frameCount: number): TimelineAdvanceResult {
+export function advanceTimelineFrame(
+  currentIndex: number,
+  frameCount: number,
+  steps = 1,
+): TimelineAdvanceResult {
   if (frameCount <= 0) return { frameIndex: 0, playing: false };
-  const next = currentIndex + 1;
+  const next = currentIndex + Math.max(Math.trunc(steps), 1);
   if (next >= frameCount) return { frameIndex: frameCount - 1, playing: false };
   return { frameIndex: next, playing: true };
 }
@@ -26,6 +34,35 @@ export function advanceTimelineFrame(currentIndex: number, frameCount: number): 
  */
 export function timelineTickMs(speed: number, baseMs: number): number {
   return speed > 0 ? baseMs / speed : baseMs;
+}
+
+export interface TimelineCatchup {
+  /** 이번에 전진할 프레임 수(0이면 아직 한 프레임도 안 지났다). */
+  steps: number;
+  /** 아직 한 프레임이 안 된 나머지 시간(ms) — 다음 틱 계산에 더해 드리프트를 막는다. */
+  remainderMs: number;
+}
+
+/**
+ * 실제 경과 시간(`elapsedMs`)에서 전진할 프레임 수를 뽑는다. 타이머가 제때 못 울려도
+ * 벽시계 기준으로는 배속대로 흐르게 하는 "따라잡기" 계산이다 — 틱 간격보다 오래 밀렸으면
+ * 그만큼 여러 프레임을 한 번에 건너뛴다(2026-10-30 B-3-12).
+ *
+ * `maxCatchupMs`는 한 번에 따라잡을 실제 경과 시간의 상한이다. 탭을 한참 가려 두면 브라우저가
+ * setInterval을 초당 1회까지 늦추는데, 그 사이 밀린 시간을 전부 따라잡으면 돌아오자마자
+ * 타임라인이 끝으로 순간이동한다. 상한을 두면 "가려 둔 동안은 거의 멈춰 있다 돌아와서 이어
+ * 재생"이 된다(1초 상한이면 1배에서 최대 2프레임, 10배에서 최대 20프레임).
+ */
+export function timelineCatchupSteps(
+  elapsedMs: number,
+  tickMs: number,
+  maxCatchupMs: number,
+): TimelineCatchup {
+  if (!(tickMs > 0) || !(elapsedMs > 0)) return { steps: 0, remainderMs: 0 };
+  const capped = Math.min(elapsedMs, maxCatchupMs);
+  const steps = Math.floor(capped / tickMs);
+  // 상한에 걸려 잘려 나간 시간은 나머지로 넘기지 않는다 — 넘기면 결국 다음 틱에서 다 따라잡는다.
+  return { steps, remainderMs: capped - steps * tickMs };
 }
 
 /** 임의의 인덱스를 0~frameCount-1 범위로 자른다(드래그 입력 등 바깥값 방어). */

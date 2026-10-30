@@ -20,12 +20,13 @@ import { useEffect, useState, type ReactElement } from 'react';
 import { Pause, Play } from 'lucide-react';
 import type { DetailFrame } from '@ondo/shared';
 import { useDetailStore } from '../../store/detailStore.js';
-import { TIMELINE_FRAME_DURATION_MS } from '../../config/constants.js';
+import { TIMELINE_FRAME_DURATION_MS, TIMELINE_MAX_CATCHUP_MS } from '../../config/constants.js';
 import {
   formatElapsedFrameTime,
   formatFrameDateTime,
   formatFrameTime,
   hourTickIndices,
+  timelineCatchupSteps,
   timelineTickMs,
 } from '../../detail/timeline.js';
 
@@ -55,15 +56,28 @@ export function Timeline({ frames, elapsedLabels = false }: TimelineProps): Reac
   // 처음과 끝은 시안에 없음").
   const hourTicks = hourTickIndices(frameCount).filter((idx) => idx !== 0 && idx !== frameCount - 1);
 
-  // 재생 중엔 TIMELINE_FRAME_DURATION_MS ÷ 배속마다 프레임을 1개 전진한다(추가 API 요청 없음 —
+  // 재생 중엔 TIMELINE_FRAME_DURATION_MS ÷ 배속마다 프레임을 전진한다(추가 API 요청 없음 —
   // 이미 받은 frames 배열 인덱스만 바꾼다). 마지막 프레임 도달 시 advanceTimeline 내부에서
   // 자동으로 정지한다(detail/timeline.ts의 advanceTimelineFrame). 재생 중 배속을 바꾸면 간격만
   // 바뀌고 보던 프레임은 그대로다(2026-10-28 사용자 — 샘플 뷰어처럼 배속에 타임라인도 따른다).
+  //
+  // ★ 틱마다 1프레임이 아니라 **실제 경과 시간만큼** 전진한다(2026-10-30 B-3-12). 한 프레임을
+  // 그리는 데 걸리는 시간이 틱 간격(10배면 50ms)보다 길면 setInterval은 그만큼 늦게 울리는데,
+  // 그때 1프레임만 전진하면 재생 속도가 배속이 아니라 렌더 속도에 묶인다(온도 측 점검 PC에서
+  // 10배가 2.8배밖에 안 나왔다). 밀린 만큼 프레임을 건너뛰면 느린 PC에서도 "10배는 10배"다 —
+  // 대신 건너뛴 프레임은 화면에 안 보이는데, 그게 빨리감기의 정상 동작이다.
   useEffect(() => {
     if (!playing || frameCount === 0) return;
+    const tickMs = timelineTickMs(speed, TIMELINE_FRAME_DURATION_MS);
+    // 아직 한 프레임이 안 된 자투리 시간은 다음 틱으로 넘겨 누적한다(드리프트 방지).
+    let last = performance.now();
     const timer = setInterval(() => {
-      advanceTimeline(frameCount);
-    }, timelineTickMs(speed, TIMELINE_FRAME_DURATION_MS));
+      const now = performance.now();
+      const { steps, remainderMs } = timelineCatchupSteps(now - last, tickMs, TIMELINE_MAX_CATCHUP_MS);
+      if (steps === 0) return;
+      last = now - remainderMs;
+      advanceTimeline(frameCount, steps);
+    }, tickMs);
     return () => clearInterval(timer);
   }, [playing, frameCount, speed, advanceTimeline]);
 

@@ -265,6 +265,13 @@ export const SECTION_PLANE_EDGE_OPACITY = 0.7;
 // (01-functional-spec.md 4.5, 05-open-questions.md #20 "개발자 결정: 상수 분리").
 export const TIMELINE_FRAME_DURATION_MS = 500;
 
+// 재생 루프가 한 번에 따라잡을 수 있는 "실제 경과 시간"의 상한(ms) — detail/timeline.ts의
+// timelineCatchupSteps에 넘긴다. 타이머가 밀려도 벽시계 기준 배속을 지키게 하되(2026-10-30
+// B-3-12), 탭을 한참 가려 둬서 setInterval이 초당 1회로 늦춰진 경우까지 전부 따라잡아
+// 타임라인이 끝으로 순간이동하는 일은 막는다. 1초면 1배에서 최대 2프레임, 10배에서 최대
+// 20프레임까지만 한 번에 건너뛴다.
+export const TIMELINE_MAX_CATCHUP_MS = 1_000;
+
 // 온도·습도 등치면(marching cubes) 단계 수·투명도 — 05-open-questions.md #17은 아직
 // 미해결(온도 측 2026-10-07 답변에 언급 없음)이라 개발 중 임시값. 0.35는 예측 모드처럼
 // 값 분포가 넓게 퍼지는 프레임에서 방 벽·바닥의 밝은 색과 거의 구분이 안 될 만큼 옅었다

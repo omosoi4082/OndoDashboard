@@ -95,8 +95,11 @@ export interface DetailState {
   /** 초기화 — 첫 프레임(0)으로 되돌리고 **처음부터 다시 재생한다**(2026-10-27 사용자:
    * "초기화를 누르면 처음부터 재생돼야 한다. 지금은 일시정지와 같다"). 멈추는 건 ⏸가 한다. */
   stop: () => void;
-  /** 재생 중 한 틱 전진 — 마지막 프레임이면 그 자리에서 멈춘다(detail/timeline.ts). */
-  advanceTimeline: (frameCount: number) => void;
+  /**
+   * 재생 중 프레임 전진 — 마지막 프레임이면 그 자리에서 멈춘다(detail/timeline.ts).
+   * `steps`는 틱이 밀렸을 때 한 번에 건너뛸 프레임 수다(기본 1, 2026-10-30 B-3-12).
+   */
+  advanceTimeline: (frameCount: number, steps?: number) => void;
 }
 
 /**
@@ -202,9 +205,9 @@ export const useDetailStore = create<DetailState>((set) => ({
       // 입자도 방을 다시 채우고 처음부터(2026-10-28 — 전에는 빈 방에서 급기구부터였다).
       timelineRunId: s.timelineRunId + 1,
     })),
-  advanceTimeline: (frameCount) =>
+  advanceTimeline: (frameCount, steps = 1) =>
     set((s) => {
-      const result = advanceTimelineFrame(s.timelineFrameIndex, frameCount);
+      const result = advanceTimelineFrame(s.timelineFrameIndex, frameCount, steps);
       return { timelineFrameIndex: result.frameIndex, timelinePlaying: result.playing };
     }),
 }));
